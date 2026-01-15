@@ -21,9 +21,9 @@
 
 use pensaer_math::{Point2, Vector2};
 
+use super::{WallEnd, WallJoinProfile};
 use crate::elements::Wall;
 use crate::error::{GeometryError, GeometryResult};
-use super::{WallEnd, WallJoinProfile};
 
 /// Result of computing a miter join.
 #[derive(Debug, Clone)]
@@ -106,7 +106,7 @@ fn get_wall_direction_from_join(wall: &Wall, end: WallEnd) -> GeometryResult<Vec
     let raw_dir = wall.direction()?;
     match end {
         WallEnd::Start => Ok(-raw_dir), // Start is at join, so away is toward end
-        WallEnd::End => Ok(raw_dir),     // End is at join, so away is toward start
+        WallEnd::End => Ok(raw_dir),    // End is at join, so away is toward start
     }
 }
 
@@ -115,8 +115,12 @@ fn get_wall_direction_from_join(wall: &Wall, end: WallEnd) -> GeometryResult<Vec
 /// The bisector splits the angle between the vectors equally.
 fn compute_bisector(dir_a: &Vector2, dir_b: &Vector2) -> GeometryResult<Vector2> {
     // Normalize both directions
-    let norm_a = dir_a.normalize().map_err(|_| GeometryError::ZeroLengthWall)?;
-    let norm_b = dir_b.normalize().map_err(|_| GeometryError::ZeroLengthWall)?;
+    let norm_a = dir_a
+        .normalize()
+        .map_err(|_| GeometryError::ZeroLengthWall)?;
+    let norm_b = dir_b
+        .normalize()
+        .map_err(|_| GeometryError::ZeroLengthWall)?;
 
     // Bisector is the sum of normalized vectors, then normalized
     let sum = norm_a + norm_b;
@@ -158,19 +162,11 @@ fn compute_wall_miter_profile(
     // We want to find where this intersects:
     //   miter_line: join_point + s * miter_dir
 
-    let inner_near = intersect_edge_with_miter(
-        inner_edge_point,
-        *wall_dir,
-        join_point,
-        *miter_dir,
-    ).unwrap_or(inner_edge_point);
+    let inner_near = intersect_edge_with_miter(inner_edge_point, *wall_dir, join_point, *miter_dir)
+        .unwrap_or(inner_edge_point);
 
-    let outer_near = intersect_edge_with_miter(
-        outer_edge_point,
-        *wall_dir,
-        join_point,
-        *miter_dir,
-    ).unwrap_or(outer_edge_point);
+    let outer_near = intersect_edge_with_miter(outer_edge_point, *wall_dir, join_point, *miter_dir)
+        .unwrap_or(outer_edge_point);
 
     // The "far" corners are offset along the wall direction
     // We use the wall thickness as a reasonable offset for the profile
@@ -258,7 +254,8 @@ mod tests {
             Point2::new(end.0, end.1),
             3.0,
             0.2,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -274,7 +271,8 @@ mod tests {
             WallEnd::End,
             WallEnd::Start,
             0.001,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Check that we got profiles for both walls
         assert_eq!(result.profile_a.wall_id, wall_a.id);
@@ -286,7 +284,7 @@ mod tests {
         let normalized_angle = bisector_angle.abs();
         assert!(
             (normalized_angle - PI / 4.0).abs() < 0.1
-            || (normalized_angle - 3.0 * PI / 4.0).abs() < 0.1
+                || (normalized_angle - 3.0 * PI / 4.0).abs() < 0.1
         );
     }
 
@@ -303,7 +301,8 @@ mod tests {
             WallEnd::End,
             WallEnd::Start,
             0.001,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(result.profile_a.wall_id, wall_a.id);
         assert_eq!(result.profile_b.wall_id, wall_b.id);
@@ -371,12 +370,8 @@ mod tests {
         let miter_point = Point2::new(0.0, 0.0);
         let miter_dir = Vector2::new(1.0, 1.0);
 
-        let intersection = intersect_edge_with_miter(
-            edge_point,
-            edge_dir,
-            miter_point,
-            miter_dir,
-        ).unwrap();
+        let intersection =
+            intersect_edge_with_miter(edge_point, edge_dir, miter_point, miter_dir).unwrap();
 
         // Intersection should be at (1, 1)
         assert!((intersection.x - 1.0).abs() < 0.01);
@@ -395,7 +390,8 @@ mod tests {
             WallEnd::End,
             WallEnd::Start,
             0.001,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Profile should have 4 corners
         assert_eq!(result.profile_a.corners.len(), 4);

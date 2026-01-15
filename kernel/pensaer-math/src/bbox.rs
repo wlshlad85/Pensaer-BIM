@@ -287,8 +287,16 @@ impl BoundingBox3 {
     #[inline]
     pub fn expand(&self, margin: f64) -> Self {
         Self {
-            min: Point3::new(self.min.x - margin, self.min.y - margin, self.min.z - margin),
-            max: Point3::new(self.max.x + margin, self.max.y + margin, self.max.z + margin),
+            min: Point3::new(
+                self.min.x - margin,
+                self.min.y - margin,
+                self.min.z - margin,
+            ),
+            max: Point3::new(
+                self.max.x + margin,
+                self.max.y + margin,
+                self.max.z + margin,
+            ),
         }
     }
 
@@ -351,10 +359,7 @@ mod tests {
 
     #[test]
     fn bbox3_from_points() {
-        let pts = vec![
-            Point3::new(-1.0, 2.0, 0.0),
-            Point3::new(3.0, -4.0, 5.0),
-        ];
+        let pts = vec![Point3::new(-1.0, 2.0, 0.0), Point3::new(3.0, -4.0, 5.0)];
         let bbox = BoundingBox3::from_points(&pts).unwrap();
         assert_eq!(bbox.min, Point3::new(-1.0, -4.0, 0.0));
         assert_eq!(bbox.max, Point3::new(3.0, 2.0, 5.0));
@@ -362,10 +367,7 @@ mod tests {
 
     #[test]
     fn bbox3_volume() {
-        let bbox = BoundingBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(2.0, 3.0, 4.0),
-        );
+        let bbox = BoundingBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(2.0, 3.0, 4.0));
         assert!((bbox.volume() - 24.0).abs() < 1e-10);
     }
 

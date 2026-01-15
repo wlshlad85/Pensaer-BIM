@@ -303,12 +303,7 @@ impl LineSegment2 {
     /// Uses robust geometric predicates to handle edge cases correctly.
     /// This is more reliable than the `intersect()` method for boolean checks.
     pub fn intersects(&self, other: &LineSegment2) -> bool {
-        crate::robust_predicates::segments_intersect(
-            self.start,
-            self.end,
-            other.start,
-            other.end,
-        )
+        crate::robust_predicates::segments_intersect(self.start, self.end, other.start, other.end)
     }
 
     /// Check if segments properly intersect (cross each other, not just touch).
@@ -602,11 +597,8 @@ mod tests {
 
     #[test]
     fn line3_distance_to_point() {
-        let line = Line3::from_points(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let line =
+            Line3::from_points(Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0)).unwrap();
 
         let p = Point3::new(5.0, 3.0, 4.0);
         assert!((line.distance_to_point(&p) - 5.0).abs() < EPSILON);
@@ -615,16 +607,10 @@ mod tests {
     #[test]
     fn line3_closest_approach() {
         // Two skew lines
-        let line1 = Line3::from_points(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
-        let line2 = Line3::from_points(
-            Point3::new(0.0, 1.0, 1.0),
-            Point3::new(0.0, 1.0, 2.0),
-        )
-        .unwrap();
+        let line1 =
+            Line3::from_points(Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0)).unwrap();
+        let line2 =
+            Line3::from_points(Point3::new(0.0, 1.0, 1.0), Point3::new(0.0, 1.0, 2.0)).unwrap();
 
         let (t1, t2) = line1.closest_approach(&line2).unwrap();
         let p1 = line1.point_at(t1);
@@ -640,10 +626,7 @@ mod tests {
 
     #[test]
     fn segment3_closest_point() {
-        let seg = LineSegment3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 0.0, 0.0),
-        );
+        let seg = LineSegment3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 0.0, 0.0));
 
         // Point projects onto segment
         let p1 = Point3::new(5.0, 3.0, 0.0);
@@ -666,15 +649,24 @@ mod tests {
         let line = Line2::from_points(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0)).unwrap();
 
         // Point above (left when walking along line)
-        assert_eq!(line.side_of_point(&Point2::new(5.0, 1.0)), Orientation::CounterClockwise);
+        assert_eq!(
+            line.side_of_point(&Point2::new(5.0, 1.0)),
+            Orientation::CounterClockwise
+        );
         assert!(line.point_is_left(&Point2::new(5.0, 1.0)));
 
         // Point below (right when walking along line)
-        assert_eq!(line.side_of_point(&Point2::new(5.0, -1.0)), Orientation::Clockwise);
+        assert_eq!(
+            line.side_of_point(&Point2::new(5.0, -1.0)),
+            Orientation::Clockwise
+        );
         assert!(line.point_is_right(&Point2::new(5.0, -1.0)));
 
         // Point on line
-        assert_eq!(line.side_of_point(&Point2::new(5.0, 0.0)), Orientation::Collinear);
+        assert_eq!(
+            line.side_of_point(&Point2::new(5.0, 0.0)),
+            Orientation::Collinear
+        );
         assert!(line.point_is_collinear(&Point2::new(5.0, 0.0)));
     }
 
@@ -695,7 +687,10 @@ mod tests {
 
         // Larger offset should definitely be detected
         let small_offset = Point2::new(5.0, 1e-10);
-        assert_eq!(line.side_of_point(&small_offset), Orientation::CounterClockwise);
+        assert_eq!(
+            line.side_of_point(&small_offset),
+            Orientation::CounterClockwise
+        );
     }
 
     #[test]
@@ -712,7 +707,7 @@ mod tests {
         let seg3 = LineSegment2::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0));
         let seg4 = LineSegment2::new(Point2::new(5.0, 0.0), Point2::new(10.0, 0.0));
 
-        assert!(seg3.intersects(&seg4));      // Touch counts as intersect
+        assert!(seg3.intersects(&seg4)); // Touch counts as intersect
         assert!(!seg3.properly_intersects(&seg4)); // But not proper intersection
 
         // Non-intersecting segments

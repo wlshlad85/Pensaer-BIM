@@ -11,9 +11,7 @@ use crate::bbox::BoundingBox2;
 use crate::error::{MathError, MathResult};
 use crate::line::LineSegment2;
 use crate::point::Point2;
-use crate::robust_predicates::{
-    orientation_2d, segments_properly_intersect, Orientation,
-};
+use crate::robust_predicates::{orientation_2d, segments_properly_intersect, Orientation};
 use crate::vector::Vector2;
 
 /// A 2D polygon defined by an ordered list of vertices.
@@ -133,8 +131,8 @@ impl Polygon2 {
 
         for i in 0..n {
             let j = (i + 1) % n;
-            let cross = self.vertices[i].x * self.vertices[j].y
-                - self.vertices[j].x * self.vertices[i].y;
+            let cross =
+                self.vertices[i].x * self.vertices[j].y - self.vertices[j].x * self.vertices[i].y;
             cx += (self.vertices[i].x + self.vertices[j].x) * cross;
             cy += (self.vertices[i].y + self.vertices[j].y) * cross;
         }

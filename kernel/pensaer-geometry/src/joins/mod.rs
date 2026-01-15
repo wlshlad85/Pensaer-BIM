@@ -409,25 +409,18 @@ mod tests {
 
     #[test]
     fn detect_l_join() {
-        let wall1 = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
-        let wall2 = Wall::new(
-            Point2::new(5.0, 0.0),
-            Point2::new(5.0, 4.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall2 = Wall::new(Point2::new(5.0, 0.0), Point2::new(5.0, 4.0), 3.0, 0.2).unwrap();
 
         let resolver = JoinResolver::new(0.001);
         let joins = resolver.detect_joins(&[&wall1, &wall2]);
 
         assert_eq!(joins.len(), 1);
-        assert!(matches!(joins[0].join_type, JoinType::LJoin | JoinType::Miter));
+        assert!(matches!(
+            joins[0].join_type,
+            JoinType::LJoin | JoinType::Miter
+        ));
         assert!((joins[0].join_point.x - 5.0).abs() < 0.01);
         assert!((joins[0].join_point.y - 0.0).abs() < 0.01);
     }
@@ -435,20 +428,10 @@ mod tests {
     #[test]
     fn detect_t_join() {
         // Horizontal wall
-        let wall1 = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0), 3.0, 0.2).unwrap();
 
         // Vertical wall ending at horizontal wall's midpoint
-        let wall2 = Wall::new(
-            Point2::new(5.0, 5.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall2 = Wall::new(Point2::new(5.0, 5.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         let resolver = JoinResolver::new(0.001);
         let joins = resolver.detect_joins(&[&wall1, &wall2]);
@@ -459,12 +442,7 @@ mod tests {
 
     #[test]
     fn detect_no_join() {
-        let wall1 = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         // Wall far away - no join
         let wall2 = Wall::new(
@@ -472,7 +450,8 @@ mod tests {
             Point2::new(105.0, 100.0),
             3.0,
             0.2,
-        ).unwrap();
+        )
+        .unwrap();
 
         let resolver = JoinResolver::new(0.001);
         let joins = resolver.detect_joins(&[&wall1, &wall2]);
@@ -482,26 +461,18 @@ mod tests {
 
     #[test]
     fn compute_miter_join_geometry() {
-        let wall1 = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
-        let wall2 = Wall::new(
-            Point2::new(5.0, 0.0),
-            Point2::new(5.0, 4.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall2 = Wall::new(Point2::new(5.0, 0.0), Point2::new(5.0, 4.0), 3.0, 0.2).unwrap();
 
         let resolver = JoinResolver::new(0.001);
         let joins = resolver.detect_joins(&[&wall1, &wall2]);
 
         assert!(!joins.is_empty());
 
-        let geometry = resolver.compute_join_geometry(&[&wall1, &wall2], &joins[0]).unwrap();
+        let geometry = resolver
+            .compute_join_geometry(&[&wall1, &wall2], &joins[0])
+            .unwrap();
         assert_eq!(geometry.wall_profiles.len(), 2);
     }
 }

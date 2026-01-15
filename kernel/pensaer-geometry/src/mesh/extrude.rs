@@ -21,9 +21,9 @@
 
 use pensaer_math::{Point2, Point3, Vector3};
 
+use super::triangulate::triangulate_polygon;
 use crate::error::{GeometryError, GeometryResult};
 use crate::mesh::TriangleMesh;
-use super::triangulate::triangulate_polygon;
 
 /// Extrude a 2D polygon along the Z-axis.
 ///
@@ -399,21 +399,41 @@ pub fn extrude_wall_with_openings(
     }
 
     // === Outer edges (top, bottom, left, right) ===
-    add_wall_edge(&mut mesh,
-        Point2::new(0.0, 0.0), Point2::new(wall_length, 0.0),
-        -half_thick, half_thick, Vector3::new(0.0, 0.0, -1.0));
+    add_wall_edge(
+        &mut mesh,
+        Point2::new(0.0, 0.0),
+        Point2::new(wall_length, 0.0),
+        -half_thick,
+        half_thick,
+        Vector3::new(0.0, 0.0, -1.0),
+    );
 
-    add_wall_edge(&mut mesh,
-        Point2::new(wall_length, wall_height), Point2::new(0.0, wall_height),
-        -half_thick, half_thick, Vector3::new(0.0, 0.0, 1.0));
+    add_wall_edge(
+        &mut mesh,
+        Point2::new(wall_length, wall_height),
+        Point2::new(0.0, wall_height),
+        -half_thick,
+        half_thick,
+        Vector3::new(0.0, 0.0, 1.0),
+    );
 
-    add_wall_edge(&mut mesh,
-        Point2::new(0.0, wall_height), Point2::new(0.0, 0.0),
-        -half_thick, half_thick, Vector3::new(-1.0, 0.0, 0.0));
+    add_wall_edge(
+        &mut mesh,
+        Point2::new(0.0, wall_height),
+        Point2::new(0.0, 0.0),
+        -half_thick,
+        half_thick,
+        Vector3::new(-1.0, 0.0, 0.0),
+    );
 
-    add_wall_edge(&mut mesh,
-        Point2::new(wall_length, 0.0), Point2::new(wall_length, wall_height),
-        -half_thick, half_thick, Vector3::new(1.0, 0.0, 0.0));
+    add_wall_edge(
+        &mut mesh,
+        Point2::new(wall_length, 0.0),
+        Point2::new(wall_length, wall_height),
+        -half_thick,
+        half_thick,
+        Vector3::new(1.0, 0.0, 0.0),
+    );
 
     // === Opening reveals (inner edges of openings) ===
     for &(x, y, w, h) in openings {
@@ -425,24 +445,44 @@ pub fn extrude_wall_with_openings(
         }
 
         // Bottom of opening
-        add_wall_edge(&mut mesh,
-            Point2::new(x + w, y), Point2::new(x, y),
-            -half_thick, half_thick, Vector3::new(0.0, 0.0, -1.0));
+        add_wall_edge(
+            &mut mesh,
+            Point2::new(x + w, y),
+            Point2::new(x, y),
+            -half_thick,
+            half_thick,
+            Vector3::new(0.0, 0.0, -1.0),
+        );
 
         // Top of opening
-        add_wall_edge(&mut mesh,
-            Point2::new(x, y + h), Point2::new(x + w, y + h),
-            -half_thick, half_thick, Vector3::new(0.0, 0.0, 1.0));
+        add_wall_edge(
+            &mut mesh,
+            Point2::new(x, y + h),
+            Point2::new(x + w, y + h),
+            -half_thick,
+            half_thick,
+            Vector3::new(0.0, 0.0, 1.0),
+        );
 
         // Left of opening
-        add_wall_edge(&mut mesh,
-            Point2::new(x, y), Point2::new(x, y + h),
-            -half_thick, half_thick, Vector3::new(-1.0, 0.0, 0.0));
+        add_wall_edge(
+            &mut mesh,
+            Point2::new(x, y),
+            Point2::new(x, y + h),
+            -half_thick,
+            half_thick,
+            Vector3::new(-1.0, 0.0, 0.0),
+        );
 
         // Right of opening
-        add_wall_edge(&mut mesh,
-            Point2::new(x + w, y + h), Point2::new(x + w, y),
-            -half_thick, half_thick, Vector3::new(1.0, 0.0, 0.0));
+        add_wall_edge(
+            &mut mesh,
+            Point2::new(x + w, y + h),
+            Point2::new(x + w, y),
+            -half_thick,
+            half_thick,
+            Vector3::new(1.0, 0.0, 0.0),
+        );
     }
 
     Ok(mesh)
@@ -451,10 +491,10 @@ pub fn extrude_wall_with_openings(
 /// Add a wall edge (quad connecting front and back faces).
 fn add_wall_edge(
     mesh: &mut TriangleMesh,
-    p0: Point2, // Start point in wall local coords (X along wall, Y is height)
-    p1: Point2, // End point
+    p0: Point2,   // Start point in wall local coords (X along wall, Y is height)
+    p1: Point2,   // End point
     y_front: f64, // Y coordinate of front face
-    y_back: f64, // Y coordinate of back face
+    y_back: f64,  // Y coordinate of back face
     normal: Vector3,
 ) {
     let base_idx = mesh.vertices.len() as u32;
@@ -589,9 +629,12 @@ mod tests {
     #[test]
     fn extrude_wall_with_door() {
         let mesh = extrude_wall_with_openings(
-            5.0, 3.0, 0.2,
+            5.0,
+            3.0,
+            0.2,
             &[(2.0, 0.0, 0.9, 2.1)], // Door opening
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(mesh.is_valid());
 
@@ -603,9 +646,12 @@ mod tests {
     #[test]
     fn extrude_wall_with_window() {
         let mesh = extrude_wall_with_openings(
-            5.0, 3.0, 0.2,
+            5.0,
+            3.0,
+            0.2,
             &[(1.0, 0.9, 1.2, 1.2)], // Window opening
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(mesh.is_valid());
     }
@@ -613,13 +659,16 @@ mod tests {
     #[test]
     fn extrude_wall_multiple_openings() {
         let mesh = extrude_wall_with_openings(
-            10.0, 3.0, 0.2,
+            10.0,
+            3.0,
+            0.2,
             &[
-                (1.0, 0.0, 0.9, 2.1),   // Door
-                (4.0, 0.9, 1.2, 1.2),   // Window 1
-                (7.0, 0.9, 1.2, 1.2),   // Window 2
+                (1.0, 0.0, 0.9, 2.1), // Door
+                (4.0, 0.9, 1.2, 1.2), // Window 1
+                (7.0, 0.9, 1.2, 1.2), // Window 2
             ],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(mesh.is_valid());
     }

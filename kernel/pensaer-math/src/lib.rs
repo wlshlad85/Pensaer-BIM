@@ -48,26 +48,38 @@ pub use line::{Line2, Line3, LineSegment2, LineSegment3};
 pub use point::{Point2, Point3};
 pub use polygon::Polygon2;
 pub use robust_predicates::{
-    orientation_2d, orientation_3d, incircle_2d, insphere_3d,
-    segments_intersect, segments_properly_intersect, point_in_triangle,
-    is_convex_vertex, is_reflex_vertex,
-    Orientation, CirclePosition,
+    incircle_2d, insphere_3d, is_convex_vertex, is_reflex_vertex, orientation_2d, orientation_3d,
+    point_in_triangle, segments_intersect, segments_properly_intersect, CirclePosition,
+    Orientation,
 };
 pub use transform::Transform3;
 pub use vector::{Vector2, Vector3};
 
 // Self-correcting guards and domain utilities
 pub use guards::{
-    // NaN/Infinity guards
-    is_finite, is_valid, guard_nan, guard_infinite, guard_finite,
-    sanitize, sanitize_to_zero,
     // Domain clamping
-    clamp_acos_domain, safe_acos, safe_asin, clamp_log_domain, safe_ln,
-    clamp_sqrt_domain, safe_sqrt,
-    // Degenerate correction
-    snap_to_zero, snap_to_integer, snap_to_grid,
+    clamp_acos_domain,
+    clamp_log_domain,
+    clamp_sqrt_domain,
+    guard_finite,
+    guard_infinite,
+    guard_nan,
+    // NaN/Infinity guards
+    is_finite,
+    is_valid,
+    safe_acos,
+    safe_asin,
     // Safe division
-    safe_div, safe_div_or,
+    safe_div,
+    safe_div_or,
+    safe_ln,
+    safe_sqrt,
+    sanitize,
+    sanitize_to_zero,
+    snap_to_grid,
+    snap_to_integer,
+    // Degenerate correction
+    snap_to_zero,
 };
 
 /// Tolerance for floating point comparisons (1e-10).
@@ -173,10 +185,7 @@ mod tests {
 
     #[test]
     fn integration_bbox_contains() {
-        let bbox = BoundingBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 10.0, 10.0),
-        );
+        let bbox = BoundingBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
         assert!(bbox.contains_point(&Point3::new(5.0, 5.0, 5.0)));
         assert!(!bbox.contains_point(&Point3::new(15.0, 5.0, 5.0)));
     }

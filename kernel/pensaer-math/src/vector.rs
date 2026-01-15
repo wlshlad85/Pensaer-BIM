@@ -134,10 +134,7 @@ impl Vector2 {
     pub fn rotate(&self, angle_rad: f64) -> Self {
         let original_len = self.length();
         let (sin, cos) = angle_rad.sin_cos();
-        let result = Self::new(
-            self.x * cos - self.y * sin,
-            self.x * sin + self.y * cos,
-        );
+        let result = Self::new(self.x * cos - self.y * sin, self.x * sin + self.y * cos);
         // Postcondition: rotation preserves length
         debug_assert!(
             (result.length() - original_len).abs() < 1e-10 * (1.0 + original_len),
@@ -275,16 +272,32 @@ impl Vector3 {
     }
 
     /// Zero vector.
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0 };
+    pub const ZERO: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
 
     /// Unit X vector.
-    pub const UNIT_X: Self = Self { x: 1.0, y: 0.0, z: 0.0 };
+    pub const UNIT_X: Self = Self {
+        x: 1.0,
+        y: 0.0,
+        z: 0.0,
+    };
 
     /// Unit Y vector.
-    pub const UNIT_Y: Self = Self { x: 0.0, y: 1.0, z: 0.0 };
+    pub const UNIT_Y: Self = Self {
+        x: 0.0,
+        y: 1.0,
+        z: 0.0,
+    };
 
     /// Unit Z vector.
-    pub const UNIT_Z: Self = Self { x: 0.0, y: 0.0, z: 1.0 };
+    pub const UNIT_Z: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+    };
 
     /// Length (magnitude) of the vector.
     #[inline]

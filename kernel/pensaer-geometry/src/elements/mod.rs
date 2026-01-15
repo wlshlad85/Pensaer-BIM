@@ -7,14 +7,12 @@
 //! - [`Window`] - Windows hosted in walls
 //! - [`Room`] - Room spaces bounded by walls
 
-mod wall;
 mod floor;
 mod opening;
 mod room;
+mod wall;
 
-pub use wall::{
-    OpeningType, Wall, WallBaseline, WallOpening, WallType,
-};
+pub use wall::{OpeningType, Wall, WallBaseline, WallOpening, WallType};
 
 pub use floor::{Floor, FloorType};
 

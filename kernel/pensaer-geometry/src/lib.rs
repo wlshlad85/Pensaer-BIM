@@ -81,10 +81,12 @@ pub use elements::{
     WallOpening, WallType, Window, WindowType,
 };
 pub use error::{GeometryError, GeometryResult};
-pub use joins::{JoinDetector, JoinGeometry, JoinResolver, JoinType, WallEnd, WallJoin, WallJoinProfile};
+pub use joins::{
+    JoinDetector, JoinGeometry, JoinResolver, JoinType, WallEnd, WallJoin, WallJoinProfile,
+};
 pub use mesh::{
-    extrude_polygon, extrude_polygon_with_hole, extrude_wall_with_openings,
-    triangulate_polygon, triangulate_polygon_with_holes, TriangleMesh,
+    extrude_polygon, extrude_polygon_with_hole, extrude_wall_with_openings, triangulate_polygon,
+    triangulate_polygon_with_holes, TriangleMesh,
 };
 
 #[cfg(test)]
@@ -118,22 +120,23 @@ mod tests {
     #[test]
     fn create_simple_building() {
         // Create 4 walls forming a rectangle
-        let wall1 =
-            Wall::new(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0), 3.0, 0.2).unwrap();
-        let wall2 =
-            Wall::new(Point2::new(10.0, 0.0), Point2::new(10.0, 8.0), 3.0, 0.2).unwrap();
-        let wall3 =
-            Wall::new(Point2::new(10.0, 8.0), Point2::new(0.0, 8.0), 3.0, 0.2).unwrap();
-        let wall4 =
-            Wall::new(Point2::new(0.0, 8.0), Point2::new(0.0, 0.0), 3.0, 0.2).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0), 3.0, 0.2).unwrap();
+        let wall2 = Wall::new(Point2::new(10.0, 0.0), Point2::new(10.0, 8.0), 3.0, 0.2).unwrap();
+        let wall3 = Wall::new(Point2::new(10.0, 8.0), Point2::new(0.0, 8.0), 3.0, 0.2).unwrap();
+        let wall4 = Wall::new(Point2::new(0.0, 8.0), Point2::new(0.0, 0.0), 3.0, 0.2).unwrap();
 
         // Create a floor
         let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 8.0), 0.3).unwrap();
 
         // Create a room
-        let room =
-            Room::rectangle("Living Room", "101", Point2::new(0.0, 0.0), Point2::new(10.0, 8.0), 3.0)
-                .unwrap();
+        let room = Room::rectangle(
+            "Living Room",
+            "101",
+            Point2::new(0.0, 0.0),
+            Point2::new(10.0, 8.0),
+            3.0,
+        )
+        .unwrap();
 
         // Verify all meshes are valid
         assert!(wall1.to_mesh().unwrap().is_valid());
@@ -150,8 +153,7 @@ mod tests {
 
     #[test]
     fn wall_with_opening() {
-        let mut wall =
-            Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
+        let mut wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         // Add a door opening
         let opening = WallOpening::new(2.5, 0.0, 0.9, 2.1, OpeningType::Door);
@@ -175,28 +177,23 @@ mod tests {
     #[test]
     fn wall_joins_detection() {
         // Create L-shaped corner
-        let wall1 = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
-        let wall2 = Wall::new(
-            Point2::new(5.0, 0.0),
-            Point2::new(5.0, 4.0),
-            3.0,
-            0.2,
-        ).unwrap();
+        let wall2 = Wall::new(Point2::new(5.0, 0.0), Point2::new(5.0, 4.0), 3.0, 0.2).unwrap();
 
         let resolver = JoinResolver::new(0.001);
         let joins = resolver.detect_joins(&[&wall1, &wall2]);
 
         assert_eq!(joins.len(), 1);
-        assert!(matches!(joins[0].join_type, JoinType::LJoin | JoinType::Miter));
+        assert!(matches!(
+            joins[0].join_type,
+            JoinType::LJoin | JoinType::Miter
+        ));
 
         // Compute join geometry
-        let geometry = resolver.compute_join_geometry(&[&wall1, &wall2], &joins[0]).unwrap();
+        let geometry = resolver
+            .compute_join_geometry(&[&wall1, &wall2], &joins[0])
+            .unwrap();
         assert_eq!(geometry.wall_profiles.len(), 2);
     }
 

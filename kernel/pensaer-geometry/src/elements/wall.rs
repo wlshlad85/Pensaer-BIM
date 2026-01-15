@@ -357,13 +357,7 @@ mod tests {
 
     #[test]
     fn wall_creation() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         assert!((wall.length() - 5.0).abs() < 1e-10);
         assert!((wall.height - 3.0).abs() < 1e-10);
@@ -384,13 +378,7 @@ mod tests {
 
     #[test]
     fn wall_direction() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         let dir = wall.direction().unwrap();
         assert!((dir.x - 1.0).abs() < 1e-10);
@@ -399,13 +387,7 @@ mod tests {
 
     #[test]
     fn wall_normal() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         let normal = wall.normal().unwrap();
         // Perpendicular to (1, 0) should be (0, 1) or (0, -1)
@@ -415,13 +397,7 @@ mod tests {
 
     #[test]
     fn wall_add_opening() {
-        let mut wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let mut wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         let opening = WallOpening::new(2.5, 0.0, 1.0, 2.0, OpeningType::Door);
         assert!(wall.add_opening(opening).is_ok());
@@ -430,13 +406,7 @@ mod tests {
 
     #[test]
     fn wall_opening_out_of_bounds() {
-        let mut wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let mut wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         // Opening extends past wall end
         let opening = WallOpening::new(5.0, 0.0, 1.0, 2.0, OpeningType::Window);
@@ -448,13 +418,7 @@ mod tests {
 
     #[test]
     fn wall_mesh_valid() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         let mesh = wall.to_mesh().unwrap();
         assert!(mesh.is_valid());
@@ -464,13 +428,7 @@ mod tests {
 
     #[test]
     fn wall_bounding_box() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(4.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(4.0, 0.0), 3.0, 0.2).unwrap();
 
         let bbox = wall.bounding_box().unwrap();
         assert_eq!(bbox.min.x, 0.0);
@@ -483,13 +441,7 @@ mod tests {
 
     #[test]
     fn wall_element_trait() {
-        let wall = Wall::new(
-            Point2::new(0.0, 0.0),
-            Point2::new(5.0, 0.0),
-            3.0,
-            0.2,
-        )
-        .unwrap();
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
 
         assert_eq!(wall.element_type(), ElementType::Wall);
         assert!(!wall.id().is_nil());

@@ -105,7 +105,11 @@ impl Point3 {
     }
 
     /// Origin point (0, 0, 0).
-    pub const ORIGIN: Self = Self { x: 0.0, y: 0.0, z: 0.0 };
+    pub const ORIGIN: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
 
     /// Distance to another point.
     #[inline]

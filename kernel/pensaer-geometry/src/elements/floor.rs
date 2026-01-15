@@ -51,7 +51,9 @@ impl Floor {
         if thickness <= 0.0 {
             return Err(GeometryError::NonPositiveThickness);
         }
-        boundary.validate().map_err(|_| GeometryError::InsufficientVertices)?;
+        boundary
+            .validate()
+            .map_err(|_| GeometryError::InsufficientVertices)?;
 
         Ok(Self {
             id: Uuid::new_v4(),
@@ -104,7 +106,8 @@ impl Floor {
 
     /// Add a hole/cutout to the floor.
     pub fn add_hole(&mut self, hole: Polygon2) -> GeometryResult<()> {
-        hole.validate().map_err(|_| GeometryError::InsufficientVertices)?;
+        hole.validate()
+            .map_err(|_| GeometryError::InsufficientVertices)?;
         self.holes.push(hole);
         Ok(())
     }
@@ -123,7 +126,9 @@ impl Floor {
     pub fn to_mesh_simple(&self) -> GeometryResult<TriangleMesh> {
         // For now, use simple rectangular extrusion
         // Full polygon triangulation will be added later
-        let bbox = self.boundary.bounding_box()
+        let bbox = self
+            .boundary
+            .bounding_box()
             .ok_or(GeometryError::InsufficientVertices)?;
 
         let z0 = self.base_elevation;
@@ -228,7 +233,9 @@ impl Element for Floor {
     }
 
     fn bounding_box(&self) -> GeometryResult<BoundingBox3> {
-        let bbox2 = self.boundary.bounding_box()
+        let bbox2 = self
+            .boundary
+            .bounding_box()
             .ok_or(GeometryError::InsufficientVertices)?;
 
         Ok(BoundingBox3::new(
@@ -254,12 +261,7 @@ mod tests {
 
     #[test]
     fn floor_rectangle_creation() {
-        let floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         assert!((floor.area() - 100.0).abs() < 1e-10);
         assert!((floor.thickness - 0.3).abs() < 1e-10);
@@ -267,32 +269,20 @@ mod tests {
 
     #[test]
     fn floor_invalid_bounds() {
-        let result = Floor::rectangle(
-            Point2::new(10.0, 0.0),
-            Point2::new(0.0, 10.0),
-            0.3,
-        );
+        let result = Floor::rectangle(Point2::new(10.0, 0.0), Point2::new(0.0, 10.0), 0.3);
         assert!(matches!(result, Err(GeometryError::InvalidFloorBounds)));
     }
 
     #[test]
     fn floor_non_positive_thickness() {
-        let result = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.0,
-        );
+        let result = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.0);
         assert!(matches!(result, Err(GeometryError::NonPositiveThickness)));
     }
 
     #[test]
     fn floor_elevation() {
-        let mut floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let mut floor =
+            Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         floor.set_elevation(5.0);
         assert!((floor.base_elevation - 5.0).abs() < 1e-10);
@@ -301,12 +291,7 @@ mod tests {
 
     #[test]
     fn floor_mesh_valid() {
-        let floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         let mesh = floor.to_mesh().unwrap();
         assert!(mesh.is_valid());
@@ -314,12 +299,8 @@ mod tests {
 
     #[test]
     fn floor_bounding_box() {
-        let mut floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let mut floor =
+            Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
         floor.set_elevation(5.0);
 
         let bbox = floor.bounding_box().unwrap();
@@ -333,12 +314,7 @@ mod tests {
 
     #[test]
     fn floor_element_trait() {
-        let floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         assert_eq!(floor.element_type(), ElementType::Floor);
         assert!(!floor.id().is_nil());
@@ -346,12 +322,8 @@ mod tests {
 
     #[test]
     fn floor_add_hole() {
-        let mut floor = Floor::rectangle(
-            Point2::new(0.0, 0.0),
-            Point2::new(10.0, 10.0),
-            0.3,
-        )
-        .unwrap();
+        let mut floor =
+            Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         let hole = Polygon2::rectangle(Point2::new(2.0, 2.0), Point2::new(4.0, 4.0));
         assert!(floor.add_hole(hole).is_ok());

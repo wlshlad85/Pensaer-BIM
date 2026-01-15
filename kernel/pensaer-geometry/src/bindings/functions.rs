@@ -3,8 +3,8 @@
 //! These functions provide a high-level API for creating and manipulating
 //! BIM elements from Python, designed for use with MCP tool servers.
 
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::exceptions::{PyValueError, PyRuntimeError};
 use pyo3::types::PyDict;
 use pyo3::IntoPy;
 
@@ -13,8 +13,7 @@ use crate::joins::JoinResolver;
 use crate::mesh::TriangleMesh;
 
 use super::types::{
-    PyDoor, PyFloor, PyRoom, PyTriangleMesh, PyWall, PyWallJoin,
-    PyWallOpening, PyWindow,
+    PyDoor, PyFloor, PyRoom, PyTriangleMesh, PyWall, PyWallJoin, PyWallOpening, PyWindow,
 };
 
 /// Create a new wall element.
@@ -135,7 +134,14 @@ pub fn place_door(
         .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
 
     // Create door element
-    let door = PyDoor::new(&wall.inner.id.to_string(), width, height, offset, door_type, swing)?;
+    let door = PyDoor::new(
+        &wall.inner.id.to_string(),
+        width,
+        height,
+        offset,
+        door_type,
+        swing,
+    )?;
 
     // Return both as dict
     Python::with_gil(|py| {
@@ -376,10 +382,10 @@ pub fn create_rectangular_walls(
 
     // Create 4 walls: bottom, right, top, left
     let walls = vec![
-        PyWall::new((x0, y0), (x1, y0), height, thickness, None)?,  // bottom
-        PyWall::new((x1, y0), (x1, y1), height, thickness, None)?,  // right
-        PyWall::new((x1, y1), (x0, y1), height, thickness, None)?,  // top
-        PyWall::new((x0, y1), (x0, y0), height, thickness, None)?,  // left
+        PyWall::new((x0, y0), (x1, y0), height, thickness, None)?, // bottom
+        PyWall::new((x1, y0), (x1, y1), height, thickness, None)?, // right
+        PyWall::new((x1, y1), (x0, y1), height, thickness, None)?, // top
+        PyWall::new((x0, y1), (x0, y0), height, thickness, None)?, // left
     ];
 
     Ok(walls)

@@ -248,10 +248,26 @@ pub fn incircle_2d_with_value(a: Point2, b: Point2, c: Point2, d: Point2) -> (Ci
 #[inline]
 pub fn orientation_3d(a: Point3, b: Point3, c: Point3, d: Point3) -> Orientation {
     let det = robust::orient3d(
-        Coord3D { x: a.x, y: a.y, z: a.z },
-        Coord3D { x: b.x, y: b.y, z: b.z },
-        Coord3D { x: c.x, y: c.y, z: c.z },
-        Coord3D { x: d.x, y: d.y, z: d.z },
+        Coord3D {
+            x: a.x,
+            y: a.y,
+            z: a.z,
+        },
+        Coord3D {
+            x: b.x,
+            y: b.y,
+            z: b.z,
+        },
+        Coord3D {
+            x: c.x,
+            y: c.y,
+            z: c.z,
+        },
+        Coord3D {
+            x: d.x,
+            y: d.y,
+            z: d.z,
+        },
     );
 
     if det > 0.0 {
@@ -270,11 +286,31 @@ pub fn orientation_3d(a: Point3, b: Point3, c: Point3, d: Point3) -> Orientation
 #[inline]
 pub fn insphere_3d(a: Point3, b: Point3, c: Point3, d: Point3, e: Point3) -> CirclePosition {
     let det = robust::insphere(
-        Coord3D { x: a.x, y: a.y, z: a.z },
-        Coord3D { x: b.x, y: b.y, z: b.z },
-        Coord3D { x: c.x, y: c.y, z: c.z },
-        Coord3D { x: d.x, y: d.y, z: d.z },
-        Coord3D { x: e.x, y: e.y, z: e.z },
+        Coord3D {
+            x: a.x,
+            y: a.y,
+            z: a.z,
+        },
+        Coord3D {
+            x: b.x,
+            y: b.y,
+            z: b.z,
+        },
+        Coord3D {
+            x: c.x,
+            y: c.y,
+            z: c.z,
+        },
+        Coord3D {
+            x: d.x,
+            y: d.y,
+            z: d.z,
+        },
+        Coord3D {
+            x: e.x,
+            y: e.y,
+            z: e.z,
+        },
     );
 
     if det > 0.0 {
@@ -299,12 +335,7 @@ pub fn insphere_3d(a: Point3, b: Point3, c: Point3, d: Point3, e: Point3) -> Cir
 ///
 /// - `true` if segments properly intersect (cross each other) or touch
 /// - `false` if segments are disjoint
-pub fn segments_intersect(
-    a1: Point2,
-    a2: Point2,
-    b1: Point2,
-    b2: Point2,
-) -> bool {
+pub fn segments_intersect(a1: Point2, a2: Point2, b1: Point2, b2: Point2) -> bool {
     let o1 = orientation_2d(a1, a2, b1);
     let o2 = orientation_2d(a1, a2, b2);
     let o3 = orientation_2d(b1, b2, a1);
@@ -335,12 +366,7 @@ pub fn segments_intersect(
 /// Check if two line segments properly intersect (cross, not just touch).
 ///
 /// More strict than `segments_intersect` - returns false for endpoint touches.
-pub fn segments_properly_intersect(
-    a1: Point2,
-    a2: Point2,
-    b1: Point2,
-    b2: Point2,
-) -> bool {
+pub fn segments_properly_intersect(a1: Point2, a2: Point2, b1: Point2, b2: Point2) -> bool {
     let o1 = orientation_2d(a1, a2, b1);
     let o2 = orientation_2d(a1, a2, b2);
     let o3 = orientation_2d(b1, b2, a1);
@@ -358,10 +384,7 @@ pub fn segments_properly_intersect(
 /// Check if point `q` lies on segment `p1-p2` (given that q is collinear with p1, p2).
 #[inline]
 fn on_segment(p1: Point2, q: Point2, p2: Point2) -> bool {
-    q.x <= p1.x.max(p2.x)
-        && q.x >= p1.x.min(p2.x)
-        && q.y <= p1.y.max(p2.y)
-        && q.y >= p1.y.min(p2.y)
+    q.x <= p1.x.max(p2.x) && q.x >= p1.x.min(p2.x) && q.y <= p1.y.max(p2.y) && q.y >= p1.y.min(p2.y)
 }
 
 /// Robust point-in-triangle test.
@@ -567,7 +590,10 @@ mod tests {
 
         // Point below plane
         let below = Point3::new(0.0, 0.0, -1.0);
-        assert_eq!(orientation_3d(a, b, c, below), Orientation::CounterClockwise);
+        assert_eq!(
+            orientation_3d(a, b, c, below),
+            Orientation::CounterClockwise
+        );
 
         // Point on plane
         let on = Point3::new(0.5, 0.5, 0.0);

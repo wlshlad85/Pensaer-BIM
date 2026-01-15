@@ -334,12 +334,7 @@ impl TriangleMesh {
                     tri[2] + 1
                 ));
             } else {
-                obj.push_str(&format!(
-                    "f {} {} {}\n",
-                    tri[0] + 1,
-                    tri[1] + 1,
-                    tri[2] + 1
-                ));
+                obj.push_str(&format!("f {} {} {}\n", tri[0] + 1, tri[1] + 1, tri[2] + 1));
             }
         }
 
@@ -462,10 +457,8 @@ mod tests {
 
     #[test]
     fn mesh_transform() {
-        let mut mesh = TriangleMesh::from_vertices_indices(
-            vec![Point3::new(0.0, 0.0, 0.0)],
-            vec![],
-        );
+        let mut mesh =
+            TriangleMesh::from_vertices_indices(vec![Point3::new(0.0, 0.0, 0.0)], vec![]);
 
         let t = Transform3::translation(1.0, 2.0, 3.0);
         mesh.transform(&t);

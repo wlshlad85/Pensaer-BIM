@@ -17,11 +17,11 @@
 //! Holes are handled by creating "bridges" - connecting the outer boundary
 //! to each hole to form a single simple polygon that can be triangulated.
 
-use pensaer_math::Point2;
 use pensaer_math::robust_predicates::{
-    point_in_triangle as robust_point_in_triangle,
-    is_convex_vertex, segments_properly_intersect as robust_segments_intersect,
+    is_convex_vertex, point_in_triangle as robust_point_in_triangle,
+    segments_properly_intersect as robust_segments_intersect,
 };
+use pensaer_math::Point2;
 
 use crate::error::{GeometryError, GeometryResult};
 
@@ -168,7 +168,9 @@ pub fn triangulate_polygon_with_holes(
     processed_holes.sort_by(|(_, a), (_, b)| {
         let max_x_a = a.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
         let max_x_b = b.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
-        max_x_b.partial_cmp(&max_x_a).unwrap_or(std::cmp::Ordering::Equal)
+        max_x_b
+            .partial_cmp(&max_x_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     // Build combined polygon by bridging holes
@@ -290,10 +292,7 @@ fn point_in_triangle(p: &Point2, a: &Point2, b: &Point2, c: &Point2) -> bool {
 /// 2. Find the closest mutually-visible vertex on the outer boundary
 /// 3. Create a bridge by inserting hole vertices into the outer polygon
 /// 4. The bridge consists of coincident but distinct vertices (a zero-length edge)
-fn bridge_hole_to_polygon(
-    outer: &[Point2],
-    hole: &[Point2],
-) -> GeometryResult<Vec<Point2>> {
+fn bridge_hole_to_polygon(outer: &[Point2], hole: &[Point2]) -> GeometryResult<Vec<Point2>> {
     if hole.is_empty() {
         return Ok(outer.to_vec());
     }

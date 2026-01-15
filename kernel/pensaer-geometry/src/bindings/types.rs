@@ -3,8 +3,8 @@
 //! This module defines PyO3 wrapper types for all core geometry primitives
 //! and BIM elements, making them accessible from Python.
 
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::exceptions::{PyValueError, PyRuntimeError};
 use pyo3::types::PyDict;
 use uuid::Uuid;
 
@@ -12,8 +12,8 @@ use pensaer_math::{BoundingBox3, Point2, Point3, Vector2, Vector3};
 
 use crate::element::Element;
 use crate::elements::{
-    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, Room, Wall,
-    WallOpening, WallType, Window, WindowType,
+    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, Room, Wall, WallOpening, WallType,
+    Window, WindowType,
 };
 use crate::joins::{JoinResolver, JoinType, WallJoin};
 use crate::mesh::TriangleMesh;
@@ -121,7 +121,10 @@ impl PyPoint3 {
     }
 
     fn __repr__(&self) -> String {
-        format!("Point3({}, {}, {})", self.inner.x, self.inner.y, self.inner.z)
+        format!(
+            "Point3({}, {}, {})",
+            self.inner.x, self.inner.y, self.inner.z
+        )
     }
 
     fn __add__(&self, other: &PyVector3) -> PyPoint3 {
@@ -215,9 +218,7 @@ impl PyVector2 {
     }
 
     fn __neg__(&self) -> PyVector2 {
-        PyVector2 {
-            inner: -self.inner,
-        }
+        PyVector2 { inner: -self.inner }
     }
 
     fn to_tuple(&self) -> (f64, f64) {
@@ -278,7 +279,10 @@ impl PyVector3 {
     }
 
     fn __repr__(&self) -> String {
-        format!("Vector3({}, {}, {})", self.inner.x, self.inner.y, self.inner.z)
+        format!(
+            "Vector3({}, {}, {})",
+            self.inner.x, self.inner.y, self.inner.z
+        )
     }
 
     fn __add__(&self, other: &PyVector3) -> PyVector3 {
@@ -300,9 +304,7 @@ impl PyVector3 {
     }
 
     fn __neg__(&self) -> PyVector3 {
-        PyVector3 {
-            inner: -self.inner,
-        }
+        PyVector3 { inner: -self.inner }
     }
 
     fn to_tuple(&self) -> (f64, f64, f64) {
@@ -369,8 +371,12 @@ impl PyBoundingBox3 {
     fn __repr__(&self) -> String {
         format!(
             "BoundingBox3(min=({}, {}, {}), max=({}, {}, {}))",
-            self.inner.min.x, self.inner.min.y, self.inner.min.z,
-            self.inner.max.x, self.inner.max.y, self.inner.max.z
+            self.inner.min.x,
+            self.inner.min.y,
+            self.inner.min.z,
+            self.inner.max.x,
+            self.inner.max.y,
+            self.inner.max.z
         )
     }
 }
@@ -587,8 +593,14 @@ impl PyWall {
         Python::with_gil(|py| {
             let dict = PyDict::new_bound(py);
             dict.set_item("id", self.inner.id.to_string())?;
-            dict.set_item("start", (self.inner.baseline.start.x, self.inner.baseline.start.y))?;
-            dict.set_item("end", (self.inner.baseline.end.x, self.inner.baseline.end.y))?;
+            dict.set_item(
+                "start",
+                (self.inner.baseline.start.x, self.inner.baseline.start.y),
+            )?;
+            dict.set_item(
+                "end",
+                (self.inner.baseline.end.x, self.inner.baseline.end.y),
+            )?;
             dict.set_item("height", self.inner.height)?;
             dict.set_item("thickness", self.inner.thickness)?;
             dict.set_item("wall_type", self.wall_type())?;
@@ -808,7 +820,10 @@ impl PyDoor {
     fn __repr__(&self) -> String {
         format!(
             "Door(id={}, width={}, height={}, type={})",
-            self.inner.id, self.inner.width, self.inner.height, self.door_type()
+            self.inner.id,
+            self.inner.width,
+            self.inner.height,
+            self.door_type()
         )
     }
 }
@@ -899,7 +914,11 @@ impl PyWindow {
     fn __repr__(&self) -> String {
         format!(
             "Window(id={}, width={}, height={}, sill={}, type={})",
-            self.inner.id, self.inner.width, self.inner.height, self.inner.sill_height, self.window_type()
+            self.inner.id,
+            self.inner.width,
+            self.inner.height,
+            self.inner.sill_height,
+            self.window_type()
         )
     }
 }
@@ -980,7 +999,8 @@ impl PyRoom {
 
     /// Check if a 3D point (x, y, z) is inside the room volume.
     fn contains_point(&self, point: (f64, f64, f64)) -> bool {
-        self.inner.contains_point(&Point3::new(point.0, point.1, point.2))
+        self.inner
+            .contains_point(&Point3::new(point.0, point.1, point.2))
     }
 
     fn to_mesh(&self) -> PyResult<PyTriangleMesh> {
@@ -1007,7 +1027,10 @@ impl PyRoom {
     fn __repr__(&self) -> String {
         format!(
             "Room(id={}, name=\"{}\", number=\"{}\", area={:.2})",
-            self.inner.id, self.inner.name, self.inner.number, self.inner.area()
+            self.inner.id,
+            self.inner.name,
+            self.inner.number,
+            self.inner.area()
         )
     }
 }
@@ -1057,15 +1080,13 @@ impl PyTriangleMesh {
 
     /// Get normals as list of (x, y, z) tuples.
     fn normals(&self) -> Vec<(f64, f64, f64)> {
-        self.inner
-            .normals
-            .iter()
-            .map(|v| (v.x, v.y, v.z))
-            .collect()
+        self.inner.normals.iter().map(|v| (v.x, v.y, v.z)).collect()
     }
 
     fn bounding_box(&self) -> Option<PyBoundingBox3> {
-        self.inner.bounding_box().map(|b| PyBoundingBox3 { inner: b })
+        self.inner
+            .bounding_box()
+            .map(|b| PyBoundingBox3 { inner: b })
     }
 
     /// Export mesh to OBJ format string.

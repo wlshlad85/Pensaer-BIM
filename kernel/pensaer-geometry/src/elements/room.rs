@@ -47,7 +47,9 @@ impl Room {
         if height <= 0.0 {
             return Err(GeometryError::NonPositiveHeight);
         }
-        boundary.validate().map_err(|_| GeometryError::InsufficientVertices)?;
+        boundary
+            .validate()
+            .map_err(|_| GeometryError::InsufficientVertices)?;
 
         Ok(Self {
             id: Uuid::new_v4(),
@@ -149,7 +151,9 @@ impl Element for Room {
     }
 
     fn bounding_box(&self) -> GeometryResult<BoundingBox3> {
-        let bbox2 = self.boundary.bounding_box()
+        let bbox2 = self
+            .boundary
+            .bounding_box()
             .ok_or(GeometryError::InsufficientVertices)?;
 
         Ok(BoundingBox3::new(

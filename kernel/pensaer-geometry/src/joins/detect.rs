@@ -9,11 +9,11 @@
 
 use std::f64::consts::PI;
 
-use pensaer_math::Vector2;
 use pensaer_math::robust_predicates::{orientation_2d, Orientation};
+use pensaer_math::Vector2;
 
-use crate::elements::Wall;
 use super::{JoinType, WallEnd, WallJoin};
+use crate::elements::Wall;
 
 /// Detector for wall joins.
 ///
@@ -359,7 +359,8 @@ mod tests {
             Point2::new(end.0, end.1),
             3.0,
             0.2,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -405,7 +406,7 @@ mod tests {
     #[test]
     fn detect_t_join() {
         let wall1 = create_test_wall((0.0, 0.0), (10.0, 0.0)); // Horizontal
-        let wall2 = create_test_wall((5.0, 0.0), (5.0, 4.0));  // Vertical ending at wall1
+        let wall2 = create_test_wall((5.0, 0.0), (5.0, 4.0)); // Vertical ending at wall1
 
         let detector = JoinDetector::new(0.001, 0.1);
         let joins = detector.detect_all(&[&wall1, &wall2]);
