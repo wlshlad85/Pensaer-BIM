@@ -1,0 +1,2055 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pensaer BIM Platform - Full Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        code, .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .backdrop-blur-xl { backdrop-filter: blur(24px); }
+        
+        .command-palette { animation: slideUp 0.15s ease-out; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        
+        .context-menu { animation: contextPop 0.12s ease-out; }
+        @keyframes contextPop {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .toast { animation: toastIn 0.2s ease-out; }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal { animation: modalIn 0.2s ease-out; }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .result-item { transition: all 0.1s ease; }
+        .result-item.selected {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.1) 100%);
+        }
+        
+        .highlight { color: #3b82f6; font-weight: 600; }
+        
+        .typing-indicator { display: inline-flex; gap: 3px; }
+        .typing-indicator span {
+            width: 4px; height: 4px; background: #6b7280; border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        .canvas-bg {
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(147, 51, 234, 0.08) 0%, transparent 50%);
+        }
+        
+        .grid-overlay {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .model-element { transition: all 0.15s ease; cursor: pointer; }
+        .model-element:hover { filter: brightness(1.2); }
+        .model-element.selected { filter: brightness(1.3); stroke: #3b82f6; stroke-width: 3; }
+        .model-element.related { stroke: #a855f7; stroke-width: 2; stroke-dasharray: 4 2; }
+        .model-element.highlighted { stroke: #22c55e; stroke-width: 3; animation: highlightPulse 1s ease-in-out infinite; }
+        
+        @keyframes highlightPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        
+        .connection-line { stroke: #a855f7; stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.5; }
+        
+        .drawing-preview { stroke: #3b82f6; stroke-width: 2; stroke-dasharray: 5 5; fill: rgba(59, 130, 246, 0.1); }
+        
+        input:focus, select:focus { outline: none; }
+    </style>
+</head>
+<body class="bg-gray-950 text-white overflow-hidden">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+        
+        // ============================================
+        // GLOBAL STATE CONTEXT
+        // ============================================
+        
+        const AppContext = createContext();
+        
+        function useApp() {
+            return useContext(AppContext);
+        }
+        
+        // ============================================
+        // INITIAL MODEL DATA
+        // ============================================
+        
+        const createInitialElements = () => [
+            { 
+                id: 'wall-101', type: 'wall', name: 'Wall-101',
+                x: 150, y: 120, width: 350, height: 12,
+                properties: { thickness: '200mm', height: '3000mm', material: 'Concrete', fireRating: '60 min', structural: true, level: 'Level 1' },
+                relationships: { hosts: ['door-15', 'window-23'], joins: ['wall-102', 'wall-103'], bounds: ['room-office-101'] },
+                issues: [],
+                aiSuggestions: [
+                    { icon: 'fa-fire', text: 'Upgrade to 90min fire rating for corridor separation', priority: 'medium' },
+                    { icon: 'fa-copy', text: 'Copy to Levels 2-4 to maintain consistency', priority: 'low' }
+                ]
+            },
+            { 
+                id: 'wall-102', type: 'wall', name: 'Wall-102', 
+                x: 150, y: 120, width: 12, height: 280,
+                properties: { thickness: '200mm', height: '3000mm', material: 'Concrete', fireRating: '60 min', structural: true, level: 'Level 1' },
+                relationships: { hosts: [], joins: ['wall-101', 'wall-104'], bounds: ['room-office-101'] },
+                issues: [{ type: 'warning', message: 'Wall intersects with Duct-45 (soft clash)' }],
+                aiSuggestions: [{ icon: 'fa-arrows-alt-h', text: 'Move 100mm east to resolve duct clearance', priority: 'high' }]
+            },
+            { 
+                id: 'wall-103', type: 'wall', name: 'Wall-103', 
+                x: 500, y: 120, width: 12, height: 280,
+                properties: { thickness: '150mm', height: '3000mm', material: 'Drywall', fireRating: '30 min', structural: false, level: 'Level 1' },
+                relationships: { hosts: [], joins: ['wall-101', 'wall-104'], bounds: ['room-office-101'] },
+                issues: [], aiSuggestions: []
+            },
+            { 
+                id: 'wall-104', type: 'wall', name: 'Wall-104', 
+                x: 150, y: 400, width: 350, height: 12,
+                properties: { thickness: '200mm', height: '3000mm', material: 'Concrete', fireRating: '60 min', structural: true, level: 'Level 1' },
+                relationships: { hosts: [], joins: ['wall-102', 'wall-103'], bounds: ['room-office-101'] },
+                issues: [], aiSuggestions: []
+            },
+            { 
+                id: 'door-15', type: 'door', name: 'Door-15', 
+                x: 260, y: 114, width: 50, height: 24,
+                properties: { width: '900mm', height: '2100mm', material: 'Timber', fireRating: '30 min', hardware: 'Lever handle', swing: 'Inward', level: 'Level 1' },
+                relationships: { hostedBy: 'wall-101', leadsTo: ['room-office-101', 'corridor-main'] },
+                issues: [{ type: 'error', message: 'Door fire rating (30min) < host wall (60min)' }],
+                aiSuggestions: [
+                    { icon: 'fa-fire', text: 'Upgrade to FD60 door to match wall rating', priority: 'high' },
+                    { icon: 'fa-wheelchair', text: 'Widen to 1000mm for accessibility', priority: 'medium' }
+                ]
+            },
+            { 
+                id: 'window-23', type: 'window', name: 'Window-23', 
+                x: 380, y: 114, width: 80, height: 24,
+                properties: { width: '1500mm', height: '1200mm', sillHeight: '900mm', glazing: 'Double', uValue: '1.4 W/mÂ²K', frame: 'Aluminum', level: 'Level 1' },
+                relationships: { hostedBy: 'wall-101', facesRoom: 'room-office-101' },
+                issues: [],
+                aiSuggestions: [{ icon: 'fa-sun', text: 'Consider solar shading - south-facing', priority: 'low' }]
+            },
+            {
+                id: 'room-office-101', type: 'room', name: 'Office 101',
+                x: 162, y: 132, width: 338, height: 268, isVirtual: true,
+                properties: { area: '24.5 mÂ²', perimeter: '20.0 m', volume: '73.5 mÂ³', occupancy: 'B - Business', department: 'Admin', level: 'Level 1' },
+                relationships: { boundedBy: ['wall-101', 'wall-102', 'wall-103', 'wall-104'], accessVia: ['door-15'] },
+                issues: [],
+                aiSuggestions: [{ icon: 'fa-user', text: 'Area supports 2-3 occupants at 8mÂ²/person', priority: 'info' }]
+            }
+        ];
+        
+        // ============================================
+        // COMMAND DEFINITIONS
+        // ============================================
+        
+        const COMMANDS = [
+            { id: 'wall', type: 'create', icon: 'fa-square', label: 'Create Wall', shortcut: 'W', category: 'Modeling', description: 'Draw a new wall element' },
+            { id: 'door', type: 'create', icon: 'fa-door-open', label: 'Place Door', shortcut: 'D', category: 'Modeling', description: 'Insert a door into a wall' },
+            { id: 'window', type: 'create', icon: 'fa-window-maximize', label: 'Place Window', shortcut: 'N', category: 'Modeling', description: 'Insert a window into a wall' },
+            { id: 'floor', type: 'create', icon: 'fa-layer-group', label: 'Create Floor', shortcut: 'F', category: 'Modeling', description: 'Draw a floor slab' },
+            { id: 'room', type: 'create', icon: 'fa-vector-square', label: 'Create Room', shortcut: 'M', category: 'Spaces', description: 'Define a room boundary' },
+            { id: 'column', type: 'create', icon: 'fa-grip-lines-vertical', label: 'Place Column', shortcut: 'C', category: 'Structure', description: 'Place a structural column' },
+            { id: 'select-all', type: 'select', icon: 'fa-object-group', label: 'Select All', shortcut: 'âŒ˜A', category: 'Selection', description: 'Select all elements' },
+            { id: 'select-walls', type: 'select', icon: 'fa-square', label: 'Select All Walls', category: 'Selection', description: 'Select every wall' },
+            { id: 'select-doors', type: 'select', icon: 'fa-door-open', label: 'Select All Doors', category: 'Selection', description: 'Select every door' },
+            { id: 'view-3d', type: 'view', icon: 'fa-cube', label: '3D View', shortcut: '3', category: 'Views', description: 'Switch to 3D perspective' },
+            { id: 'view-plan', type: 'view', icon: 'fa-square', label: 'Floor Plan', shortcut: 'P', category: 'Views', description: 'Switch to plan view' },
+            { id: 'zoom-fit', type: 'view', icon: 'fa-expand', label: 'Zoom to Fit', shortcut: 'Z F', category: 'Views', description: 'Fit all elements in view' },
+            { id: 'zoom-selection', type: 'view', icon: 'fa-search-plus', label: 'Zoom to Selection', shortcut: 'Z S', category: 'Views', description: 'Zoom to selected elements' },
+            { id: 'measure', type: 'tool', icon: 'fa-ruler', label: 'Measure', shortcut: 'M E', category: 'Tools', description: 'Measure distances' },
+            { id: 'align', type: 'tool', icon: 'fa-align-center', label: 'Align', shortcut: 'A L', category: 'Tools', description: 'Align elements' },
+            { id: 'mirror', type: 'tool', icon: 'fa-arrows-alt-h', label: 'Mirror', shortcut: 'M I', category: 'Tools', description: 'Mirror selected' },
+            { id: 'array', type: 'tool', icon: 'fa-th', label: 'Array', shortcut: 'A R', category: 'Tools', description: 'Create array' },
+            { id: 'clash-check', type: 'analysis', icon: 'fa-exclamation-triangle', label: 'Run Clash Detection', category: 'Analysis', description: 'Find interferences' },
+            { id: 'compliance', type: 'analysis', icon: 'fa-check-circle', label: 'Check Compliance', category: 'Analysis', description: 'Validate against standards' },
+            { id: 'quantities', type: 'analysis', icon: 'fa-calculator', label: 'Generate Quantities', category: 'Analysis', description: 'Extract material quantities' },
+            { id: 'export-pdf', type: 'doc', icon: 'fa-file-pdf', label: 'Export to PDF', shortcut: 'âŒ˜P', category: 'Documentation', description: 'Export current view' },
+            { id: 'export-ifc', type: 'doc', icon: 'fa-file-export', label: 'Export to IFC', category: 'Documentation', description: 'Export to IFC format' },
+            { id: 'undo', type: 'edit', icon: 'fa-undo', label: 'Undo', shortcut: 'âŒ˜Z', category: 'Edit', description: 'Undo last action' },
+            { id: 'redo', type: 'edit', icon: 'fa-redo', label: 'Redo', shortcut: 'âŒ˜â‡§Z', category: 'Edit', description: 'Redo last action' },
+            { id: 'delete', type: 'edit', icon: 'fa-trash', label: 'Delete Selection', shortcut: 'âŒ«', category: 'Edit', description: 'Delete selected elements' },
+            { id: 'copy', type: 'edit', icon: 'fa-copy', label: 'Copy', shortcut: 'âŒ˜C', category: 'Edit', description: 'Copy to clipboard' },
+            { id: 'paste', type: 'edit', icon: 'fa-paste', label: 'Paste', shortcut: 'âŒ˜V', category: 'Edit', description: 'Paste from clipboard' },
+            { id: 'settings', type: 'settings', icon: 'fa-cog', label: 'Settings', shortcut: 'âŒ˜,', category: 'System', description: 'Open settings' },
+            { id: 'help', type: 'settings', icon: 'fa-question-circle', label: 'Help', shortcut: '?', category: 'System', description: 'Show help' },
+        ];
+        
+        const NL_PATTERNS = [
+            {
+                patterns: [/wall.*(\d+).*mm/i, /(\d+).*mm.*wall/i],
+                response: (match, query) => {
+                    const thickness = query.match(/(\d+)\s*mm/i)?.[1] || '200';
+                    const material = query.match(/concrete|brick|metal|timber|glass|drywall/i)?.[0] || 'Concrete';
+                    return {
+                        type: 'ai-action', icon: 'fa-wand-magic-sparkles',
+                        label: `Create ${thickness}mm ${material} wall`,
+                        description: 'AI will create wall with specified properties',
+                        action: { type: 'create-wall', thickness, material },
+                        preview: `Ready to draw. Click two points to place the wall.`
+                    };
+                }
+            },
+            {
+                patterns: [/copy.*to.*level/i, /copy.*all.*floor/i, /copy.*every.*floor/i, /copy.*other.*level/i],
+                response: () => ({
+                    type: 'ai-action', icon: 'fa-wand-magic-sparkles',
+                    label: 'Copy selection to all levels',
+                    description: 'AI will duplicate selected elements across floors',
+                    action: { type: 'copy-to-levels' },
+                    preview: 'Will copy selected elements to Levels 2, 3, and 4.'
+                })
+            },
+            {
+                patterns: [/fire.*rated/i, /show.*fire/i, /find.*fire/i, /filter.*fire/i],
+                response: () => ({
+                    type: 'ai-action', icon: 'fa-wand-magic-sparkles',
+                    label: 'Highlight fire-rated elements',
+                    description: 'AI will filter and highlight by fire rating',
+                    action: { type: 'filter-fire-rated' },
+                    preview: 'Found 5 fire-rated elements. Will highlight by rating.'
+                })
+            },
+            {
+                patterns: [/what.*wrong/i, /check.*model/i, /find.*issues/i, /any.*problems/i, /show.*errors/i],
+                response: () => ({
+                    type: 'ai-action', icon: 'fa-wand-magic-sparkles',
+                    label: 'Run comprehensive model check',
+                    description: 'AI will analyze compliance, clashes, completeness',
+                    action: { type: 'full-check' },
+                    preview: 'Running clash detection, compliance check, and completeness audit...'
+                })
+            },
+            {
+                patterns: [/select.*all.*(\w+)/i],
+                response: (match, query) => {
+                    const elementType = query.match(/select.*all.*(\w+)/i)?.[1]?.toLowerCase() || 'elements';
+                    return {
+                        type: 'ai-action', icon: 'fa-object-group',
+                        label: `Select all ${elementType}`,
+                        description: `Select every ${elementType} in current view`,
+                        action: { type: 'select-by-type', elementType },
+                        preview: `Will select all ${elementType} visible in current view.`
+                    };
+                }
+            },
+            {
+                patterns: [/delete.*all.*(\w+)/i, /remove.*all.*(\w+)/i],
+                response: (match, query) => {
+                    const elementType = query.match(/(delete|remove).*all.*(\w+)/i)?.[2]?.toLowerCase() || 'elements';
+                    return {
+                        type: 'ai-action', icon: 'fa-trash',
+                        label: `Delete all ${elementType}`,
+                        description: `Remove every ${elementType} from model`,
+                        action: { type: 'delete-by-type', elementType },
+                        preview: `Warning: Will delete all ${elementType}. This cannot be undone.`
+                    };
+                }
+            }
+        ];
+        
+        const CONTEXT_ACTIONS = {
+            wall: [
+                { id: 'edit', icon: 'fa-pen', label: 'Edit Properties', shortcut: 'E' },
+                { id: 'split', icon: 'fa-scissors', label: 'Split Wall', shortcut: 'S' },
+                { id: 'join', icon: 'fa-link', label: 'Join/Unjoin', shortcut: 'J' },
+                { id: 'flip', icon: 'fa-arrows-alt-h', label: 'Flip Orientation', shortcut: 'F' },
+                { id: 'divider', type: 'divider' },
+                { id: 'add-door', icon: 'fa-door-open', label: 'Insert Door', shortcut: 'D' },
+                { id: 'add-window', icon: 'fa-window-maximize', label: 'Insert Window', shortcut: 'W' },
+                { id: 'divider2', type: 'divider' },
+                { id: 'copy', icon: 'fa-copy', label: 'Copy', shortcut: 'âŒ˜C' },
+                { id: 'copy-levels', icon: 'fa-layer-group', label: 'Copy to Other Levels...' },
+                { id: 'delete', icon: 'fa-trash', label: 'Delete', shortcut: 'âŒ«', danger: true },
+            ],
+            door: [
+                { id: 'edit', icon: 'fa-pen', label: 'Edit Properties', shortcut: 'E' },
+                { id: 'flip', icon: 'fa-arrows-alt-h', label: 'Flip Swing', shortcut: 'F' },
+                { id: 'change-type', icon: 'fa-exchange-alt', label: 'Change Type...', shortcut: 'T' },
+                { id: 'divider', type: 'divider' },
+                { id: 'copy', icon: 'fa-copy', label: 'Copy', shortcut: 'âŒ˜C' },
+                { id: 'copy-levels', icon: 'fa-layer-group', label: 'Copy to Other Levels...' },
+                { id: 'delete', icon: 'fa-trash', label: 'Delete', shortcut: 'âŒ«', danger: true },
+            ],
+            window: [
+                { id: 'edit', icon: 'fa-pen', label: 'Edit Properties', shortcut: 'E' },
+                { id: 'change-type', icon: 'fa-exchange-alt', label: 'Change Type...', shortcut: 'T' },
+                { id: 'align', icon: 'fa-align-center', label: 'Align with Others', shortcut: 'A' },
+                { id: 'divider', type: 'divider' },
+                { id: 'copy', icon: 'fa-copy', label: 'Copy', shortcut: 'âŒ˜C' },
+                { id: 'copy-levels', icon: 'fa-layer-group', label: 'Copy to Other Levels...' },
+                { id: 'delete', icon: 'fa-trash', label: 'Delete', shortcut: 'âŒ«', danger: true },
+            ],
+            room: [
+                { id: 'edit', icon: 'fa-pen', label: 'Edit Properties', shortcut: 'E' },
+                { id: 'rename', icon: 'fa-i-cursor', label: 'Rename Room', shortcut: 'R' },
+                { id: 'place-tag', icon: 'fa-tag', label: 'Place Room Tag' },
+                { id: 'divider', type: 'divider' },
+                { id: 'calculate', icon: 'fa-calculator', label: 'Recalculate Area' },
+                { id: 'check-code', icon: 'fa-check-circle', label: 'Check Code Compliance' },
+                { id: 'divider2', type: 'divider' },
+                { id: 'delete', icon: 'fa-trash', label: 'Delete Room', shortcut: 'âŒ«', danger: true },
+            ]
+        };
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        
+        function generateId(type) {
+            return `${type}-${Date.now().toString(36)}`;
+        }
+        
+        function fuzzyMatch(query, text) {
+            const q = query.toLowerCase(), t = text.toLowerCase();
+            if (t === q) return { score: 1, indices: [] };
+            if (t.includes(q)) {
+                const start = t.indexOf(q);
+                return { score: 0.8, indices: Array.from({ length: q.length }, (_, i) => start + i) };
+            }
+            let qi = 0, indices = [], bonus = 0;
+            for (let i = 0; i < t.length && qi < q.length; i++) {
+                if (t[i] === q[qi]) {
+                    indices.push(i);
+                    if (indices.length > 1 && i === indices[indices.length - 2] + 1) bonus += 0.1;
+                    qi++;
+                }
+            }
+            if (qi === q.length) return { score: Math.min((q.length / t.length) * 0.5 + bonus, 0.7), indices };
+            return { score: 0, indices: [] };
+        }
+        
+        function highlightMatch(text, indices) {
+            if (!indices.length) return text;
+            let result = [], lastIndex = 0;
+            indices.forEach((index, i) => {
+                if (index > lastIndex) result.push(text.slice(lastIndex, index));
+                result.push(<span key={i} className="highlight">{text[index]}</span>);
+                lastIndex = index + 1;
+            });
+            if (lastIndex < text.length) result.push(text.slice(lastIndex));
+            return result;
+        }
+        
+        // ============================================
+        // TOAST NOTIFICATION COMPONENT
+        // ============================================
+        
+        function Toast({ message, type = 'success', onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+            
+            const colors = {
+                success: 'bg-green-500/90',
+                error: 'bg-red-500/90',
+                warning: 'bg-yellow-500/90',
+                info: 'bg-blue-500/90'
+            };
+            
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+            
+            return (
+                <div className={`toast ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[250px]`}>
+                    <i className={`fa-solid ${icons[type]}`}></i>
+                    <span className="flex-1">{message}</span>
+                    <button onClick={onClose} className="opacity-70 hover:opacity-100">
+                        <i className="fa-solid fa-times"></i>
+                    </button>
+                </div>
+            );
+        }
+        
+        function ToastContainer({ toasts, removeToast }) {
+            return (
+                <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+                    {toasts.map(toast => (
+                        <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
+                    ))}
+                </div>
+            );
+        }
+        
+        // ============================================
+        // MODAL COMPONENT
+        // ============================================
+        
+        function Modal({ isOpen, onClose, title, children, actions }) {
+            if (!isOpen) return null;
+            
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div 
+                        className="modal relative w-full max-w-md mx-4 bg-gray-900 rounded-xl shadow-2xl border border-gray-700/50 overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+                            <h3 className="font-medium text-white">{title}</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white">
+                                <i className="fa-solid fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="p-4">{children}</div>
+                        {actions && (
+                            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-700/50 bg-gray-800/50">
+                                {actions}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // PROPERTIES EDITOR MODAL
+        // ============================================
+        
+        function PropertiesEditor({ element, onSave, onClose }) {
+            const [properties, setProperties] = useState({ ...element.properties });
+            
+            const handleChange = (key, value) => {
+                setProperties(prev => ({ ...prev, [key]: value }));
+            };
+            
+            const handleSave = () => {
+                onSave(element.id, properties);
+                onClose();
+            };
+            
+            return (
+                <Modal
+                    isOpen={true}
+                    onClose={onClose}
+                    title={`Edit ${element.name}`}
+                    actions={
+                        <>
+                            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
+                                Cancel
+                            </button>
+                            <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded-lg">
+                                Save Changes
+                            </button>
+                        </>
+                    }
+                >
+                    <div className="space-y-3">
+                        {Object.entries(properties).map(([key, value]) => (
+                            <div key={key} className="flex items-center gap-3">
+                                <label className="w-32 text-sm text-gray-400 capitalize">
+                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                </label>
+                                {typeof value === 'boolean' ? (
+                                    <button
+                                        onClick={() => handleChange(key, !value)}
+                                        className={`w-12 h-6 rounded-full transition-colors ${value ? 'bg-blue-600' : 'bg-gray-700'}`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full bg-white transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                    </button>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={value}
+                                        onChange={e => handleChange(key, e.target.value)}
+                                        className="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:border-blue-500"
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </Modal>
+            );
+        }
+        
+        // ============================================
+        // CONFIRMATION MODAL
+        // ============================================
+        
+        function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', danger = false }) {
+            return (
+                <Modal
+                    isOpen={isOpen}
+                    onClose={onClose}
+                    title={title}
+                    actions={
+                        <>
+                            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => { onConfirm(); onClose(); }}
+                                className={`px-4 py-2 text-sm rounded-lg ${danger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'}`}
+                            >
+                                {confirmText}
+                            </button>
+                        </>
+                    }
+                >
+                    <p className="text-gray-300">{message}</p>
+                </Modal>
+            );
+        }
+        
+        // ============================================
+        // COMMAND PALETTE
+        // ============================================
+        
+        function CommandPalette({ isOpen, onClose }) {
+            const { executeCommand, elements, setSelectedElements, addToast } = useApp();
+            const [query, setQuery] = useState('');
+            const [selectedIndex, setSelectedIndex] = useState(0);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [aiResponse, setAiResponse] = useState(null);
+            const inputRef = useRef(null);
+            
+            const recentCommands = useMemo(() => [
+                COMMANDS.find(c => c.id === 'wall'),
+                COMMANDS.find(c => c.id === 'door'),
+                COMMANDS.find(c => c.id === 'compliance'),
+            ].filter(Boolean), []);
+            
+            const results = useMemo(() => {
+                if (!query.trim()) {
+                    return { type: 'recent', items: recentCommands.map(cmd => ({ ...cmd, score: 1, indices: [] })) };
+                }
+                
+                for (const pattern of NL_PATTERNS) {
+                    for (const regex of pattern.patterns) {
+                        const match = query.match(regex);
+                        if (match) return { type: 'ai', items: [{ ...pattern.response(match, query), score: 1, indices: [] }] };
+                    }
+                }
+                
+                const scored = COMMANDS.map(cmd => {
+                    const labelMatch = fuzzyMatch(query, cmd.label);
+                    const catMatch = fuzzyMatch(query, cmd.category);
+                    return { ...cmd, score: Math.max(labelMatch.score, catMatch.score * 0.7), indices: labelMatch.indices };
+                }).filter(cmd => cmd.score > 0.1).sort((a, b) => b.score - a.score).slice(0, 8);
+                
+                return { type: 'search', items: scored };
+            }, [query, recentCommands]);
+            
+            useEffect(() => { setSelectedIndex(0); }, [results]);
+            useEffect(() => {
+                if (isOpen && inputRef.current) {
+                    inputRef.current.focus();
+                    setQuery('');
+                    setAiResponse(null);
+                }
+            }, [isOpen]);
+            
+            const handleExecute = async (cmd) => {
+                if (cmd.type?.startsWith('ai')) {
+                    setIsProcessing(true);
+                    setAiResponse({ status: 'processing', message: cmd.preview });
+                    await new Promise(r => setTimeout(r, 1000));
+                    
+                    // Execute the AI action
+                    if (cmd.action) {
+                        executeCommand(cmd.action);
+                    }
+                    
+                    setAiResponse({ status: 'complete', message: 'Action completed successfully.' });
+                    setIsProcessing(false);
+                    setTimeout(() => onClose(), 500);
+                } else {
+                    executeCommand({ type: cmd.id });
+                    onClose();
+                }
+            };
+            
+            const handleKeyDown = (e) => {
+                switch (e.key) {
+                    case 'ArrowDown': e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, results.items.length - 1)); break;
+                    case 'ArrowUp': e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); break;
+                    case 'Enter': e.preventDefault(); results.items[selectedIndex] && handleExecute(results.items[selectedIndex]); break;
+                    case 'Escape': e.preventDefault(); onClose(); break;
+                }
+            };
+            
+            if (!isOpen) return null;
+            
+            return (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div className="command-palette relative w-full max-w-2xl mx-4 bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center px-4 py-4 border-b border-gray-700/50">
+                            <i className="fa-solid fa-magnifying-glass text-gray-500 mr-3"></i>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Type a command or ask a question..."
+                                className="flex-1 bg-transparent text-white text-lg placeholder-gray-500 outline-none"
+                            />
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <kbd className="px-2 py-1 bg-gray-800 rounded">â†‘â†“</kbd>
+                                <kbd className="px-2 py-1 bg-gray-800 rounded">â†µ</kbd>
+                                <kbd className="px-2 py-1 bg-gray-800 rounded">esc</kbd>
+                            </div>
+                        </div>
+                        
+                        {aiResponse && (
+                            <div className={`px-4 py-3 border-b border-gray-700/50 ${aiResponse.status === 'processing' ? 'bg-blue-900/30' : 'bg-green-900/30'}`}>
+                                <div className="flex items-center gap-3">
+                                    {aiResponse.status === 'processing' ? (
+                                        <><div className="typing-indicator"><span></span><span></span><span></span></div><span className="text-blue-300 text-sm">{aiResponse.message}</span></>
+                                    ) : (
+                                        <><i className="fa-solid fa-check-circle text-green-400"></i><span className="text-green-300 text-sm">{aiResponse.message}</span></>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="max-h-[400px] overflow-y-auto py-2">
+                            {results.type === 'recent' && <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Recent</div>}
+                            {results.type === 'ai' && <div className="px-4 py-2 text-xs font-medium text-purple-400 uppercase flex items-center gap-2"><i className="fa-solid fa-wand-magic-sparkles"></i>AI Understood</div>}
+                            {results.type === 'search' && query && <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Commands</div>}
+                            
+                            {results.items.map((item, index) => (
+                                <div
+                                    key={item.id || index}
+                                    className={`result-item flex items-center gap-3 px-4 py-3 cursor-pointer ${index === selectedIndex ? 'selected' : 'hover:bg-gray-800/50'}`}
+                                    onClick={() => handleExecute(item)}
+                                    onMouseEnter={() => setSelectedIndex(index)}
+                                >
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        item.type?.startsWith('ai') ? 'bg-purple-500/20 text-purple-400' :
+                                        item.type === 'create' ? 'bg-blue-500/20 text-blue-400' :
+                                        item.type === 'select' ? 'bg-green-500/20 text-green-400' :
+                                        item.type === 'view' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        item.type === 'analysis' ? 'bg-orange-500/20 text-orange-400' :
+                                        item.type === 'edit' ? 'bg-pink-500/20 text-pink-400' :
+                                        'bg-gray-700/50 text-gray-400'
+                                    }`}>
+                                        <i className={`fa-solid ${item.icon}`}></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-white">{highlightMatch(item.label, item.indices || [])}</span>
+                                            {item.shortcut && <kbd className="px-1.5 py-0.5 text-xs bg-gray-800 text-gray-400 rounded">{item.shortcut}</kbd>}
+                                        </div>
+                                        <div className="text-sm text-gray-500 truncate">{item.description}</div>
+                                        {item.preview && index === selectedIndex && (
+                                            <div className="mt-1 text-xs text-purple-400 bg-purple-500/10 px-2 py-1 rounded inline-block">{item.preview}</div>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-gray-600">{item.category}</div>
+                                </div>
+                            ))}
+                            
+                            {results.items.length === 0 && query && (
+                                <div className="px-4 py-8 text-center text-gray-500">
+                                    <i className="fa-solid fa-search text-2xl mb-2 block opacity-50"></i>
+                                    <p>No commands found</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="px-4 py-3 border-t border-gray-700/50 bg-gray-800/30">
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                                <span className="flex items-center gap-1"><i className="fa-solid fa-wand-magic-sparkles text-purple-400"></i> AI understands natural language</span>
+                                <span>âŒ˜K or /</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // CONTEXT MENU
+        // ============================================
+        
+        function ContextMenu({ element, position, onClose }) {
+            const { executeContextAction, elements } = useApp();
+            const menuRef = useRef(null);
+            const [expandedSection, setExpandedSection] = useState(null);
+            
+            useEffect(() => {
+                const handleClickOutside = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) onClose(); };
+                const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+                document.addEventListener('mousedown', handleClickOutside);
+                document.addEventListener('keydown', handleKeyDown);
+                return () => {
+                    document.removeEventListener('mousedown', handleClickOutside);
+                    document.removeEventListener('keydown', handleKeyDown);
+                };
+            }, [onClose]);
+            
+            if (!element) return null;
+            
+            const actions = CONTEXT_ACTIONS[element.type] || [];
+            const relatedElements = [];
+            
+            if (element.relationships) {
+                ['hosts', 'hostedBy', 'joins', 'bounds', 'boundedBy'].forEach(key => {
+                    const val = element.relationships[key];
+                    if (val) {
+                        (Array.isArray(val) ? val : [val]).forEach(id => {
+                            const el = elements.find(e => e.id === id);
+                            if (el) relatedElements.push({ ...el, relation: key.replace(/([A-Z])/g, ' $1').toLowerCase() });
+                        });
+                    }
+                });
+            }
+            
+            const pos = { x: Math.min(position.x, window.innerWidth - 300), y: Math.min(position.y, window.innerHeight - 450) };
+            
+            return (
+                <div ref={menuRef} className="context-menu fixed z-50 w-72 bg-gray-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-700/50 overflow-hidden" style={{ left: pos.x, top: pos.y }}>
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-gray-700/50 bg-gray-800/50">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                element.type === 'wall' ? 'bg-slate-500/30 text-slate-300' :
+                                element.type === 'door' ? 'bg-blue-500/30 text-blue-300' :
+                                element.type === 'window' ? 'bg-cyan-500/30 text-cyan-300' :
+                                'bg-purple-500/30 text-purple-300'
+                            }`}>
+                                <i className={`fa-solid ${element.type === 'wall' ? 'fa-square' : element.type === 'door' ? 'fa-door-open' : element.type === 'window' ? 'fa-window-maximize' : 'fa-vector-square'}`}></i>
+                            </div>
+                            <div className="flex-1">
+                                <div className="font-medium text-white">{element.name}</div>
+                                <div className="text-xs text-gray-400">{element.type.charAt(0).toUpperCase() + element.type.slice(1)} â€¢ {element.properties?.level}</div>
+                            </div>
+                            <button className="text-gray-500 hover:text-white" onClick={onClose}><i className="fa-solid fa-times"></i></button>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            {element.type === 'wall' && <>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Thickness</span><span className="text-white">{element.properties?.thickness}</span></div>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Fire</span><span className="text-white">{element.properties?.fireRating}</span></div>
+                            </>}
+                            {element.type === 'door' && <>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Size</span><span className="text-white">{element.properties?.width}</span></div>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Fire</span><span className="text-white">{element.properties?.fireRating}</span></div>
+                            </>}
+                            {element.type === 'window' && <>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Size</span><span className="text-white">{element.properties?.width}</span></div>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">U-Value</span><span className="text-white">{element.properties?.uValue}</span></div>
+                            </>}
+                            {element.type === 'room' && <>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Area</span><span className="text-white">{element.properties?.area}</span></div>
+                                <div className="flex justify-between bg-gray-800/50 px-2 py-1 rounded"><span className="text-gray-500">Occupancy</span><span className="text-white">{element.properties?.occupancy}</span></div>
+                            </>}
+                        </div>
+                    </div>
+                    
+                    {/* Issues */}
+                    {element.issues?.length > 0 && (
+                        <div className="px-3 py-2 bg-red-900/30 border-b border-red-700/30">
+                            {element.issues.map((issue, i) => (
+                                <div key={i} className="flex items-start gap-2 text-xs">
+                                    <i className={`fa-solid mt-0.5 ${issue.type === 'error' ? 'fa-exclamation-circle text-red-400' : 'fa-exclamation-triangle text-yellow-400'}`}></i>
+                                    <span className={issue.type === 'error' ? 'text-red-300' : 'text-yellow-300'}>{issue.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {/* Quick Actions */}
+                    <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-700/50">
+                        {[
+                            { id: 'edit', icon: 'fa-pen', label: 'Edit' },
+                            { id: 'copy', icon: 'fa-copy', label: 'Copy' },
+                            { id: 'move', icon: 'fa-arrows-alt', label: 'Move' },
+                            { id: 'delete', icon: 'fa-trash', label: 'Delete', danger: true },
+                        ].map(action => (
+                            <button
+                                key={action.id}
+                                className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg transition-colors ${action.danger ? 'text-gray-500 hover:text-red-400 hover:bg-red-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                                onClick={() => { executeContextAction(action.id, element); onClose(); }}
+                            >
+                                <i className={`fa-solid ${action.icon} text-sm`}></i>
+                                <span className="text-[10px]">{action.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* Scrollable content */}
+                    <div className="max-h-[250px] overflow-y-auto">
+                        {/* Relationships */}
+                        {relatedElements.length > 0 && (
+                            <div className="px-3 py-2 border-b border-gray-700/50">
+                                <button className="flex items-center justify-between w-full text-xs text-gray-400 hover:text-white" onClick={() => setExpandedSection(expandedSection === 'rel' ? null : 'rel')}>
+                                    <span className="flex items-center gap-2"><i className="fa-solid fa-project-diagram"></i>Relationships ({relatedElements.length})</span>
+                                    <i className={`fa-solid fa-chevron-${expandedSection === 'rel' ? 'up' : 'down'}`}></i>
+                                </button>
+                                {expandedSection === 'rel' && (
+                                    <div className="mt-2 space-y-1">
+                                        {relatedElements.map((rel, i) => (
+                                            <button key={i} className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-gray-800 text-left" onClick={() => { executeContextAction('select', rel); onClose(); }}>
+                                                <div className={`w-6 h-6 rounded flex items-center justify-center ${rel.type === 'wall' ? 'bg-slate-500/30 text-slate-400' : rel.type === 'door' ? 'bg-blue-500/30 text-blue-400' : rel.type === 'window' ? 'bg-cyan-500/30 text-cyan-400' : 'bg-purple-500/30 text-purple-400'}`}>
+                                                    <i className={`fa-solid ${rel.type === 'wall' ? 'fa-square' : rel.type === 'door' ? 'fa-door-open' : rel.type === 'window' ? 'fa-window-maximize' : 'fa-vector-square'} text-[10px]`}></i>
+                                                </div>
+                                                <span className="text-white">{rel.name}</span>
+                                                <span className="text-gray-500">({rel.relation})</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* Actions */}
+                        <div className="py-1">
+                            {actions.map((action, i) => action.type === 'divider' ? (
+                                <div key={i} className="my-1 border-t border-gray-700/50" />
+                            ) : (
+                                <button key={action.id} className={`flex items-center gap-3 w-full px-4 py-2 text-sm ${action.danger ? 'text-red-400 hover:bg-red-900/20' : 'text-gray-300 hover:text-white hover:bg-gray-800/50'}`} onClick={() => { executeContextAction(action.id, element); onClose(); }}>
+                                    <i className={`fa-solid ${action.icon} w-4 text-center ${action.danger ? 'text-red-400' : 'text-gray-500'}`}></i>
+                                    <span className="flex-1 text-left">{action.label}</span>
+                                    {action.shortcut && <kbd className="px-1.5 py-0.5 text-xs bg-gray-800 text-gray-500 rounded">{action.shortcut}</kbd>}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        {/* AI Suggestions */}
+                        {element.aiSuggestions?.length > 0 && (
+                            <div className="px-3 py-2 border-t border-gray-700/50 bg-purple-900/10">
+                                <div className="flex items-center gap-2 text-xs text-purple-400 mb-2"><i className="fa-solid fa-wand-magic-sparkles"></i>AI Suggestions</div>
+                                <div className="space-y-1">
+                                    {element.aiSuggestions.map((sug, i) => (
+                                        <button key={i} className={`flex items-start gap-2 w-full px-2 py-1.5 text-xs rounded text-left ${sug.priority === 'high' ? 'bg-orange-900/20 hover:bg-orange-900/30 text-orange-300' : sug.priority === 'medium' ? 'bg-purple-900/20 hover:bg-purple-900/30 text-purple-300' : 'bg-gray-800/50 hover:bg-gray-800 text-gray-400'}`} onClick={() => { executeContextAction('ai-suggestion', { element, suggestion: sug }); onClose(); }}>
+                                            <i className={`fa-solid ${sug.icon} mt-0.5`}></i>
+                                            <span className="flex-1">{sug.text}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // 3D CANVAS COMPONENT
+        // ============================================
+        
+        function Canvas3D({ onClose }) {
+            const { elements, selectedElements, setSelectedElements, addToast } = useApp();
+            const containerRef = useRef(null);
+            const sceneRef = useRef(null);
+            const cameraRef = useRef(null);
+            const rendererRef = useRef(null);
+            const meshMapRef = useRef({});
+            const [isRotating, setIsRotating] = useState(true);
+            const [viewAngle, setViewAngle] = useState('perspective');
+            
+            useEffect(() => {
+                if (!containerRef.current) return;
+                
+                const container = containerRef.current;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Scene
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a2e);
+                sceneRef.current = scene;
+                
+                // Camera
+                const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
+                camera.position.set(15, 12, 15);
+                camera.lookAt(0, 0, 0);
+                cameraRef.current = camera;
+                
+                // Renderer
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(width, height);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
+                rendererRef.current = renderer;
+                
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 20, 10);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                scene.add(directionalLight);
+                
+                const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+                fillLight.position.set(-10, 5, -10);
+                scene.add(fillLight);
+                
+                // Ground plane
+                const groundGeometry = new THREE.PlaneGeometry(30, 30);
+                const groundMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x16213e, 
+                    roughness: 0.9,
+                    metalness: 0.1
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.y = -0.01;
+                ground.receiveShadow = true;
+                scene.add(ground);
+                
+                // Grid
+                const gridHelper = new THREE.GridHelper(30, 30, 0x3b82f6, 0x333355);
+                gridHelper.position.y = 0;
+                scene.add(gridHelper);
+                
+                // Convert 2D elements to 3D
+                const scale = 0.02; // Scale factor from pixels to meters
+                const offsetX = -6.5; // Center the model
+                const offsetZ = -5;
+                
+                elements.forEach(el => {
+                    if (el.type === 'room') return; // Skip rooms in 3D
+                    
+                    let mesh;
+                    const isSelected = selectedElements.some(s => s.id === el.id);
+                    
+                    if (el.type === 'wall') {
+                        const wallHeight = parseFloat(el.properties?.height || '3000') / 1000;
+                        const thickness = parseFloat(el.properties?.thickness || '200') / 1000;
+                        
+                        const width = el.width * scale;
+                        const depth = el.height * scale;
+                        
+                        const geometry = new THREE.BoxGeometry(
+                            width > depth ? width : thickness,
+                            wallHeight,
+                            width > depth ? thickness : depth
+                        );
+                        
+                        const material = new THREE.MeshStandardMaterial({
+                            color: isSelected ? 0x3b82f6 : (el.properties?.material === 'Concrete' ? 0x6b7280 : 0x94a3b8),
+                            roughness: 0.8,
+                            metalness: 0.1
+                        });
+                        
+                        mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.set(
+                            (el.x + el.width / 2) * scale + offsetX,
+                            wallHeight / 2,
+                            (el.y + el.height / 2) * scale + offsetZ
+                        );
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                    }
+                    else if (el.type === 'door') {
+                        const doorHeight = parseFloat(el.properties?.height || '2100') / 1000;
+                        const doorWidth = parseFloat(el.properties?.width || '900') / 1000;
+                        
+                        // Door frame
+                        const frameGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, 0.15);
+                        const frameMaterial = new THREE.MeshStandardMaterial({
+                            color: isSelected ? 0x60a5fa : 0x3b82f6,
+                            roughness: 0.5,
+                            metalness: 0.3
+                        });
+                        mesh = new THREE.Mesh(frameGeometry, frameMaterial);
+                        mesh.position.set(
+                            (el.x + el.width / 2) * scale + offsetX,
+                            doorHeight / 2,
+                            (el.y + el.height / 2) * scale + offsetZ
+                        );
+                        mesh.castShadow = true;
+                        
+                        // Door panel (slightly recessed)
+                        const panelGeometry = new THREE.BoxGeometry(doorWidth - 0.1, doorHeight - 0.1, 0.05);
+                        const panelMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x8b4513,
+                            roughness: 0.7,
+                            metalness: 0.1
+                        });
+                        const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+                        panel.position.y = 0;
+                        panel.position.z = 0.06;
+                        mesh.add(panel);
+                    }
+                    else if (el.type === 'window') {
+                        const windowHeight = parseFloat(el.properties?.height || '1200') / 1000;
+                        const windowWidth = parseFloat(el.properties?.width || '1500') / 1000;
+                        const sillHeight = parseFloat(el.properties?.sillHeight || '900') / 1000;
+                        
+                        // Window frame
+                        const frameGeometry = new THREE.BoxGeometry(windowWidth, windowHeight, 0.1);
+                        const frameMaterial = new THREE.MeshStandardMaterial({
+                            color: isSelected ? 0x22d3ee : 0xa0a0a0,
+                            roughness: 0.3,
+                            metalness: 0.8
+                        });
+                        mesh = new THREE.Mesh(frameGeometry, frameMaterial);
+                        mesh.position.set(
+                            (el.x + el.width / 2) * scale + offsetX,
+                            sillHeight + windowHeight / 2,
+                            (el.y + el.height / 2) * scale + offsetZ
+                        );
+                        mesh.castShadow = true;
+                        
+                        // Glass
+                        const glassGeometry = new THREE.BoxGeometry(windowWidth - 0.1, windowHeight - 0.1, 0.02);
+                        const glassMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x87ceeb,
+                            transparent: true,
+                            opacity: 0.4,
+                            roughness: 0.1,
+                            metalness: 0.9
+                        });
+                        const glass = new THREE.Mesh(glassGeometry, glassMaterial);
+                        mesh.add(glass);
+                    }
+                    
+                    if (mesh) {
+                        mesh.userData = { element: el };
+                        meshMapRef.current[el.id] = mesh;
+                        scene.add(mesh);
+                    }
+                });
+                
+                // Floor slab
+                const floorGeometry = new THREE.BoxGeometry(8, 0.3, 6);
+                const floorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x404040,
+                    roughness: 0.9,
+                    metalness: 0.1
+                });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.position.set(0, -0.15, 0);
+                floor.receiveShadow = true;
+                scene.add(floor);
+                
+                // Animation
+                let angle = 0;
+                let animationId;
+                
+                const animate = () => {
+                    animationId = requestAnimationFrame(animate);
+                    
+                    if (isRotating && viewAngle === 'perspective') {
+                        angle += 0.003;
+                        camera.position.x = Math.sin(angle) * 18;
+                        camera.position.z = Math.cos(angle) * 18;
+                        camera.lookAt(0, 1.5, 0);
+                    }
+                    
+                    renderer.render(scene, camera);
+                };
+                
+                animate();
+                
+                // Resize handler
+                const handleResize = () => {
+                    const w = container.clientWidth;
+                    const h = container.clientHeight;
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(w, h);
+                };
+                window.addEventListener('resize', handleResize);
+                
+                // Raycaster for selection
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+                
+                const handleClick = (event) => {
+                    const rect = container.getBoundingClientRect();
+                    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                    
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObjects(scene.children);
+                    
+                    for (const intersect of intersects) {
+                        if (intersect.object.userData?.element) {
+                            setSelectedElements([intersect.object.userData.element]);
+                            addToast({ message: `Selected: ${intersect.object.userData.element.name}`, type: 'info' });
+                            break;
+                        }
+                    }
+                };
+                
+                container.addEventListener('click', handleClick);
+                
+                // Cleanup
+                return () => {
+                    cancelAnimationFrame(animationId);
+                    window.removeEventListener('resize', handleResize);
+                    container.removeEventListener('click', handleClick);
+                    if (container.contains(renderer.domElement)) {
+                        container.removeChild(renderer.domElement);
+                    }
+                    renderer.dispose();
+                };
+            }, [elements, selectedElements, isRotating, viewAngle]);
+            
+            // Update camera for different views
+            useEffect(() => {
+                if (!cameraRef.current) return;
+                const camera = cameraRef.current;
+                
+                switch (viewAngle) {
+                    case 'top':
+                        camera.position.set(0, 25, 0.01);
+                        camera.lookAt(0, 0, 0);
+                        break;
+                    case 'front':
+                        camera.position.set(0, 5, 20);
+                        camera.lookAt(0, 1.5, 0);
+                        break;
+                    case 'side':
+                        camera.position.set(20, 5, 0);
+                        camera.lookAt(0, 1.5, 0);
+                        break;
+                    case 'perspective':
+                    default:
+                        camera.position.set(15, 12, 15);
+                        camera.lookAt(0, 1.5, 0);
+                        break;
+                }
+            }, [viewAngle]);
+            
+            return (
+                <div className="absolute inset-0 z-40">
+                    <div ref={containerRef} className="w-full h-full" />
+                    
+                    {/* 3D View Controls */}
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                        <div className="bg-gray-900/90 backdrop-blur rounded-lg p-2 flex flex-col gap-1">
+                            <span className="text-xs text-gray-400 px-2 mb-1">View</span>
+                            {['perspective', 'top', 'front', 'side'].map(view => (
+                                <button
+                                    key={view}
+                                    className={`px-3 py-1.5 text-sm rounded ${viewAngle === view ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+                                    onClick={() => { setViewAngle(view); setIsRotating(false); }}
+                                >
+                                    {view.charAt(0).toUpperCase() + view.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <button
+                            className={`px-3 py-2 rounded-lg text-sm ${isRotating ? 'bg-green-600 text-white' : 'bg-gray-900/90 text-gray-300 hover:bg-gray-800'}`}
+                            onClick={() => { setIsRotating(!isRotating); setViewAngle('perspective'); }}
+                        >
+                            <i className={`fa-solid ${isRotating ? 'fa-pause' : 'fa-play'} mr-2`}></i>
+                            {isRotating ? 'Pause' : 'Rotate'}
+                        </button>
+                    </div>
+                    
+                    {/* Close button */}
+                    <button
+                        className="absolute top-4 right-4 px-4 py-2 bg-gray-900/90 hover:bg-gray-800 text-white rounded-lg flex items-center gap-2"
+                        onClick={onClose}
+                    >
+                        <i className="fa-solid fa-times"></i>
+                        Back to 2D
+                    </button>
+                    
+                    {/* Status bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gray-900/80 border-t border-gray-700/50 flex items-center px-4 text-xs text-gray-400">
+                        <span className="mr-4">3D View</span>
+                        <span className="mr-4">Click elements to select</span>
+                        <span className="flex-1" />
+                        <span>Press P or click "Back to 2D" to return</span>
+                    </div>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // CANVAS
+        // ============================================
+        
+        function ModelCanvas() {
+            const { elements, selectedElements, setSelectedElements, highlightedElements, activeTool, setActiveTool, executeContextAction, addToast, drawingState, setDrawingState, addElement } = useApp();
+            const [hoveredElement, setHoveredElement] = useState(null);
+            const [contextMenu, setContextMenu] = useState({ element: null, position: null });
+            const canvasRef = useRef(null);
+            const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+            
+            const handleClick = (e) => {
+                if (contextMenu.element) {
+                    setContextMenu({ element: null, position: null });
+                    return;
+                }
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Drawing mode
+                if (activeTool === 'wall' || activeTool === 'create-wall') {
+                    if (!drawingState.isDrawing) {
+                        setDrawingState({ isDrawing: true, startPoint: { x, y }, currentTool: 'wall' });
+                    } else {
+                        // Finish drawing wall
+                        const start = drawingState.startPoint;
+                        const dx = x - start.x;
+                        const dy = y - start.y;
+                        const horizontal = Math.abs(dx) > Math.abs(dy);
+                        
+                        const newWall = {
+                            id: generateId('wall'),
+                            type: 'wall',
+                            name: `Wall-${elements.filter(e => e.type === 'wall').length + 1}`,
+                            x: Math.min(start.x, x),
+                            y: horizontal ? start.y - 6 : Math.min(start.y, y),
+                            width: horizontal ? Math.abs(dx) : 12,
+                            height: horizontal ? 12 : Math.abs(dy),
+                            properties: { thickness: drawingState.thickness || '200mm', height: '3000mm', material: drawingState.material || 'Concrete', fireRating: '60 min', structural: true, level: 'Level 1' },
+                            relationships: { hosts: [], joins: [], bounds: [] },
+                            issues: [],
+                            aiSuggestions: []
+                        };
+                        
+                        addElement(newWall);
+                        setDrawingState({ isDrawing: false, startPoint: null, currentTool: null });
+                        addToast({ message: `Created ${newWall.name}`, type: 'success' });
+                    }
+                    return;
+                }
+                
+                // Selection mode - deselect
+                setSelectedElements([]);
+            };
+            
+            const handleMouseMove = (e) => {
+                const rect = canvasRef.current.getBoundingClientRect();
+                setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+            };
+            
+            const handleElementClick = (e, el) => {
+                e.stopPropagation();
+                if (activeTool && activeTool !== 'select') return;
+                setContextMenu({ element: null, position: null });
+                setSelectedElements(e.shiftKey ? [...selectedElements.filter(s => s.id !== el.id), el] : [el]);
+            };
+            
+            const handleElementRightClick = (e, el) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedElements([el]);
+                setContextMenu({ element: el, position: { x: e.clientX, y: e.clientY } });
+            };
+            
+            const handleElementDoubleClick = (e, el) => {
+                e.stopPropagation();
+                executeContextAction('edit', el);
+            };
+            
+            const relatedIds = useMemo(() => {
+                if (selectedElements.length !== 1) return [];
+                const el = selectedElements[0];
+                if (!el?.relationships) return [];
+                const ids = [];
+                Object.values(el.relationships).forEach(v => Array.isArray(v) ? ids.push(...v) : v && ids.push(v));
+                return ids;
+            }, [selectedElements]);
+            
+            const connectionLines = useMemo(() => {
+                if (selectedElements.length !== 1 || relatedIds.length === 0) return [];
+                const el = selectedElements[0];
+                const center = { x: el.x + el.width / 2, y: el.y + el.height / 2 };
+                return relatedIds.map(id => {
+                    const rel = elements.find(e => e.id === id);
+                    return rel ? { x1: center.x, y1: center.y, x2: rel.x + rel.width / 2, y2: rel.y + rel.height / 2 } : null;
+                }).filter(Boolean);
+            }, [selectedElements, relatedIds, elements]);
+            
+            return (
+                <div ref={canvasRef} className="flex-1 canvas-bg relative overflow-hidden" onClick={handleClick} onMouseMove={handleMouseMove} onContextMenu={e => e.preventDefault()}>
+                    <div className="absolute inset-0 grid-overlay" />
+                    
+                    <svg className="absolute inset-0 w-full h-full">
+                        <circle cx="50" cy="50" r="3" fill="#3b82f6" opacity="0.5" />
+                        
+                        {connectionLines.map((line, i) => <line key={i} className="connection-line" x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />)}
+                        
+                        {/* Drawing preview */}
+                        {drawingState.isDrawing && drawingState.startPoint && (
+                            <line className="drawing-preview" x1={drawingState.startPoint.x} y1={drawingState.startPoint.y} x2={mousePos.x} y2={mousePos.y} />
+                        )}
+                        
+                        {/* Rooms */}
+                        {elements.filter(el => el.type === 'room').map(el => {
+                            const isSelected = selectedElements.some(s => s.id === el.id);
+                            const isRelated = relatedIds.includes(el.id);
+                            const isHighlighted = highlightedElements.includes(el.id);
+                            return (
+                                <g key={el.id}>
+                                    <rect
+                                        className={`model-element ${isSelected ? 'selected' : ''} ${isRelated ? 'related' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                                        x={el.x} y={el.y} width={el.width} height={el.height}
+                                        fill="rgba(139, 92, 246, 0.1)"
+                                        stroke={isSelected ? '#8b5cf6' : 'rgba(139, 92, 246, 0.3)'}
+                                        strokeWidth={isSelected ? 2 : 1}
+                                        strokeDasharray={isSelected ? '0' : '4 4'}
+                                        rx="2"
+                                        onClick={e => handleElementClick(e, el)}
+                                        onContextMenu={e => handleElementRightClick(e, el)}
+                                        onDoubleClick={e => handleElementDoubleClick(e, el)}
+                                        onMouseEnter={() => setHoveredElement(el)}
+                                        onMouseLeave={() => setHoveredElement(null)}
+                                    />
+                                    <text x={el.x + el.width/2} y={el.y + el.height/2 - 8} fill="#a78bfa" fontSize="14" textAnchor="middle" style={{ pointerEvents: 'none' }}>{el.name}</text>
+                                    <text x={el.x + el.width/2} y={el.y + el.height/2 + 12} fill="#7c3aed" fontSize="11" textAnchor="middle" style={{ pointerEvents: 'none' }}>{el.properties?.area}</text>
+                                </g>
+                            );
+                        })}
+                        
+                        {/* Walls */}
+                        {elements.filter(el => el.type === 'wall').map(el => {
+                            const isSelected = selectedElements.some(s => s.id === el.id);
+                            const isRelated = relatedIds.includes(el.id);
+                            const isHighlighted = highlightedElements.includes(el.id);
+                            return (
+                                <rect
+                                    key={el.id}
+                                    className={`model-element ${isSelected ? 'selected' : ''} ${isRelated ? 'related' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                                    x={el.x} y={el.y} width={el.width} height={el.height}
+                                    fill={hoveredElement?.id === el.id ? '#94a3b8' : '#64748b'}
+                                    rx="1"
+                                    onClick={e => handleElementClick(e, el)}
+                                    onContextMenu={e => handleElementRightClick(e, el)}
+                                    onDoubleClick={e => handleElementDoubleClick(e, el)}
+                                    onMouseEnter={() => setHoveredElement(el)}
+                                    onMouseLeave={() => setHoveredElement(null)}
+                                />
+                            );
+                        })}
+                        
+                        {/* Doors */}
+                        {elements.filter(el => el.type === 'door').map(el => {
+                            const isSelected = selectedElements.some(s => s.id === el.id);
+                            const isRelated = relatedIds.includes(el.id);
+                            const isHighlighted = highlightedElements.includes(el.id);
+                            return (
+                                <g key={el.id}>
+                                    <rect
+                                        className={`model-element ${isSelected ? 'selected' : ''} ${isRelated ? 'related' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                                        x={el.x} y={el.y} width={el.width} height={el.height}
+                                        fill={hoveredElement?.id === el.id ? '#60a5fa' : '#3b82f6'}
+                                        rx="2"
+                                        onClick={e => handleElementClick(e, el)}
+                                        onContextMenu={e => handleElementRightClick(e, el)}
+                                        onDoubleClick={e => handleElementDoubleClick(e, el)}
+                                        onMouseEnter={() => setHoveredElement(el)}
+                                        onMouseLeave={() => setHoveredElement(null)}
+                                    />
+                                    <path d={`M ${el.x + el.width/2} ${el.y + el.height + 5} A 30 30 0 0 1 ${el.x + el.width/2 + 30} ${el.y + el.height + 35}`} fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="3 2" opacity="0.5" style={{ pointerEvents: 'none' }} />
+                                    {el.issues?.length > 0 && <g style={{ pointerEvents: 'none' }}><circle cx={el.x + el.width - 5} cy={el.y - 5} r="8" fill="#ef4444" /><text x={el.x + el.width - 5} y={el.y - 1} fill="white" fontSize="10" textAnchor="middle" fontWeight="bold">!</text></g>}
+                                </g>
+                            );
+                        })}
+                        
+                        {/* Windows */}
+                        {elements.filter(el => el.type === 'window').map(el => {
+                            const isSelected = selectedElements.some(s => s.id === el.id);
+                            const isRelated = relatedIds.includes(el.id);
+                            const isHighlighted = highlightedElements.includes(el.id);
+                            return (
+                                <g key={el.id}>
+                                    <rect
+                                        className={`model-element ${isSelected ? 'selected' : ''} ${isRelated ? 'related' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                                        x={el.x} y={el.y} width={el.width} height={el.height}
+                                        fill={hoveredElement?.id === el.id ? '#22d3ee' : '#06b6d4'}
+                                        rx="2"
+                                        onClick={e => handleElementClick(e, el)}
+                                        onContextMenu={e => handleElementRightClick(e, el)}
+                                        onDoubleClick={e => handleElementDoubleClick(e, el)}
+                                        onMouseEnter={() => setHoveredElement(el)}
+                                        onMouseLeave={() => setHoveredElement(null)}
+                                    />
+                                    <line x1={el.x + el.width/2} y1={el.y + 3} x2={el.x + el.width/2} y2={el.y + el.height - 3} stroke="rgba(0,0,0,0.3)" strokeWidth="1" style={{ pointerEvents: 'none' }} />
+                                </g>
+                            );
+                        })}
+                        
+                        {/* Hover tooltip */}
+                        {hoveredElement && selectedElements.length === 0 && (
+                            <g style={{ pointerEvents: 'none' }}>
+                                <rect x={hoveredElement.x + hoveredElement.width + 10} y={hoveredElement.y} width="130" height="50" fill="rgba(17, 24, 39, 0.95)" rx="6" stroke="rgba(75, 85, 99, 0.5)" />
+                                <text x={hoveredElement.x + hoveredElement.width + 20} y={hoveredElement.y + 20} fill="#fff" fontSize="12" fontWeight="500">{hoveredElement.name}</text>
+                                <text x={hoveredElement.x + hoveredElement.width + 20} y={hoveredElement.y + 38} fill="#9ca3af" fontSize="10">Click to select</text>
+                            </g>
+                        )}
+                    </svg>
+                    
+                    {/* Status bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gray-900/80 border-t border-gray-700/50 flex items-center px-4 text-xs text-gray-400">
+                        <span className="mr-4">Level 1 - Floor Plan</span>
+                        <span className="mr-4">Elements: {elements.length}</span>
+                        {selectedElements.length > 0 && <span className="mr-4 text-blue-400"><i className="fa-solid fa-check-circle mr-1"></i>Selected: {selectedElements.length === 1 ? selectedElements[0].name : `${selectedElements.length} elements`}</span>}
+                        {activeTool && activeTool !== 'select' && <span className="mr-4 text-green-400"><i className="fa-solid fa-pen mr-1"></i>Tool: {activeTool}</span>}
+                        {drawingState.isDrawing && <span className="mr-4 text-yellow-400">Click to place end point</span>}
+                        <span className="flex-1" />
+                        <span>Click: select â€¢ Right-click: actions â€¢ âŒ˜K: commands</span>
+                    </div>
+                    
+                    {/* Context Menu */}
+                    {contextMenu.element && <ContextMenu element={contextMenu.element} position={contextMenu.position} onClose={() => setContextMenu({ element: null, position: null })} />}
+                </div>
+            );
+        }
+        
+        // ============================================
+        // PROPERTIES PANEL
+        // ============================================
+        
+        function PropertiesPanel() {
+            const { elements, selectedElements, setSelectedElements, executeContextAction, executeCommand } = useApp();
+            
+            const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
+            
+            const issueElements = elements.filter(e => e.issues?.length > 0);
+            
+            return (
+                <div className="w-72 bg-gray-900/50 border-l border-gray-700/50 flex flex-col overflow-hidden">
+                    {selectedElement ? (
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Header */}
+                            <div className="p-4 border-b border-gray-700/50">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedElement.type === 'wall' ? 'bg-slate-500/30 text-slate-300' : selectedElement.type === 'door' ? 'bg-blue-500/30 text-blue-300' : selectedElement.type === 'window' ? 'bg-cyan-500/30 text-cyan-300' : 'bg-purple-500/30 text-purple-300'}`}>
+                                        <i className={`fa-solid ${selectedElement.type === 'wall' ? 'fa-square' : selectedElement.type === 'door' ? 'fa-door-open' : selectedElement.type === 'window' ? 'fa-window-maximize' : 'fa-vector-square'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-white">{selectedElement.name}</div>
+                                        <div className="text-xs text-gray-400">{selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Issues */}
+                            {selectedElement.issues?.length > 0 && (
+                                <div className="px-4 py-3 bg-red-900/20 border-b border-red-900/30">
+                                    <h3 className="text-xs font-medium text-red-400 uppercase mb-2 flex items-center gap-2"><i className="fa-solid fa-exclamation-triangle"></i>Issues</h3>
+                                    {selectedElement.issues.map((issue, i) => <div key={i} className="text-xs text-red-300 mb-1">{issue.message}</div>)}
+                                </div>
+                            )}
+                            
+                            {/* Properties */}
+                            <div className="p-4 border-b border-gray-700/50">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-xs font-medium text-gray-500 uppercase">Properties</h3>
+                                    <button onClick={() => executeContextAction('edit', selectedElement)} className="text-xs text-blue-400 hover:text-blue-300">Edit</button>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                    {Object.entries(selectedElement.properties || {}).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between items-center">
+                                            <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                            <span className="text-white bg-gray-800 px-2 py-0.5 rounded text-xs">{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* Relationships */}
+                            {selectedElement.relationships && Object.keys(selectedElement.relationships).length > 0 && (
+                                <div className="p-4 border-b border-gray-700/50">
+                                    <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Relationships</h3>
+                                    <div className="space-y-2 text-sm">
+                                        {Object.entries(selectedElement.relationships).map(([key, value]) => {
+                                            if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                                            return (
+                                                <div key={key}>
+                                                    <span className="text-gray-500 capitalize text-xs">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                    <div className="mt-1 flex flex-wrap gap-1">
+                                                        {(Array.isArray(value) ? value : [value]).map((id, i) => {
+                                                            const rel = elements.find(e => e.id === id);
+                                                            return <button key={i} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded" onClick={() => setSelectedElements([rel])}>{rel?.name || id}</button>;
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* AI Suggestions */}
+                            {selectedElement.aiSuggestions?.length > 0 && (
+                                <div className="p-4 bg-purple-900/10">
+                                    <h3 className="text-xs font-medium text-purple-400 uppercase mb-3 flex items-center gap-2"><i className="fa-solid fa-wand-magic-sparkles"></i>AI Suggestions</h3>
+                                    <div className="space-y-2">
+                                        {selectedElement.aiSuggestions.map((sug, i) => (
+                                            <button key={i} className={`w-full text-left p-2 rounded-lg text-xs ${sug.priority === 'high' ? 'bg-orange-900/30 hover:bg-orange-900/50 text-orange-300' : sug.priority === 'medium' ? 'bg-purple-900/30 hover:bg-purple-900/50 text-purple-300' : 'bg-gray-800 hover:bg-gray-700 text-gray-400'}`} onClick={() => executeContextAction('ai-suggestion', { element: selectedElement, suggestion: sug })}>
+                                                <i className={`fa-solid ${sug.icon} mr-2`}></i>{sug.text}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : selectedElements.length > 1 ? (
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="text-center py-4">
+                                <div className="w-12 h-12 mx-auto rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+                                    <i className="fa-solid fa-object-group text-xl"></i>
+                                </div>
+                                <div className="font-medium text-white">{selectedElements.length} elements selected</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                    {Object.entries(selectedElements.reduce((acc, el) => ({ ...acc, [el.type]: (acc[el.type] || 0) + 1 }), {})).map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`).join(', ')}
+                                </div>
+                            </div>
+                            <div className="space-y-2 mt-4">
+                                <button className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg" onClick={() => executeCommand({ type: 'copy' })}><i className="fa-solid fa-copy mr-2"></i>Copy all</button>
+                                <button className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg" onClick={() => executeCommand({ type: 'copy-to-levels' })}><i className="fa-solid fa-layer-group mr-2"></i>Copy to other levels</button>
+                                <button className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-900/20 rounded-lg" onClick={() => executeCommand({ type: 'delete' })}><i className="fa-solid fa-trash mr-2"></i>Delete all</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="text-center py-8 text-gray-500">
+                                <i className="fa-solid fa-mouse-pointer text-3xl mb-3 opacity-50"></i>
+                                <p className="text-sm">Click an element to see properties</p>
+                                <p className="text-xs mt-1">Right-click for quick actions</p>
+                            </div>
+                            
+                            <h3 className="text-xs font-medium text-gray-500 uppercase mt-4 mb-3">Model Summary</h3>
+                            <div className="space-y-2 text-sm">
+                                {['wall', 'door', 'window', 'room'].map(type => (
+                                    <div key={type} className="flex justify-between">
+                                        <span className="text-gray-500 capitalize">{type}s</span>
+                                        <span className="text-white">{elements.filter(e => e.type === type).length}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {issueElements.length > 0 && (
+                                <>
+                                    <h3 className="text-xs font-medium text-gray-500 uppercase mt-6 mb-3">Issues ({issueElements.reduce((acc, e) => acc + e.issues.length, 0)})</h3>
+                                    <div className="space-y-2">
+                                        {issueElements.map(el => el.issues.map((issue, i) => (
+                                            <button key={`${el.id}-${i}`} className="w-full text-left p-2 bg-red-900/20 hover:bg-red-900/30 rounded-lg text-xs text-red-300" onClick={() => setSelectedElements([el])}>
+                                                <div className="font-medium">{el.name}</div>
+                                                <div className="text-red-400/80 mt-0.5">{issue.message}</div>
+                                            </button>
+                                        )))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Quick Actions */}
+                    <div className="p-3 border-t border-gray-700/50 bg-gray-800/30">
+                        <div className="grid grid-cols-3 gap-2">
+                            {[
+                                { id: 'clash-check', icon: 'fa-exclamation-triangle', label: 'Clashes' },
+                                { id: 'compliance', icon: 'fa-check-circle', label: 'Compliance' },
+                                { id: 'quantities', icon: 'fa-calculator', label: 'Quantities' },
+                            ].map(action => (
+                                <button key={action.id} className="flex flex-col items-center gap-1 p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => executeCommand({ type: action.id })}>
+                                    <i className={`fa-solid ${action.icon} text-sm`}></i>
+                                    <span className="text-[10px]">{action.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // TOOLBAR
+        // ============================================
+        
+        function Toolbar() {
+            const { activeTool, setActiveTool, setDrawingState, addToast } = useApp();
+            
+            const tools = [
+                { id: 'select', icon: 'fa-arrow-pointer', label: 'Select (V)' },
+                { id: 'wall', icon: 'fa-square', label: 'Wall (W)' },
+                { id: 'door', icon: 'fa-door-open', label: 'Door (D)' },
+                { id: 'window', icon: 'fa-window-maximize', label: 'Window (N)' },
+                { id: 'room', icon: 'fa-vector-square', label: 'Room (M)' },
+                { id: 'column', icon: 'fa-grip-lines-vertical', label: 'Column (C)' },
+            ];
+            
+            const handleToolSelect = (toolId) => {
+                setActiveTool(toolId);
+                setDrawingState({ isDrawing: false, startPoint: null, currentTool: null });
+                if (toolId !== 'select') {
+                    addToast({ message: `${toolId.charAt(0).toUpperCase() + toolId.slice(1)} tool active. Click to place.`, type: 'info' });
+                }
+            };
+            
+            return (
+                <div className="w-12 bg-gray-900/50 border-r border-gray-700/50 flex flex-col items-center py-2 gap-1">
+                    {tools.map(tool => (
+                        <button
+                            key={tool.id}
+                            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTool === tool.id ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white hover:bg-gray-800'}`}
+                            title={tool.label}
+                            onClick={() => handleToolSelect(tool.id)}
+                        >
+                            <i className={`fa-solid ${tool.icon}`}></i>
+                        </button>
+                    ))}
+                    <div className="flex-1" />
+                    <button className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg" title="More tools (âŒ˜K)" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}>
+                        <i className="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+            );
+        }
+        
+        // ============================================
+        // HEADER
+        // ============================================
+        
+        function Header({ onOpenPalette }) {
+            const { undoStack, redoStack, executeCommand, is3DView, setIs3DView } = useApp();
+            
+            return (
+                <header className="h-12 bg-gray-900/80 border-b border-gray-700/50 flex items-center px-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i className="fa-solid fa-building text-white text-sm"></i>
+                        </div>
+                        <span className="font-semibold text-white">Pensaer</span>
+                        <span className="text-gray-500 text-sm">Office Building</span>
+                    </div>
+                    
+                    {/* Undo/Redo */}
+                    <div className="flex items-center gap-1 ml-4">
+                        <button className={`w-8 h-8 flex items-center justify-center rounded ${undoStack.length > 0 ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-700 cursor-not-allowed'}`} title="Undo (âŒ˜Z)" onClick={() => executeCommand({ type: 'undo' })} disabled={undoStack.length === 0}>
+                            <i className="fa-solid fa-undo"></i>
+                        </button>
+                        <button className={`w-8 h-8 flex items-center justify-center rounded ${redoStack.length > 0 ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-700 cursor-not-allowed'}`} title="Redo (âŒ˜â‡§Z)" onClick={() => executeCommand({ type: 'redo' })} disabled={redoStack.length === 0}>
+                            <i className="fa-solid fa-redo"></i>
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex justify-center">
+                        <button onClick={onOpenPalette} className="flex items-center gap-3 px-4 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors">
+                            <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
+                            <span className="text-gray-400 text-sm">Type a command or ask a question...</span>
+                            <kbd className="px-2 py-0.5 bg-gray-700 text-gray-400 text-xs rounded">âŒ˜K</kbd>
+                        </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        <button 
+                            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm ${is3DView ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                            onClick={() => setIs3DView(!is3DView)}
+                            title="Toggle 3D View (3)"
+                        >
+                            <i className="fa-solid fa-cube"></i>
+                            <span>{is3DView ? '3D' : '2D'}</span>
+                        </button>
+                        <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"><i className="fa-solid fa-users"></i></button>
+                        <div className="flex -space-x-2">
+                            <div className="w-7 h-7 rounded-full bg-blue-500 border-2 border-gray-900 flex items-center justify-center text-xs font-medium">JD</div>
+                            <div className="w-7 h-7 rounded-full bg-green-500 border-2 border-gray-900 flex items-center justify-center text-xs font-medium">MK</div>
+                        </div>
+                        <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"><i className="fa-solid fa-question-circle"></i></button>
+                    </div>
+                </header>
+            );
+        }
+        
+        // ============================================
+        // MAIN APP
+        // ============================================
+        
+        function App() {
+            // State
+            const [elements, setElements] = useState(createInitialElements);
+            const [selectedElements, setSelectedElements] = useState([]);
+            const [highlightedElements, setHighlightedElements] = useState([]);
+            const [activeTool, setActiveTool] = useState('select');
+            const [drawingState, setDrawingState] = useState({ isDrawing: false, startPoint: null, currentTool: null, thickness: '200mm', material: 'Concrete' });
+            const [clipboard, setClipboard] = useState([]);
+            const [undoStack, setUndoStack] = useState([]);
+            const [redoStack, setRedoStack] = useState([]);
+            const [toasts, setToasts] = useState([]);
+            const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+            const [editingElement, setEditingElement] = useState(null);
+            const [confirmModal, setConfirmModal] = useState(null);
+            const [is3DView, setIs3DView] = useState(false);
+            
+            // Toast management
+            const addToast = useCallback((toast) => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { ...toast, id }]);
+            }, []);
+            
+            const removeToast = useCallback((id) => {
+                setToasts(prev => prev.filter(t => t.id !== id));
+            }, []);
+            
+            // Element management
+            const addElement = useCallback((element) => {
+                setUndoStack(prev => [...prev, { type: 'add', element }]);
+                setRedoStack([]);
+                setElements(prev => [...prev, element]);
+            }, []);
+            
+            const updateElement = useCallback((id, updates) => {
+                setElements(prev => {
+                    const old = prev.find(e => e.id === id);
+                    setUndoStack(u => [...u, { type: 'update', id, oldProps: old.properties }]);
+                    setRedoStack([]);
+                    return prev.map(e => e.id === id ? { ...e, properties: { ...e.properties, ...updates } } : e);
+                });
+            }, []);
+            
+            const deleteElements = useCallback((ids) => {
+                setElements(prev => {
+                    const deleted = prev.filter(e => ids.includes(e.id));
+                    setUndoStack(u => [...u, { type: 'delete', elements: deleted }]);
+                    setRedoStack([]);
+                    return prev.filter(e => !ids.includes(e.id));
+                });
+                setSelectedElements([]);
+            }, []);
+            
+            // Command execution
+            const executeCommand = useCallback((cmd) => {
+                switch (cmd.type) {
+                    case 'wall':
+                    case 'create-wall':
+                        setActiveTool('wall');
+                        if (cmd.thickness) setDrawingState(prev => ({ ...prev, thickness: cmd.thickness + 'mm', material: cmd.material || 'Concrete' }));
+                        addToast({ message: 'Wall tool active. Click two points to draw.', type: 'info' });
+                        break;
+                    case 'door':
+                        setActiveTool('door');
+                        addToast({ message: 'Door tool active. Click on a wall to place.', type: 'info' });
+                        break;
+                    case 'window':
+                        setActiveTool('window');
+                        addToast({ message: 'Window tool active. Click on a wall to place.', type: 'info' });
+                        break;
+                    case 'room':
+                        setActiveTool('room');
+                        addToast({ message: 'Room tool active.', type: 'info' });
+                        break;
+                    case 'select-all':
+                        setSelectedElements([...elements]);
+                        addToast({ message: `Selected ${elements.length} elements`, type: 'success' });
+                        break;
+                    case 'select-walls':
+                    case 'select-by-type':
+                        const type = cmd.elementType?.replace(/s$/, '') || 'wall';
+                        const matching = elements.filter(e => e.type === type);
+                        setSelectedElements(matching);
+                        addToast({ message: `Selected ${matching.length} ${type}s`, type: 'success' });
+                        break;
+                    case 'select-doors':
+                        const doors = elements.filter(e => e.type === 'door');
+                        setSelectedElements(doors);
+                        addToast({ message: `Selected ${doors.length} doors`, type: 'success' });
+                        break;
+                    case 'delete':
+                        if (selectedElements.length > 0) {
+                            setConfirmModal({
+                                title: 'Delete Elements',
+                                message: `Delete ${selectedElements.length} element(s)? This cannot be undone.`,
+                                confirmText: 'Delete',
+                                danger: true,
+                                onConfirm: () => {
+                                    deleteElements(selectedElements.map(e => e.id));
+                                    addToast({ message: `Deleted ${selectedElements.length} elements`, type: 'success' });
+                                }
+                            });
+                        }
+                        break;
+                    case 'copy':
+                        if (selectedElements.length > 0) {
+                            setClipboard([...selectedElements]);
+                            addToast({ message: `Copied ${selectedElements.length} elements`, type: 'success' });
+                        }
+                        break;
+                    case 'paste':
+                        if (clipboard.length > 0) {
+                            const newElements = clipboard.map(el => ({ ...el, id: generateId(el.type), name: el.name + ' (copy)', x: el.x + 50, y: el.y + 50 }));
+                            newElements.forEach(addElement);
+                            setSelectedElements(newElements);
+                            addToast({ message: `Pasted ${newElements.length} elements`, type: 'success' });
+                        }
+                        break;
+                    case 'copy-to-levels':
+                        addToast({ message: `Copied ${selectedElements.length || 'selected'} elements to Levels 2, 3, 4`, type: 'success' });
+                        break;
+                    case 'undo':
+                        if (undoStack.length > 0) {
+                            const action = undoStack[undoStack.length - 1];
+                            setUndoStack(prev => prev.slice(0, -1));
+                            setRedoStack(prev => [...prev, action]);
+                            if (action.type === 'add') setElements(prev => prev.filter(e => e.id !== action.element.id));
+                            else if (action.type === 'delete') setElements(prev => [...prev, ...action.elements]);
+                            else if (action.type === 'update') setElements(prev => prev.map(e => e.id === action.id ? { ...e, properties: action.oldProps } : e));
+                            addToast({ message: 'Undone', type: 'info' });
+                        }
+                        break;
+                    case 'redo':
+                        if (redoStack.length > 0) {
+                            const action = redoStack[redoStack.length - 1];
+                            setRedoStack(prev => prev.slice(0, -1));
+                            setUndoStack(prev => [...prev, action]);
+                            if (action.type === 'add') setElements(prev => [...prev, action.element]);
+                            else if (action.type === 'delete') setElements(prev => prev.filter(e => !action.elements.some(d => d.id === e.id)));
+                            addToast({ message: 'Redone', type: 'info' });
+                        }
+                        break;
+                    case 'filter-fire-rated':
+                        const fireRated = elements.filter(e => e.properties?.fireRating && e.properties.fireRating !== 'None');
+                        setHighlightedElements(fireRated.map(e => e.id));
+                        addToast({ message: `Highlighted ${fireRated.length} fire-rated elements`, type: 'success' });
+                        setTimeout(() => setHighlightedElements([]), 5000);
+                        break;
+                    case 'full-check':
+                    case 'clash-check':
+                        const issues = elements.filter(e => e.issues?.length > 0);
+                        setHighlightedElements(issues.map(e => e.id));
+                        addToast({ message: `Found ${issues.reduce((a, e) => a + e.issues.length, 0)} issues in ${issues.length} elements`, type: issues.length > 0 ? 'warning' : 'success' });
+                        setTimeout(() => setHighlightedElements([]), 5000);
+                        break;
+                    case 'compliance':
+                        addToast({ message: 'Compliance check: 2 warnings, 1 error found', type: 'warning' });
+                        break;
+                    case 'quantities':
+                        addToast({ message: 'Generated quantities: 4 walls (12m), 1 door, 1 window', type: 'success' });
+                        break;
+                    case 'export-pdf':
+                        addToast({ message: 'Exporting to PDF...', type: 'info' });
+                        setTimeout(() => addToast({ message: 'PDF exported successfully', type: 'success' }), 1500);
+                        break;
+                    case 'export-ifc':
+                        addToast({ message: 'Exporting to IFC...', type: 'info' });
+                        setTimeout(() => addToast({ message: 'IFC exported successfully', type: 'success' }), 1500);
+                        break;
+                    case 'zoom-fit':
+                        addToast({ message: 'Zoomed to fit all elements', type: 'info' });
+                        break;
+                    case 'zoom-selection':
+                        if (selectedElements.length > 0) addToast({ message: 'Zoomed to selection', type: 'info' });
+                        break;
+                    case 'view-3d':
+                        setIs3DView(true);
+                        addToast({ message: 'Switched to 3D view', type: 'info' });
+                        break;
+                    case 'view-plan':
+                        setIs3DView(false);
+                        addToast({ message: 'Switched to Floor Plan view', type: 'info' });
+                        break;
+                    default:
+                        addToast({ message: `Command: ${cmd.type}`, type: 'info' });
+                }
+            }, [elements, selectedElements, clipboard, undoStack, redoStack, addElement, deleteElements, addToast]);
+            
+            // Context action execution
+            const executeContextAction = useCallback((actionId, target) => {
+                const element = target?.element || target;
+                
+                switch (actionId) {
+                    case 'edit':
+                        setEditingElement(element);
+                        break;
+                    case 'select':
+                        setSelectedElements([element]);
+                        break;
+                    case 'copy':
+                        setClipboard([element]);
+                        addToast({ message: `Copied ${element.name}`, type: 'success' });
+                        break;
+                    case 'delete':
+                        setConfirmModal({
+                            title: `Delete ${element.name}`,
+                            message: element.relationships?.hosts?.length > 0 
+                                ? `This will also delete ${element.relationships.hosts.length} hosted element(s). Continue?`
+                                : `Delete ${element.name}?`,
+                            confirmText: 'Delete',
+                            danger: true,
+                            onConfirm: () => {
+                                const idsToDelete = [element.id, ...(element.relationships?.hosts || [])];
+                                deleteElements(idsToDelete);
+                                addToast({ message: `Deleted ${element.name}`, type: 'success' });
+                            }
+                        });
+                        break;
+                    case 'move':
+                        addToast({ message: 'Move mode: drag to new position', type: 'info' });
+                        break;
+                    case 'flip':
+                        addToast({ message: `Flipped ${element.name}`, type: 'success' });
+                        break;
+                    case 'split':
+                        addToast({ message: 'Click on wall to split', type: 'info' });
+                        break;
+                    case 'join':
+                        addToast({ message: 'Select another wall to join/unjoin', type: 'info' });
+                        break;
+                    case 'add-door':
+                        setActiveTool('door');
+                        addToast({ message: 'Click on wall to place door', type: 'info' });
+                        break;
+                    case 'add-window':
+                        setActiveTool('window');
+                        addToast({ message: 'Click on wall to place window', type: 'info' });
+                        break;
+                    case 'copy-levels':
+                        addToast({ message: `Copied ${element.name} to Levels 2, 3, 4`, type: 'success' });
+                        break;
+                    case 'change-type':
+                        addToast({ message: 'Type selector opened (not implemented in prototype)', type: 'info' });
+                        break;
+                    case 'align':
+                        addToast({ message: 'Select elements to align with', type: 'info' });
+                        break;
+                    case 'rename':
+                        setEditingElement(element);
+                        break;
+                    case 'calculate':
+                        addToast({ message: `${element.name}: ${element.properties?.area || 'Area calculated'}`, type: 'success' });
+                        break;
+                    case 'check-code':
+                        addToast({ message: `${element.name} compliance: OK`, type: 'success' });
+                        break;
+                    case 'ai-suggestion':
+                        addToast({ message: `AI: ${target.suggestion.text}`, type: 'success' });
+                        break;
+                    default:
+                        addToast({ message: `${actionId} on ${element.name}`, type: 'info' });
+                }
+            }, [deleteElements, addToast]);
+            
+            // Keyboard shortcuts
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.target.matches('input, textarea')) return;
+                    
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setIsPaletteOpen(true); }
+                    else if (e.key === '/' && !isPaletteOpen) { e.preventDefault(); setIsPaletteOpen(true); }
+                    else if (e.key === 'Escape') { setIsPaletteOpen(false); setActiveTool('select'); setDrawingState({ isDrawing: false, startPoint: null, currentTool: null }); }
+                    else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); executeCommand({ type: 'undo' }); }
+                    else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); executeCommand({ type: 'redo' }); }
+                    else if ((e.metaKey || e.ctrlKey) && e.key === 'a') { e.preventDefault(); executeCommand({ type: 'select-all' }); }
+                    else if ((e.metaKey || e.ctrlKey) && e.key === 'c') { e.preventDefault(); executeCommand({ type: 'copy' }); }
+                    else if ((e.metaKey || e.ctrlKey) && e.key === 'v') { e.preventDefault(); executeCommand({ type: 'paste' }); }
+                    else if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedElements.length > 0) executeCommand({ type: 'delete' }); }
+                    else if (e.key === 'v') { setActiveTool('select'); }
+                    else if (e.key === 'w') { setActiveTool('wall'); addToast({ message: 'Wall tool active', type: 'info' }); }
+                    else if (e.key === 'd') { setActiveTool('door'); addToast({ message: 'Door tool active', type: 'info' }); }
+                    else if (e.key === 'n') { setActiveTool('window'); addToast({ message: 'Window tool active', type: 'info' }); }
+                    else if (e.key === '3') { setIs3DView(true); addToast({ message: '3D View', type: 'info' }); }
+                    else if (e.key === 'p' && is3DView) { setIs3DView(false); addToast({ message: 'Plan View', type: 'info' }); }
+                };
+                
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [executeCommand, selectedElements, isPaletteOpen, addToast]);
+            
+            // Context value
+            const contextValue = useMemo(() => ({
+                elements, setElements, selectedElements, setSelectedElements, highlightedElements, setHighlightedElements,
+                activeTool, setActiveTool, drawingState, setDrawingState, clipboard, setClipboard,
+                undoStack, redoStack, toasts, addToast, removeToast, is3DView, setIs3DView,
+                addElement, updateElement, deleteElements, executeCommand, executeContextAction
+            }), [elements, selectedElements, highlightedElements, activeTool, drawingState, clipboard, undoStack, redoStack, toasts, is3DView, addToast, removeToast, addElement, updateElement, deleteElements, executeCommand, executeContextAction]);
+            
+            return (
+                <AppContext.Provider value={contextValue}>
+                    <div className="h-screen flex flex-col">
+                        <Header onOpenPalette={() => setIsPaletteOpen(true)} />
+                        <div className="flex-1 flex overflow-hidden">
+                            <Toolbar />
+                            <div className="flex-1 flex relative">
+                                <ModelCanvas />
+                                {is3DView && <Canvas3D onClose={() => setIs3DView(false)} />}
+                            </div>
+                            <PropertiesPanel />
+                        </div>
+                        
+                        <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+                        <ToastContainer toasts={toasts} removeToast={removeToast} />
+                        
+                        {editingElement && (
+                            <PropertiesEditor
+                                element={editingElement}
+                                onSave={(id, props) => { updateElement(id, props); addToast({ message: 'Properties saved', type: 'success' }); }}
+                                onClose={() => setEditingElement(null)}
+                            />
+                        )}
+                        
+                        {confirmModal && (
+                            <ConfirmModal
+                                isOpen={true}
+                                onClose={() => setConfirmModal(null)}
+                                onConfirm={confirmModal.onConfirm}
+                                title={confirmModal.title}
+                                message={confirmModal.message}
+                                confirmText={confirmModal.confirmText}
+                                danger={confirmModal.danger}
+                            />
+                        )}
+                        
+                        {!isPaletteOpen && selectedElements.length === 0 && activeTool === 'select' && (
+                            <div className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-gray-800/90 px-4 py-2 rounded-full text-sm text-gray-300 flex items-center gap-3">
+                                <span>Click to select</span>
+                                <span className="text-gray-500">â€¢</span>
+                                <span>Right-click for actions</span>
+                                <span className="text-gray-500">â€¢</span>
+                                <kbd className="px-2 py-0.5 bg-gray-700 rounded text-xs">âŒ˜K</kbd>
+                                <span>commands</span>
+                            </div>
+                        )}
+                    </div>
+                </AppContext.Provider>
+            );
+        }
+        
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
+

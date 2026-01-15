@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "pensaer-math",
+  "pensaer-geometry",
+  "pensaer-crdt",
+  "pensaer-ifc",
+]
+resolver = "2"
