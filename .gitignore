@@ -3,3 +3,13 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+# Rust
+kernel/target/
+kernel/target_*/
+**/*.rs.bk
+Cargo.lock
+!kernel/Cargo.lock
+
+# Build artifacts
+*.bat
