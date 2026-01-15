@@ -31,6 +31,7 @@ docs/
 ├── ROADMAP.md             # Development timeline (16-week + 48-week)
 ├── CLIENT_ARCHITECTURE.md # Client architecture (React/TypeScript)
 ├── AGENT_TEAM.md          # AI agent architecture
+├── AI_STRATEGY.md         # ⭐ AI-first development strategy (NEW)
 │
 ├── architecture/          # CANONICAL TECHNICAL REFERENCE
 │   ├── CANONICAL_ARCHITECTURE.md   # ⭐ Authoritative system design
@@ -49,14 +50,6 @@ docs/
 │   ├── ADR-20260115-ifc-import-export.md
 │   ├── ADR-20260115-viewer-webgl-first.md
 │   └── README.md
-│
-├── loop/                  # DEVELOPMENT LOOP TRACKING
-│   ├── loop-01-checklist.md
-│   ├── loop-01-run-sheet.md
-│   ├── loop-01-test-plan.md
-│   └── traceability-matrix.md
-│
-└── founding/              # Historical founding documents
 ```
 
 ---
@@ -74,7 +67,7 @@ docs/
 | `PRD.md` | MEDIUM | Feature requirements (Part I + II consolidated) |
 | `ROADMAP.md` | MEDIUM | Timeline planning (16-week + 48-week) |
 | `CLIENT_ARCHITECTURE.md` | MEDIUM | Client-side (React/TS) architecture |
-| `loop/*.md` | OPERATIONAL | Sprint tracking |
+| `AI_STRATEGY.md` | HIGH | AI-first development workflow |
 
 ---
 
@@ -126,7 +119,7 @@ docs/
 | `architecture/*` | pensaer-a | 2026-01-15 |
 | `mcp/*` | pensaer-a | 2026-01-15 |
 | `adr/*` | Pensaer-B | 2026-01-15 |
-| `loop/*` | Pensaer-B | 2026-01-15 |
+| `AI_STRATEGY.md` | Base44 adaptation | 2026-01-15 |
 | `kernel/` | Pensaer-B | 2026-01-15 |
 | `server/` | Pensaer-B | 2026-01-15 |
 | `PRD.md` | Consolidated (v1.0 + PRD-server v2.0) | 2026-01-15 |
