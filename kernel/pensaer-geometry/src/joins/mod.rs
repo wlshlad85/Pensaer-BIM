@@ -46,7 +46,7 @@ use crate::error::{GeometryError, GeometryResult};
 use crate::mesh::TriangleMesh;
 
 /// Type of wall join.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum JoinType {
     /// Walls meet end-to-end (no angle).
     Butt,
@@ -59,13 +59,8 @@ pub enum JoinType {
     /// X-intersection (two walls cross).
     CrossJoin,
     /// No join detected.
+    #[default]
     None,
-}
-
-impl Default for JoinType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// Which end of a wall participates in a join.
@@ -78,20 +73,15 @@ pub enum WallEnd {
 }
 
 /// Priority for wall joins (determines which wall "wins" in conflicts).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub enum JoinPriority {
     /// Interior walls (lowest priority).
+    #[default]
     Interior = 1,
     /// Exterior walls.
     Exterior = 2,
     /// Structural/load-bearing walls (highest priority).
     Structural = 3,
-}
-
-impl Default for JoinPriority {
-    fn default() -> Self {
-        Self::Interior
-    }
 }
 
 /// A detected wall join.

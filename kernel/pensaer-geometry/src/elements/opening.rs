@@ -10,9 +10,10 @@ use crate::error::{GeometryError, GeometryResult};
 use crate::mesh::TriangleMesh;
 
 /// Door swing direction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum DoorSwing {
     /// Swings left when viewed from outside.
+    #[default]
     Left,
     /// Swings right when viewed from outside.
     Right,
@@ -22,16 +23,11 @@ pub enum DoorSwing {
     None,
 }
 
-impl Default for DoorSwing {
-    fn default() -> Self {
-        Self::Left
-    }
-}
-
 /// Type of door.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum DoorType {
     /// Single hinged door.
+    #[default]
     Single,
     /// Double hinged door.
     Double,
@@ -43,12 +39,6 @@ pub enum DoorType {
     Revolving,
     /// Pocket door (slides into wall).
     Pocket,
-}
-
-impl Default for DoorType {
-    fn default() -> Self {
-        Self::Single
-    }
 }
 
 /// A door element hosted in a wall.
@@ -170,9 +160,10 @@ impl Element for Door {
 }
 
 /// Type of window.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum WindowType {
     /// Fixed window (doesn't open).
+    #[default]
     Fixed,
     /// Casement window (hinged on side).
     Casement,
@@ -186,12 +177,6 @@ pub enum WindowType {
     Hopper,
     /// Pivot window (pivots on center axis).
     Pivot,
-}
-
-impl Default for WindowType {
-    fn default() -> Self {
-        Self::Fixed
-    }
 }
 
 /// A window element hosted in a wall.

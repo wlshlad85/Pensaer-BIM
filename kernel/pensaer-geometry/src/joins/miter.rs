@@ -212,6 +212,7 @@ fn intersect_edge_with_miter(
 /// Compute the miter angle (half the angle between walls).
 ///
 /// This is useful for calculating how much material is removed at the miter.
+#[allow(dead_code)]
 pub fn compute_miter_angle(dir_a: &Vector2, dir_b: &Vector2) -> f64 {
     let len_a = dir_a.length();
     let len_b = dir_b.length();
@@ -228,6 +229,7 @@ pub fn compute_miter_angle(dir_a: &Vector2, dir_b: &Vector2) -> f64 {
 }
 
 /// Check if a miter join is valid (walls must meet at an angle > 0 and < 180 degrees).
+#[allow(dead_code)]
 pub fn is_valid_miter_angle(dir_a: &Vector2, dir_b: &Vector2, min_angle: f64) -> bool {
     let len_a = dir_a.length();
     let len_b = dir_b.length();

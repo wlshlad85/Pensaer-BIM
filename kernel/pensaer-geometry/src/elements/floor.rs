@@ -10,20 +10,15 @@ use crate::error::{GeometryError, GeometryResult};
 use crate::mesh::TriangleMesh;
 
 /// Type of floor construction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum FloorType {
     /// Standard floor slab.
+    #[default]
     Slab,
     /// Suspended floor.
     Suspended,
     /// Foundation slab.
     Foundation,
-}
-
-impl Default for FloorType {
-    fn default() -> Self {
-        Self::Slab
-    }
 }
 
 /// A floor element in the BIM model.

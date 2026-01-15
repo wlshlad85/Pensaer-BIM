@@ -1,3 +1,10 @@
+// Allow common clippy warnings in bindings (PyO3 boilerplate)
+#![allow(
+    clippy::useless_conversion,
+    clippy::wildcard_in_or_patterns,
+    clippy::new_without_default
+)]
+
 //! PyO3 Python bindings for the Pensaer geometry kernel.
 //!
 //! This module provides Python wrappers for all core geometry types and operations,

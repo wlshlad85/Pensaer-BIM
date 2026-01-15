@@ -71,7 +71,7 @@ pub trait Element: Send + Sync {
 }
 
 /// Metadata common to all elements.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ElementMetadata {
     /// Element name (user-defined).
     pub name: Option<String>,
@@ -84,17 +84,6 @@ pub struct ElementMetadata {
 
     /// Custom properties.
     pub properties: std::collections::HashMap<String, String>,
-}
-
-impl Default for ElementMetadata {
-    fn default() -> Self {
-        Self {
-            name: None,
-            description: None,
-            level_id: None,
-            properties: std::collections::HashMap::new(),
-        }
-    }
 }
 
 impl ElementMetadata {

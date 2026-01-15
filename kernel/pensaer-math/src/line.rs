@@ -291,7 +291,7 @@ impl LineSegment2 {
         let s = delta.cross(&d1) / cross;
 
         // Check if intersection is within both segments
-        if t >= 0.0 && t <= 1.0 && s >= 0.0 && s <= 1.0 {
+        if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&s) {
             Some(self.point_at(t))
         } else {
             None

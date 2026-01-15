@@ -238,8 +238,7 @@ fn is_ear(vertices: &[Point2], indices: &[usize], i: usize) -> bool {
     }
 
     // Check that no other vertices are inside the ear triangle
-    for j in 0..n {
-        let test_idx = indices[j];
+    for &test_idx in indices.iter().take(n) {
         if test_idx == prev_idx || test_idx == curr_idx || test_idx == next_idx {
             continue;
         }
@@ -324,8 +323,8 @@ fn bridge_hole_to_polygon(outer: &[Point2], hole: &[Point2]) -> GeometryResult<V
     let mut combined = Vec::with_capacity(outer.len() + hole.len() + 2);
 
     // Add outer vertices up to and including bridge point
-    for i in 0..=bridge_idx {
-        combined.push(outer[i]);
+    for point in outer.iter().take(bridge_idx + 1) {
+        combined.push(*point);
     }
 
     // Add all hole vertices, starting from the rightmost and going around the hole
@@ -343,8 +342,8 @@ fn bridge_hole_to_polygon(outer: &[Point2], hole: &[Point2]) -> GeometryResult<V
     combined.push(outer[bridge_idx]);
 
     // Add remaining outer vertices (after bridge point)
-    for i in (bridge_idx + 1)..outer.len() {
-        combined.push(outer[i]);
+    for point in outer.iter().skip(bridge_idx + 1) {
+        combined.push(*point);
     }
 
     Ok(combined)
@@ -392,7 +391,7 @@ fn find_best_bridge_vertex(
         } else {
             // Compute intersection
             let t = (hole_point.y - p1.y) / (p2.y - p1.y);
-            if t < -EPSILON || t > 1.0 + EPSILON {
+            if !(-EPSILON..=1.0 + EPSILON).contains(&t) {
                 continue;
             }
             p1.x + t * (p2.x - p1.x)

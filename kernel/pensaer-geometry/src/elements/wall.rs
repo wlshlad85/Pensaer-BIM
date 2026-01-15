@@ -47,9 +47,10 @@ impl WallBaseline {
 }
 
 /// Type of wall construction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum WallType {
     /// Basic interior wall.
+    #[default]
     Basic,
     /// Load-bearing structural wall.
     Structural,
@@ -57,12 +58,6 @@ pub enum WallType {
     Curtain,
     /// Retaining wall.
     Retaining,
-}
-
-impl Default for WallType {
-    fn default() -> Self {
-        Self::Basic
-    }
 }
 
 /// An opening in a wall (for doors, windows, or generic openings).

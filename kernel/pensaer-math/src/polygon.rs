@@ -18,7 +18,7 @@ use crate::vector::Vector2;
 ///
 /// Vertices are assumed to form a closed loop (last vertex implicitly connects to first).
 /// The polygon can be either clockwise or counter-clockwise wound.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Polygon2 {
     pub vertices: Vec<Point2>,
 }
@@ -469,14 +469,6 @@ impl Polygon2 {
             let rotated = Vector2::new(v.x * cos - v.y * sin, v.x * sin + v.y * cos);
             center + rotated
         })
-    }
-}
-
-impl Default for Polygon2 {
-    fn default() -> Self {
-        Self {
-            vertices: Vec::new(),
-        }
     }
 }
 

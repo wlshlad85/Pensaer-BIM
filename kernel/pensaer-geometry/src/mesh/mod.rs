@@ -253,9 +253,9 @@ impl TriangleMesh {
             let face_normal = e1.cross(&e2);
 
             // Weight by area (cross product magnitude)
-            self.normals[tri[0] as usize] = self.normals[tri[0] as usize] + face_normal;
-            self.normals[tri[1] as usize] = self.normals[tri[1] as usize] + face_normal;
-            self.normals[tri[2] as usize] = self.normals[tri[2] as usize] + face_normal;
+            self.normals[tri[0] as usize] += face_normal;
+            self.normals[tri[1] as usize] += face_normal;
+            self.normals[tri[2] as usize] += face_normal;
         }
 
         // Normalize all vertex normals

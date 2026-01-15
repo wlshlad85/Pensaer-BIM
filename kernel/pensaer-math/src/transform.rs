@@ -107,6 +107,7 @@ impl Transform3 {
     ///
     /// Example: `translate.compose(&scale)` will first translate, then scale.
     #[inline]
+    #[allow(clippy::needless_range_loop)]
     pub fn compose(&self, other: &Self) -> Self {
         // To apply self first then other, we need: other * self
         // (since matrix multiplication applies right-to-left)
