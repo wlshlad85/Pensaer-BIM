@@ -1,168 +1,220 @@
-use std::error::Error;
-use std::fmt;
+//! Pensaer Geometry Kernel
+//!
+//! This crate provides the core geometry operations for the Pensaer BIM platform:
+//!
+//! - **Elements**: Parametric BIM elements (walls, floors, doors, windows, rooms)
+//! - **Meshing**: Triangle mesh generation for 3D visualization
+//! - **Element System**: Common traits and types for all BIM elements
+//! - **PyO3 Bindings**: Python integration for MCP tool servers (enable with `python` feature)
+//!
+//! # Example
+//!
+//! ```rust
+//! use pensaer_geometry::elements::{Wall, Floor, Room};
+//! use pensaer_geometry::element::Element;
+//! use pensaer_math::Point2;
+//!
+//! // Create a wall
+//! let wall = Wall::new(
+//!     Point2::new(0.0, 0.0),
+//!     Point2::new(5.0, 0.0),
+//!     3.0,  // height
+//!     0.2,  // thickness
+//! ).unwrap();
+//!
+//! // Generate mesh for visualization
+//! let mesh = wall.to_mesh().unwrap();
+//! assert!(mesh.is_valid());
+//! ```
+//!
+//! # Python Usage
+//!
+//! Build with the `python` feature to enable PyO3 bindings:
+//!
+//! ```bash
+//! cd kernel/pensaer-geometry
+//! maturin develop --features python
+//! ```
+//!
+//! Then in Python:
+//!
+//! ```python
+//! import pensaer_geometry as pg
+//!
+//! # Create a wall
+//! wall = pg.create_wall((0, 0), (5, 0), height=3.0, thickness=0.2)
+//! print(wall.length())  # 5.0
+//!
+//! # Add a door
+//! result = pg.place_door(wall, offset=2.5, width=0.9, height=2.1)
+//! door = result['door']
+//!
+//! # Generate mesh for 3D visualization
+//! mesh = wall.to_mesh()
+//! obj_string = mesh.to_obj()  # Export to OBJ format
+//! ```
+//!
+//! # Performance Targets
+//!
+//! | Operation | Target |
+//! |-----------|--------|
+//! | Wall creation | < 1ms |
+//! | Wall mesh (no openings) | < 5ms |
+//! | Wall mesh (3 openings) | < 10ms |
+//! | Room detection (20 walls) | < 50ms |
+//! | Join detection (10 walls) | < 10ms |
 
-use pensaer_math::{BoundingBox3, Point2, Point3};
+pub mod element;
+pub mod elements;
+pub mod error;
+pub mod joins;
+pub mod mesh;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct TriangleMesh {
-    pub vertices: Vec<Point3>,
-    pub indices: Vec<[u32; 3]>,
-}
+// PyO3 Python bindings (enabled with "python" feature)
+#[cfg(feature = "python")]
+pub mod bindings;
 
-impl TriangleMesh {
-    pub fn bbox(&self) -> Option<BoundingBox3> {
-        BoundingBox3::from_points(&self.vertices)
-    }
-
-    pub fn is_valid(&self) -> bool {
-        let vcount = self.vertices.len() as u32;
-        if vcount == 0 {
-            return false;
-        }
-        self.indices
-            .iter()
-            .all(|tri| tri[0] < vcount && tri[1] < vcount && tri[2] < vcount)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GeometryError {
-    ZeroLength,
-    NonPositiveHeight,
-    NonPositiveThickness,
-    InvalidFloorBounds,
-}
-
-impl fmt::Display for GeometryError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GeometryError::ZeroLength => write!(f, "wall baseline has zero length"),
-            GeometryError::NonPositiveHeight => write!(f, "height must be positive"),
-            GeometryError::NonPositiveThickness => write!(f, "thickness must be positive"),
-            GeometryError::InvalidFloorBounds => write!(f, "floor bounds are invalid"),
-        }
-    }
-}
-
-impl Error for GeometryError {}
-
-pub type GeometryResult<T> = Result<T, GeometryError>;
-
-pub struct Wall {
-    pub start: Point2,
-    pub end: Point2,
-    pub height: f64,
-    pub thickness: f64,
-}
-
-impl Wall {
-    pub fn to_mesh(&self) -> GeometryResult<TriangleMesh> {
-        if self.height <= 0.0 {
-            return Err(GeometryError::NonPositiveHeight);
-        }
-        if self.thickness <= 0.0 {
-            return Err(GeometryError::NonPositiveThickness);
-        }
-
-        let dir = self.end - self.start;
-        let unit = dir.normalize().ok_or(GeometryError::ZeroLength)?;
-        let perp = unit.perp() * (self.thickness * 0.5);
-
-        let a = self.start + perp;
-        let b = self.start - perp;
-        let c = self.end - perp;
-        let d = self.end + perp;
-
-        Ok(extrude_quad([a, b, c, d], self.height))
-    }
-}
-
-pub struct Floor {
-    pub min: Point2,
-    pub max: Point2,
-    pub thickness: f64,
-}
-
-impl Floor {
-    pub fn to_mesh(&self) -> GeometryResult<TriangleMesh> {
-        if self.thickness <= 0.0 {
-            return Err(GeometryError::NonPositiveThickness);
-        }
-        if self.min.x >= self.max.x || self.min.y >= self.max.y {
-            return Err(GeometryError::InvalidFloorBounds);
-        }
-
-        let a = Point2::new(self.min.x, self.min.y);
-        let b = Point2::new(self.max.x, self.min.y);
-        let c = Point2::new(self.max.x, self.max.y);
-        let d = Point2::new(self.min.x, self.max.y);
-
-        Ok(extrude_quad([a, b, c, d], self.thickness))
-    }
-}
-
-fn extrude_quad(base: [Point2; 4], height: f64) -> TriangleMesh {
-    let z0 = 0.0;
-    let z1 = height;
-
-    let vertices = vec![
-        Point3::new(base[0].x, base[0].y, z0),
-        Point3::new(base[1].x, base[1].y, z0),
-        Point3::new(base[2].x, base[2].y, z0),
-        Point3::new(base[3].x, base[3].y, z0),
-        Point3::new(base[0].x, base[0].y, z1),
-        Point3::new(base[1].x, base[1].y, z1),
-        Point3::new(base[2].x, base[2].y, z1),
-        Point3::new(base[3].x, base[3].y, z1),
-    ];
-
-    let indices = vec![
-        [0, 1, 2],
-        [0, 2, 3],
-        [4, 6, 5],
-        [4, 7, 6],
-        [0, 4, 5],
-        [0, 5, 1],
-        [1, 5, 6],
-        [1, 6, 2],
-        [2, 6, 7],
-        [2, 7, 3],
-        [3, 7, 4],
-        [3, 4, 0],
-    ];
-
-    TriangleMesh { vertices, indices }
-}
+// Re-export main types at crate root for convenience
+pub use element::{Element, ElementMetadata, ElementType};
+pub use elements::{
+    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, Room, Wall, WallBaseline,
+    WallOpening, WallType, Window, WindowType,
+};
+pub use error::{GeometryError, GeometryResult};
+pub use joins::{JoinDetector, JoinGeometry, JoinResolver, JoinType, WallEnd, WallJoin, WallJoinProfile};
+pub use mesh::{
+    extrude_polygon, extrude_polygon_with_hole, extrude_wall_with_openings,
+    triangulate_polygon, triangulate_polygon_with_holes, TriangleMesh,
+};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pensaer_math::Point2;
 
     #[test]
     fn wall_mesh_bbox_matches_dimensions() {
-        let wall = Wall {
-            start: Point2::new(0.0, 0.0),
-            end: Point2::new(4.0, 0.0),
-            height: 3.0,
-            thickness: 0.2,
-        };
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(4.0, 0.0), 3.0, 0.2).unwrap();
 
         let mesh = wall.to_mesh().unwrap();
-        let bbox = mesh.bbox().unwrap();
+        let bbox = mesh.bounding_box().unwrap();
 
-        assert_eq!(bbox.min, Point3::new(0.0, -0.1, 0.0));
-        assert_eq!(bbox.max, Point3::new(4.0, 0.1, 3.0));
+        assert!((bbox.min.x - 0.0).abs() < 1e-10);
+        assert!((bbox.min.y - (-0.1)).abs() < 1e-10);
+        assert!((bbox.min.z - 0.0).abs() < 1e-10);
+        assert!((bbox.max.x - 4.0).abs() < 1e-10);
+        assert!((bbox.max.y - 0.1).abs() < 1e-10);
+        assert!((bbox.max.z - 3.0).abs() < 1e-10);
         assert!(mesh.is_valid());
     }
 
     #[test]
     fn floor_mesh_rejects_invalid_bounds() {
-        let floor = Floor {
-            min: Point2::new(1.0, 1.0),
-            max: Point2::new(1.0, 2.0),
-            thickness: 0.3,
-        };
+        let floor = Floor::rectangle(Point2::new(1.0, 1.0), Point2::new(1.0, 2.0), 0.3);
 
-        assert_eq!(floor.to_mesh().unwrap_err(), GeometryError::InvalidFloorBounds);
+        assert!(matches!(floor, Err(GeometryError::InvalidFloorBounds)));
+    }
+
+    #[test]
+    fn create_simple_building() {
+        // Create 4 walls forming a rectangle
+        let wall1 =
+            Wall::new(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0), 3.0, 0.2).unwrap();
+        let wall2 =
+            Wall::new(Point2::new(10.0, 0.0), Point2::new(10.0, 8.0), 3.0, 0.2).unwrap();
+        let wall3 =
+            Wall::new(Point2::new(10.0, 8.0), Point2::new(0.0, 8.0), 3.0, 0.2).unwrap();
+        let wall4 =
+            Wall::new(Point2::new(0.0, 8.0), Point2::new(0.0, 0.0), 3.0, 0.2).unwrap();
+
+        // Create a floor
+        let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 8.0), 0.3).unwrap();
+
+        // Create a room
+        let room =
+            Room::rectangle("Living Room", "101", Point2::new(0.0, 0.0), Point2::new(10.0, 8.0), 3.0)
+                .unwrap();
+
+        // Verify all meshes are valid
+        assert!(wall1.to_mesh().unwrap().is_valid());
+        assert!(wall2.to_mesh().unwrap().is_valid());
+        assert!(wall3.to_mesh().unwrap().is_valid());
+        assert!(wall4.to_mesh().unwrap().is_valid());
+        assert!(floor.to_mesh().unwrap().is_valid());
+        assert!(room.to_mesh().unwrap().is_valid());
+
+        // Verify room calculations
+        assert!((room.area() - 80.0).abs() < 1e-10);
+        assert!((room.volume() - 240.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn wall_with_opening() {
+        let mut wall =
+            Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
+
+        // Add a door opening
+        let opening = WallOpening::new(2.5, 0.0, 0.9, 2.1, OpeningType::Door);
+        assert!(wall.add_opening(opening).is_ok());
+        assert_eq!(wall.openings.len(), 1);
+
+        // Create a door element
+        let door = Door::new(wall.id, 0.9, 2.1, 2.5).unwrap();
+        assert_eq!(door.host_wall_id, wall.id);
+    }
+
+    #[test]
+    fn element_types() {
+        let wall = Wall::new(Point2::new(0.0, 0.0), Point2::new(5.0, 0.0), 3.0, 0.2).unwrap();
+        let floor = Floor::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+
+        assert_eq!(wall.element_type(), ElementType::Wall);
+        assert_eq!(floor.element_type(), ElementType::Floor);
+    }
+
+    #[test]
+    fn wall_joins_detection() {
+        // Create L-shaped corner
+        let wall1 = Wall::new(
+            Point2::new(0.0, 0.0),
+            Point2::new(5.0, 0.0),
+            3.0,
+            0.2,
+        ).unwrap();
+
+        let wall2 = Wall::new(
+            Point2::new(5.0, 0.0),
+            Point2::new(5.0, 4.0),
+            3.0,
+            0.2,
+        ).unwrap();
+
+        let resolver = JoinResolver::new(0.001);
+        let joins = resolver.detect_joins(&[&wall1, &wall2]);
+
+        assert_eq!(joins.len(), 1);
+        assert!(matches!(joins[0].join_type, JoinType::LJoin | JoinType::Miter));
+
+        // Compute join geometry
+        let geometry = resolver.compute_join_geometry(&[&wall1, &wall2], &joins[0]).unwrap();
+        assert_eq!(geometry.wall_profiles.len(), 2);
+    }
+
+    #[test]
+    fn rectangular_building_joins() {
+        // Create 4 walls forming a rectangle
+        let wall1 = Wall::new(Point2::new(0.0, 0.0), Point2::new(10.0, 0.0), 3.0, 0.2).unwrap();
+        let wall2 = Wall::new(Point2::new(10.0, 0.0), Point2::new(10.0, 8.0), 3.0, 0.2).unwrap();
+        let wall3 = Wall::new(Point2::new(10.0, 8.0), Point2::new(0.0, 8.0), 3.0, 0.2).unwrap();
+        let wall4 = Wall::new(Point2::new(0.0, 8.0), Point2::new(0.0, 0.0), 3.0, 0.2).unwrap();
+
+        let resolver = JoinResolver::new(0.001);
+        let joins = resolver.detect_joins(&[&wall1, &wall2, &wall3, &wall4]);
+
+        // Should detect 4 L-joins at corners
+        assert_eq!(joins.len(), 4);
+        for join in &joins {
+            assert_eq!(join.join_type, JoinType::LJoin);
+        }
     }
 }

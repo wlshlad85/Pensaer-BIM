@@ -1,180 +1,117 @@
-use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
+//! Pensaer Math - Mathematical primitives for the Pensaer BIM kernel.
+//!
+//! This crate provides foundational geometry types and operations:
+//! - [`Point2`] and [`Point3`] - 2D and 3D point types
+//! - [`Vector2`] and [`Vector3`] - 2D and 3D vector types with full operations
+//! - [`Transform3`] - 4x4 transformation matrix
+//! - [`BoundingBox2`] and [`BoundingBox3`] - Axis-aligned bounding boxes
+//! - [`Line2`], [`Line3`], [`LineSegment2`], [`LineSegment3`] - Line types
+//! - [`Polygon2`] - 2D polygon for floor/room boundaries
+//!
+//! # Performance Targets
+//!
+//! All operations are designed for BIM/CAD use cases:
+//! - Point/vector operations: < 1μs
+//! - Polygon area/centroid: < 10μs for 100 vertices
+//! - Line intersection: < 1μs
+//!
+//! # Example
+//!
+//! ```rust
+//! use pensaer_math::{Point2, Vector2, Line2};
+//!
+//! // Create points and compute distance
+//! let a = Point2::new(0.0, 0.0);
+//! let b = Point2::new(3.0, 4.0);
+//! assert!((a.distance_to(&b) - 5.0).abs() < 1e-10);
+//!
+//! // Create a line and find closest point
+//! let line = Line2::from_points(a, b).unwrap();
+//! let p = Point2::new(2.0, 3.0);
+//! let closest = line.closest_point(&p);
+//! ```
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Point2 {
-    pub x: f64,
-    pub y: f64,
+pub mod bbox;
+pub mod error;
+pub mod guards;
+pub mod line;
+pub mod point;
+pub mod polygon;
+pub mod robust_predicates;
+pub mod transform;
+pub mod vector;
+
+// Re-export main types at crate root for convenience
+pub use bbox::{BoundingBox2, BoundingBox3};
+pub use error::{MathError, MathResult};
+pub use line::{Line2, Line3, LineSegment2, LineSegment3};
+pub use point::{Point2, Point3};
+pub use polygon::Polygon2;
+pub use robust_predicates::{
+    orientation_2d, orientation_3d, incircle_2d, insphere_3d,
+    segments_intersect, segments_properly_intersect, point_in_triangle,
+    is_convex_vertex, is_reflex_vertex,
+    Orientation, CirclePosition,
+};
+pub use transform::Transform3;
+pub use vector::{Vector2, Vector3};
+
+// Self-correcting guards and domain utilities
+pub use guards::{
+    // NaN/Infinity guards
+    is_finite, is_valid, guard_nan, guard_infinite, guard_finite,
+    sanitize, sanitize_to_zero,
+    // Domain clamping
+    clamp_acos_domain, safe_acos, safe_asin, clamp_log_domain, safe_ln,
+    clamp_sqrt_domain, safe_sqrt,
+    // Degenerate correction
+    snap_to_zero, snap_to_integer, snap_to_grid,
+    // Safe division
+    safe_div, safe_div_or,
+};
+
+/// Tolerance for floating point comparisons (1e-10).
+/// This is suitable for most BIM operations.
+pub const EPSILON: f64 = 1e-10;
+
+/// Tolerance for geometric coincidence checks (1mm in model units).
+/// Use this for "are these points the same location" checks.
+pub const COINCIDENCE_TOLERANCE: f64 = 0.001;
+
+/// Check if two f64 values are approximately equal.
+#[inline]
+pub fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
+    (a - b).abs() < tolerance
 }
 
-impl Point2 {
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
-    }
+/// Check if a value is approximately zero.
+#[inline]
+pub fn approx_zero(value: f64, tolerance: f64) -> bool {
+    value.abs() < tolerance
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Vector2 {
-    pub x: f64,
-    pub y: f64,
+/// Linear interpolation between two values.
+#[inline]
+pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
+    a + (b - a) * t
 }
 
-impl Vector2 {
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
-    }
-
-    pub fn length(&self) -> f64 {
-        (self.x * self.x + self.y * self.y).sqrt()
-    }
-
-    pub fn normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len == 0.0 {
-            None
-        } else {
-            Some(Self::new(self.x / len, self.y / len))
-        }
-    }
-
-    pub fn perp(&self) -> Self {
-        Self::new(-self.y, self.x)
-    }
+/// Clamp a value to a range.
+#[inline]
+pub fn clamp(value: f64, min: f64, max: f64) -> f64 {
+    value.max(min).min(max)
 }
 
-impl Add<Vector2> for Point2 {
-    type Output = Point2;
-
-    fn add(self, rhs: Vector2) -> Self::Output {
-        Point2::new(self.x + rhs.x, self.y + rhs.y)
-    }
+/// Convert degrees to radians.
+#[inline]
+pub fn deg_to_rad(degrees: f64) -> f64 {
+    degrees * std::f64::consts::PI / 180.0
 }
 
-impl Sub for Point2 {
-    type Output = Vector2;
-
-    fn sub(self, rhs: Point2) -> Self::Output {
-        Vector2::new(self.x - rhs.x, self.y - rhs.y)
-    }
-}
-
-impl Sub<Vector2> for Point2 {
-    type Output = Point2;
-
-    fn sub(self, rhs: Vector2) -> Self::Output {
-        Point2::new(self.x - rhs.x, self.y - rhs.y)
-    }
-}
-
-impl Add for Vector2 {
-    type Output = Vector2;
-
-    fn add(self, rhs: Vector2) -> Self::Output {
-        Vector2::new(self.x + rhs.x, self.y + rhs.y)
-    }
-}
-
-impl Sub for Vector2 {
-    type Output = Vector2;
-
-    fn sub(self, rhs: Vector2) -> Self::Output {
-        Vector2::new(self.x - rhs.x, self.y - rhs.y)
-    }
-}
-
-impl Mul<f64> for Vector2 {
-    type Output = Vector2;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Vector2::new(self.x * rhs, self.y * rhs)
-    }
-}
-
-impl AddAssign<Vector2> for Point2 {
-    fn add_assign(&mut self, rhs: Vector2) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-    }
-}
-
-impl SubAssign<Vector2> for Point2 {
-    fn sub_assign(&mut self, rhs: Vector2) {
-        self.x -= rhs.x;
-        self.y -= rhs.y;
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Point3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-
-impl Point3 {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { x, y, z }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Vector3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-
-impl Vector3 {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { x, y, z }
-    }
-
-    pub fn length(&self) -> f64 {
-        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
-    }
-}
-
-impl Add<Vector3> for Point3 {
-    type Output = Point3;
-
-    fn add(self, rhs: Vector3) -> Self::Output {
-        Point3::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
-    }
-}
-
-impl Sub for Point3 {
-    type Output = Vector3;
-
-    fn sub(self, rhs: Point3) -> Self::Output {
-        Vector3::new(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct BoundingBox3 {
-    pub min: Point3,
-    pub max: Point3,
-}
-
-impl BoundingBox3 {
-    pub fn from_points(points: &[Point3]) -> Option<Self> {
-        if points.is_empty() {
-            return None;
-        }
-
-        let mut min = points[0];
-        let mut max = points[0];
-
-        for p in points.iter().skip(1) {
-            min.x = min.x.min(p.x);
-            min.y = min.y.min(p.y);
-            min.z = min.z.min(p.z);
-            max.x = max.x.max(p.x);
-            max.y = max.y.max(p.y);
-            max.z = max.z.max(p.z);
-        }
-
-        Some(Self { min, max })
-    }
+/// Convert radians to degrees.
+#[inline]
+pub fn rad_to_deg(radians: f64) -> f64 {
+    radians * 180.0 / std::f64::consts::PI
 }
 
 #[cfg(test)]
@@ -182,21 +119,65 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vector2_perp_is_orthogonal() {
-        let v = Vector2::new(3.0, 4.0);
-        let p = v.perp();
-        let dot = v.x * p.x + v.y * p.y;
-        assert_eq!(dot, 0.0);
+    fn test_approx_eq() {
+        assert!(approx_eq(1.0, 1.0 + 1e-11, EPSILON));
+        assert!(!approx_eq(1.0, 1.0 + 1e-9, EPSILON));
     }
 
     #[test]
-    fn bbox_from_points() {
-        let pts = vec![
-            Point3::new(-1.0, 2.0, 0.0),
-            Point3::new(3.0, -4.0, 5.0),
-        ];
-        let bbox = BoundingBox3::from_points(&pts).unwrap();
-        assert_eq!(bbox.min, Point3::new(-1.0, -4.0, 0.0));
-        assert_eq!(bbox.max, Point3::new(3.0, 2.0, 5.0));
+    fn test_lerp() {
+        assert!((lerp(0.0, 10.0, 0.5) - 5.0).abs() < EPSILON);
+        assert!((lerp(0.0, 10.0, 0.0) - 0.0).abs() < EPSILON);
+        assert!((lerp(0.0, 10.0, 1.0) - 10.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_deg_rad_conversion() {
+        assert!((deg_to_rad(180.0) - std::f64::consts::PI).abs() < EPSILON);
+        assert!((rad_to_deg(std::f64::consts::PI) - 180.0).abs() < EPSILON);
+    }
+
+    // Integration tests to verify all modules work together
+    #[test]
+    fn integration_point_vector_ops() {
+        let p = Point2::new(1.0, 2.0);
+        let v = Vector2::new(3.0, 4.0);
+        let result = p + v;
+        assert_eq!(result, Point2::new(4.0, 6.0));
+    }
+
+    #[test]
+    fn integration_line_intersection() {
+        let line1 = Line2::from_points(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0)).unwrap();
+        let line2 = Line2::from_points(Point2::new(0.0, 10.0), Point2::new(10.0, 0.0)).unwrap();
+        let intersection = line1.intersect(&line2).unwrap();
+        assert!((intersection.x - 5.0).abs() < EPSILON);
+        assert!((intersection.y - 5.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn integration_polygon_area() {
+        let poly = Polygon2::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0));
+        assert!((poly.area() - 100.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn integration_transform_point() {
+        let p = Point3::new(1.0, 2.0, 3.0);
+        let t = Transform3::translation(10.0, 20.0, 30.0);
+        let result = t.transform_point(p);
+        assert!((result.x - 11.0).abs() < EPSILON);
+        assert!((result.y - 22.0).abs() < EPSILON);
+        assert!((result.z - 33.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn integration_bbox_contains() {
+        let bbox = BoundingBox3::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 10.0, 10.0),
+        );
+        assert!(bbox.contains_point(&Point3::new(5.0, 5.0, 5.0)));
+        assert!(!bbox.contains_point(&Point3::new(15.0, 5.0, 5.0)));
     }
 }

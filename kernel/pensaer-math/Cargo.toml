@@ -2,6 +2,16 @@
 name = "pensaer-math"
 version = "0.1.0"
 edition = "2021"
+description = "Mathematical primitives for Pensaer BIM kernel"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+robust = "1.1"  # Shewchuk's adaptive precision geometric predicates
+
+[dev-dependencies]
+approx = "0.5"
+proptest = "1.4"  # Property-based testing for mathematical invariants

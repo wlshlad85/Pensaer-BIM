@@ -2,9 +2,27 @@
 name = "pensaer-geometry"
 version = "0.1.0"
 edition = "2021"
+description = "BIM geometry elements and mesh generation for Pensaer"
 
 [lib]
-path = "src/lib.rs"
+name = "pensaer_geometry"
+crate-type = ["rlib", "cdylib"]  # rlib for Rust, cdylib for Python
 
 [dependencies]
 pensaer-math = { path = "../pensaer-math" }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+[dependencies.pyo3]
+version = "0.22"
+features = ["extension-module"]
+optional = true
+
+[features]
+default = []
+python = ["pyo3"]
+
+[dev-dependencies]
+approx = "0.5"
