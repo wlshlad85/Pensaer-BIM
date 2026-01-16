@@ -6,6 +6,7 @@
  */
 
 import { useUIStore, useModelStore, useHistoryStore } from "../../stores";
+import { IfcImportButton } from "./IfcImportButton";
 
 interface HeaderProps {
   onOpenPalette: () => void;
@@ -74,6 +75,11 @@ export function Header({ onOpenPalette }: HeaderProps) {
         >
           <i className="fa-solid fa-redo"></i>
         </button>
+
+        {/* IFC Import */}
+        <div className="ml-2 border-l border-gray-700 pl-2">
+          <IfcImportButton />
+        </div>
       </div>
 
       {/* Center - Command Palette Trigger */}
