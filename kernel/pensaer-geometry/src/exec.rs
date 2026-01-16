@@ -153,7 +153,11 @@ pub fn exec_and_heal(method: &str, params: &Value, ctx: &mut Context) -> ExecRes
 /// Dispatch to the appropriate method handler.
 ///
 /// Returns (Delta, Option<Value>) on success.
-fn dispatch(method: &str, params: &Value, ctx: &mut Context) -> Result<(Delta, Option<Value>), String> {
+fn dispatch(
+    method: &str,
+    params: &Value,
+    ctx: &mut Context,
+) -> Result<(Delta, Option<Value>), String> {
     match method {
         "add_wall" => handle_add_wall(params, ctx),
         "move_node" => handle_move_node(params, ctx),
@@ -195,7 +199,9 @@ fn handle_add_wall(params: &Value, _ctx: &mut Context) -> Result<(Delta, Option<
 fn handle_move_node(params: &Value, _ctx: &mut Context) -> Result<(Delta, Option<Value>), String> {
     // TODO: Implement in M2
     let _node_id = params.get("node_id").ok_or("Missing 'node_id' parameter")?;
-    let _position = params.get("position").ok_or("Missing 'position' parameter")?;
+    let _position = params
+        .get("position")
+        .ok_or("Missing 'position' parameter")?;
 
     let delta = Delta {
         created: vec![],
@@ -207,9 +213,14 @@ fn handle_move_node(params: &Value, _ctx: &mut Context) -> Result<(Delta, Option
     Ok((delta, None))
 }
 
-fn handle_delete_element(params: &Value, _ctx: &mut Context) -> Result<(Delta, Option<Value>), String> {
+fn handle_delete_element(
+    params: &Value,
+    _ctx: &mut Context,
+) -> Result<(Delta, Option<Value>), String> {
     // TODO: Implement in M2
-    let _element_id = params.get("element_id").ok_or("Missing 'element_id' parameter")?;
+    let _element_id = params
+        .get("element_id")
+        .ok_or("Missing 'element_id' parameter")?;
 
     let delta = Delta {
         created: vec![],
@@ -221,7 +232,10 @@ fn handle_delete_element(params: &Value, _ctx: &mut Context) -> Result<(Delta, O
     Ok((delta, None))
 }
 
-fn handle_solve_joins(_params: &Value, _ctx: &mut Context) -> Result<(Delta, Option<Value>), String> {
+fn handle_solve_joins(
+    _params: &Value,
+    _ctx: &mut Context,
+) -> Result<(Delta, Option<Value>), String> {
     // TODO: Implement in M2
     // This triggers a full heal pass on all walls
     let delta = Delta::default();

@@ -30,9 +30,7 @@ pub fn quantize_json(value: &Value) -> Value {
                 value.clone()
             }
         }
-        Value::Array(arr) => {
-            Value::Array(arr.iter().map(quantize_json).collect())
-        }
+        Value::Array(arr) => Value::Array(arr.iter().map(quantize_json).collect()),
         Value::Object(obj) => {
             let mut new_obj = Map::new();
             for (k, v) in obj {
@@ -65,11 +63,9 @@ pub fn sort_for_determinism(value: &Value) -> Value {
         }
         Value::Array(arr) => {
             // Check if this is an array of objects with "id" fields
-            let all_have_id = arr.iter().all(|v| {
-                v.as_object()
-                    .map(|o| o.contains_key("id"))
-                    .unwrap_or(false)
-            });
+            let all_have_id = arr
+                .iter()
+                .all(|v| v.as_object().map(|o| o.contains_key("id")).unwrap_or(false));
 
             if all_have_id && !arr.is_empty() {
                 // Sort by id

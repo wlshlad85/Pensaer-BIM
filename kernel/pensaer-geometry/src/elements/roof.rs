@@ -125,7 +125,12 @@ impl Roof {
     }
 
     /// Create a hip roof.
-    pub fn hip(min: Point2, max: Point2, thickness: f64, slope_degrees: f64) -> GeometryResult<Self> {
+    pub fn hip(
+        min: Point2,
+        max: Point2,
+        thickness: f64,
+        slope_degrees: f64,
+    ) -> GeometryResult<Self> {
         let mut roof = Self::rectangle(min, max, thickness)?;
         roof.roof_type = RoofType::Hip;
         roof.slope_degrees = slope_degrees.clamp(0.0, 89.0);
@@ -564,8 +569,16 @@ impl Element for Roof {
 
         let overhang = self.eave_overhang;
         Ok(BoundingBox3::new(
-            Point3::new(bbox2.min.x - overhang, bbox2.min.y - overhang, self.base_elevation),
-            Point3::new(bbox2.max.x + overhang, bbox2.max.y + overhang, self.top_elevation()),
+            Point3::new(
+                bbox2.min.x - overhang,
+                bbox2.min.y - overhang,
+                self.base_elevation,
+            ),
+            Point3::new(
+                bbox2.max.x + overhang,
+                bbox2.max.y + overhang,
+                self.top_elevation(),
+            ),
         ))
     }
 
@@ -648,7 +661,8 @@ mod tests {
 
     #[test]
     fn roof_elevation() {
-        let mut roof = Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+        let mut roof =
+            Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         roof.set_elevation(5.0);
         assert!((roof.base_elevation - 5.0).abs() < 1e-10);
@@ -656,7 +670,8 @@ mod tests {
 
     #[test]
     fn roof_eave_overhang() {
-        let mut roof = Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+        let mut roof =
+            Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         roof.set_eave_overhang(0.5);
         assert!((roof.eave_overhang - 0.5).abs() < 1e-10);
@@ -668,7 +683,8 @@ mod tests {
 
     #[test]
     fn roof_attach_walls() {
-        let mut roof = Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+        let mut roof =
+            Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         let wall_id_1 = Uuid::new_v4();
         let wall_id_2 = Uuid::new_v4();
@@ -687,7 +703,8 @@ mod tests {
 
     #[test]
     fn roof_detach_wall() {
-        let mut roof = Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+        let mut roof =
+            Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         let wall_id = Uuid::new_v4();
         roof.attach_to_wall(wall_id);
@@ -702,7 +719,8 @@ mod tests {
 
     #[test]
     fn roof_attach_multiple_walls() {
-        let mut roof = Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
+        let mut roof =
+            Roof::rectangle(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0), 0.3).unwrap();
 
         let wall_ids: Vec<Uuid> = (0..4).map(|_| Uuid::new_v4()).collect();
         roof.attach_to_walls(&wall_ids);

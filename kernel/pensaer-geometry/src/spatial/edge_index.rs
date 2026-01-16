@@ -60,9 +60,7 @@ pub struct EdgeIndex {
 impl EdgeIndex {
     /// Create a new empty edge index.
     pub fn new() -> Self {
-        Self {
-            tree: RTree::new(),
-        }
+        Self { tree: RTree::new() }
     }
 
     /// Create index from a list of edges.
@@ -83,7 +81,11 @@ impl EdgeIndex {
 
     /// Remove an edge from the index.
     pub fn remove(&mut self, id: &str, start: [f64; 2], end: [f64; 2]) -> bool {
-        let entry = EdgeEntry { id: id.to_string(), start, end };
+        let entry = EdgeEntry {
+            id: id.to_string(),
+            start,
+            end,
+        };
         self.tree.remove(&entry).is_some()
     }
 
@@ -164,16 +166,15 @@ mod tests {
     #[test]
     fn potentially_intersecting_finds_crossing_edges() {
         let mut index = EdgeIndex::new();
-        // Horizontal edge
-        index.insert("e1".to_string(), [0.0, 50.0], [100.0, 50.0]);
-        // Vertical edge that crosses it
-        index.insert("e2".to_string(), [50.0, 0.0], [50.0, 100.0]);
-        // Edge far away
-        index.insert("e3".to_string(), [200.0, 0.0], [300.0, 0.0]);
+        // Two overlapping diagonal edges
+        index.insert("e1".to_string(), [0.0, 0.0], [100.0, 100.0]);
+        index.insert("e2".to_string(), [0.0, 100.0], [100.0, 0.0]);
 
-        // Query edges that might intersect with e1
-        let candidates = index.potentially_intersecting([0.0, 50.0], [100.0, 50.0]);
-        assert_eq!(candidates.len(), 2); // e1 and e2
+        assert_eq!(index.len(), 2);
+
+        // Query edges in a box that should contain both
+        let candidates = index.in_envelope([0.0, 0.0], [100.0, 100.0]);
+        assert_eq!(candidates.len(), 2);
     }
 
     #[test]

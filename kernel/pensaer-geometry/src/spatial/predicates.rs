@@ -76,12 +76,7 @@ pub fn orient2d_robust(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> Orientation {
 ///
 /// Uses orientation tests to determine if segments (a1, a2) and (b1, b2) intersect.
 /// Returns true if they intersect (including endpoint touching).
-pub fn segments_intersect(
-    a1: [f64; 2],
-    a2: [f64; 2],
-    b1: [f64; 2],
-    b2: [f64; 2],
-) -> bool {
+pub fn segments_intersect(a1: [f64; 2], a2: [f64; 2], b1: [f64; 2], b2: [f64; 2]) -> bool {
     let o1 = orient2d_robust(a1, a2, b1);
     let o2 = orient2d_robust(a1, a2, b2);
     let o3 = orient2d_robust(b1, b2, a1);
@@ -145,10 +140,7 @@ pub fn segment_intersection(
         && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))
     {
         let t = d1 / (d1 - d2);
-        return Some([
-            a1[0] + t * (a2[0] - a1[0]),
-            a1[1] + t * (a2[1] - a1[1]),
-        ]);
+        return Some([a1[0] + t * (a2[0] - a1[0]), a1[1] + t * (a2[1] - a1[1])]);
     }
 
     // Check for endpoint intersection (within tolerance)
@@ -202,7 +194,7 @@ mod tests {
         let a = [0.0, 0.0];
         let b = [1.0, 0.0];
         let c = [0.5, 1e-15]; // Tiny offset
-        // Robust version should still work
+                              // Robust version should still work
         let _ = orient2d_robust(a, b, c);
     }
 

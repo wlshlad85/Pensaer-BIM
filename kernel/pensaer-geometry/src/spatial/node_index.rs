@@ -2,7 +2,7 @@
 //!
 //! Provides O(log n) spatial queries for node lookup.
 
-use rstar::{RTree, RTreeObject, AABB, PointDistance};
+use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
 /// A node entry in the spatial index.
 #[derive(Debug, Clone)]
@@ -35,9 +35,7 @@ pub struct NodeIndex {
 impl NodeIndex {
     /// Create a new empty node index.
     pub fn new() -> Self {
-        Self {
-            tree: RTree::new(),
-        }
+        Self { tree: RTree::new() }
     }
 
     /// Create index from a list of nodes.
@@ -59,7 +57,10 @@ impl NodeIndex {
     /// Remove a node from the index by ID.
     /// Returns true if the node was found and removed.
     pub fn remove(&mut self, id: &str, position: [f64; 2]) -> bool {
-        let entry = NodeEntry { id: id.to_string(), position };
+        let entry = NodeEntry {
+            id: id.to_string(),
+            position,
+        };
         self.tree.remove(&entry).is_some()
     }
 
@@ -109,7 +110,9 @@ impl NodeIndex {
 
     /// Iterate over all nodes.
     pub fn iter(&self) -> impl Iterator<Item = (&str, [f64; 2])> {
-        self.tree.iter().map(|entry| (entry.id.as_str(), entry.position))
+        self.tree
+            .iter()
+            .map(|entry| (entry.id.as_str(), entry.position))
     }
 }
 

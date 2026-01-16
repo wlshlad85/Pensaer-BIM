@@ -12,8 +12,8 @@ use pensaer_math::{BoundingBox3, Point2, Point3, Vector2, Vector3};
 
 use crate::element::Element;
 use crate::elements::{
-    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, RidgeDirection, Roof, RoofType,
-    Room, Wall, WallOpening, WallType, Window, WindowType,
+    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, RidgeDirection, Roof, RoofType, Room,
+    Wall, WallOpening, WallType, Window, WindowType,
 };
 use crate::joins::{JoinResolver, JoinType, WallJoin};
 use crate::mesh::TriangleMesh;

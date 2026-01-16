@@ -501,12 +501,30 @@ pub fn create_roof(
 ) -> PyResult<PyRoof> {
     let mut roof = match roof_type.to_lowercase().as_str() {
         "flat" => PyRoof::rectangle(min_point, max_point, thickness, Some("flat"), Some(0.0))?,
-        "gable" => PyRoof::gable(min_point, max_point, thickness, slope_degrees, ridge_along_x)?,
+        "gable" => PyRoof::gable(
+            min_point,
+            max_point,
+            thickness,
+            slope_degrees,
+            ridge_along_x,
+        )?,
         "hip" => PyRoof::hip(min_point, max_point, thickness, slope_degrees)?,
-        "shed" => PyRoof::shed(min_point, max_point, thickness, slope_degrees, ridge_along_x)?,
+        "shed" => PyRoof::shed(
+            min_point,
+            max_point,
+            thickness,
+            slope_degrees,
+            ridge_along_x,
+        )?,
         "mansard" => {
             // Mansard uses gable with steeper slope
-            PyRoof::gable(min_point, max_point, thickness, slope_degrees.max(60.0), ridge_along_x)?
+            PyRoof::gable(
+                min_point,
+                max_point,
+                thickness,
+                slope_degrees.max(60.0),
+                ridge_along_x,
+            )?
         }
         _ => {
             return Err(PyValueError::new_err(format!(

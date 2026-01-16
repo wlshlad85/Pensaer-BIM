@@ -72,10 +72,10 @@ pub mod mesh;
 
 // M0: Ground truth & guardrails
 pub mod constants;
-pub mod util;
-pub mod io;
-pub mod fixup;
 pub mod exec;
+pub mod fixup;
+pub mod io;
+pub mod util;
 
 // M1: Spatial indexing
 pub mod spatial;
@@ -87,8 +87,8 @@ pub mod bindings;
 // Re-export main types at crate root for convenience
 pub use element::{Element, ElementMetadata, ElementType};
 pub use elements::{
-    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, RidgeDirection, Roof, RoofType,
-    Room, Wall, WallBaseline, WallOpening, WallType, Window, WindowType,
+    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, RidgeDirection, Roof, RoofType, Room,
+    Wall, WallBaseline, WallOpening, WallType, Window, WindowType,
 };
 pub use error::{GeometryError, GeometryResult};
 pub use joins::{
@@ -101,12 +101,12 @@ pub use mesh::{
 
 // M0 re-exports
 pub use constants::{
-    EPSILON, GEOM_TOL, QUANTIZE_PRECISION, SNAP_MERGE_TOL, UI_SNAP_DIST,
-    quantize, quantize_point2, quantize_point3,
+    quantize, quantize_point2, quantize_point3, EPSILON, GEOM_TOL, QUANTIZE_PRECISION,
+    SNAP_MERGE_TOL, UI_SNAP_DIST,
 };
 pub use exec::{exec_and_heal, Context, ExecResult};
 pub use io::{prepare_input, prepare_output, to_deterministic_json, to_deterministic_json_compact};
-pub use spatial::{NodeIndex, EdgeIndex, EdgeEntry, orient2d, orient2d_robust, Orientation};
+pub use spatial::{orient2d, orient2d_robust, EdgeEntry, EdgeIndex, NodeIndex, Orientation};
 
 #[cfg(test)]
 mod tests {
