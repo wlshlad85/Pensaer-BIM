@@ -7,7 +7,9 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { useModelStore, useSelectionStore } from "../../stores";
+import { ViewCube } from "./ViewCube";
 
 type ViewType = "perspective" | "top" | "front" | "side";
 
@@ -27,12 +29,12 @@ export function Canvas3D() {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const animationRef = useRef<number | null>(null);
   const meshesRef = useRef<THREE.Mesh[]>([]);
 
   const [isRotating, setIsRotating] = useState(true);
   const [currentView, setCurrentView] = useState<ViewType>("perspective");
-  const rotationRef = useRef(0);
 
   const elements = useModelStore((s) => s.elements);
   const selectedIds = useSelectionStore((s) => s.selectedIds);
@@ -65,6 +67,17 @@ export function Canvas3D() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // Orbit Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 3;
+    controls.maxDistance = 50;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent going below ground
+    controls.target.set(0, 1, 0);
+    controls.update();
+    controlsRef.current = controls;
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -119,6 +132,7 @@ export function Canvas3D() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
@@ -358,21 +372,22 @@ export function Canvas3D() {
     scene.add(buildingGroup);
   }, [elements, selectedIds]);
 
+  // Update OrbitControls auto-rotate setting
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.autoRotate = isRotating && currentView === "perspective";
+      controlsRef.current.autoRotateSpeed = 1.0;
+    }
+  }, [isRotating, currentView]);
+
   // Animation loop
   useEffect(() => {
     const animate = () => {
       animationRef.current = requestAnimationFrame(animate);
 
-      if (sceneRef.current && cameraRef.current && rendererRef.current) {
-        // Auto-rotate in perspective view
-        if (isRotating && currentView === "perspective") {
-          rotationRef.current += 0.005;
-          const radius = 11;
-          cameraRef.current.position.x = Math.sin(rotationRef.current) * radius;
-          cameraRef.current.position.z = Math.cos(rotationRef.current) * radius;
-          cameraRef.current.lookAt(0, 1, 0);
-        }
-
+      if (sceneRef.current && cameraRef.current && rendererRef.current && controlsRef.current) {
+        // Update controls (handles damping and auto-rotate)
+        controlsRef.current.update();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
     };
@@ -384,17 +399,50 @@ export function Canvas3D() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isRotating, currentView]);
+  }, []);
 
   // Change camera view
   const changeView = useCallback((view: ViewType) => {
     setCurrentView(view);
-    if (cameraRef.current) {
+    if (cameraRef.current && controlsRef.current) {
       const preset = CAMERA_PRESETS[view];
       cameraRef.current.position.set(...preset.position);
-      cameraRef.current.lookAt(...preset.lookAt);
+      controlsRef.current.target.set(...preset.lookAt);
+      controlsRef.current.update();
     }
   }, []);
+
+  // Handle ViewCube face click
+  const handleViewCubeClick = useCallback(
+    (view: "top" | "front" | "right" | "back" | "left" | "bottom") => {
+      if (!cameraRef.current || !controlsRef.current) return;
+
+      const distance = 12;
+      const target = new THREE.Vector3(0, 1, 0);
+
+      // Map ViewCube face to camera position
+      const positions: Record<string, [number, number, number]> = {
+        top: [0, distance, 0.01], // Slight offset to avoid gimbal lock
+        bottom: [0, -distance, 0.01],
+        front: [0, 1, distance],
+        back: [0, 1, -distance],
+        right: [distance, 1, 0],
+        left: [-distance, 1, 0],
+      };
+
+      const pos = positions[view];
+      cameraRef.current.position.set(...pos);
+      controlsRef.current.target.copy(target);
+      controlsRef.current.update();
+
+      // Update current view state if it matches a preset
+      if (view === "top") setCurrentView("top");
+      else if (view === "front") setCurrentView("front");
+      else if (view === "right" || view === "left") setCurrentView("side");
+      else setCurrentView("perspective");
+    },
+    []
+  );
 
   // Handle click for selection
   const handleClick = useCallback(
@@ -458,6 +506,15 @@ export function Canvas3D() {
           ></i>
           {isRotating ? "Pause" : "Rotate"}
         </button>
+      </div>
+
+      {/* ViewCube - Top Right */}
+      <div className="absolute top-4 right-4 bg-gray-900/60 backdrop-blur-xl rounded-xl p-2">
+        <ViewCube
+          camera={cameraRef.current}
+          onViewChange={handleViewCubeClick}
+          size={80}
+        />
       </div>
 
       {/* Zoom Controls */}
