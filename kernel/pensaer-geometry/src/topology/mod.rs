@@ -83,7 +83,11 @@ mod tests {
         graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
 
         // Vertical wall meeting at corner
-        graph.add_edge([1000.0, 0.0], [1000.0, 1000.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
 
         // Should share the corner node
         assert_eq!(graph.node_count(), 3);

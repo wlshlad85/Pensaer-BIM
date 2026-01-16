@@ -85,9 +85,11 @@ impl TopologyGraph {
 
         if let Some((_id_str, _pos)) = nearby.first() {
             // Parse the ID back - we stored it as string in the index
-            if let Some((id, _node)) = self.nodes.iter().find(|(_, n)| {
-                points2_within(n.position, position, self.snap_tolerance)
-            }) {
+            if let Some((id, _node)) = self
+                .nodes
+                .iter()
+                .find(|(_, n)| points2_within(n.position, position, self.snap_tolerance))
+            {
                 return *id;
             }
         }
@@ -297,10 +299,8 @@ impl TopologyGraph {
 
                     // Update position to midpoint
                     if let Some(node_a) = self.nodes.get_mut(&id_a) {
-                        node_a.position = [
-                            (pos_a[0] + pos_b[0]) / 2.0,
-                            (pos_a[1] + pos_b[1]) / 2.0,
-                        ];
+                        node_a.position =
+                            [(pos_a[0] + pos_b[0]) / 2.0, (pos_a[1] + pos_b[1]) / 2.0];
                     }
 
                     merged_count += 1;
@@ -441,7 +441,11 @@ mod tests {
     fn edge_positions() {
         let mut graph = TopologyGraph::new();
         let edge_id = graph
-            .add_edge([100.0, 200.0], [300.0, 400.0], EdgeData::wall(200.0, 2700.0))
+            .add_edge(
+                [100.0, 200.0],
+                [300.0, 400.0],
+                EdgeData::wall(200.0, 2700.0),
+            )
             .unwrap();
 
         let (start, end) = graph.edge_positions(edge_id).unwrap();
@@ -455,7 +459,11 @@ mod tests {
 
         // Create L-shape
         graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
-        graph.add_edge([1000.0, 0.0], [1000.0, 1000.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
 
         // Find the corner node
         let corner_nodes = graph.nodes_within([1000.0, 0.0], 1.0);

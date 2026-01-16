@@ -25,8 +25,7 @@ mod predicates;
 pub use edge_index::{EdgeEntry, EdgeIndex};
 pub use node_index::NodeIndex;
 pub use predicates::{
-    orient2d, orient2d_robust, segment_intersection, segments_intersect, signed_area_2,
-    Orientation,
+    orient2d, orient2d_robust, segment_intersection, segments_intersect, signed_area_2, Orientation,
 };
 
 #[cfg(test)]
