@@ -47,6 +47,7 @@ from .schemas import (
     CreateRoomParams,
     PlaceDoorParams,
     PlaceWindowParams,
+    CreateOpeningParams,
     DetectJoinsParams,
     GetElementParams,
     ListElementsParams,
@@ -373,6 +374,45 @@ TOOLS = [
             "required": ["wall_id", "offset"],
         },
     ),
+    # Generic Opening Tool
+    Tool(
+        name="create_opening",
+        description="Create a generic rectangular opening (cut) in a wall. Use this for openings that aren't doors or windows.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "host_id": {
+                    "type": "string",
+                    "description": "UUID of the wall to create opening in",
+                },
+                "offset": {
+                    "type": "number",
+                    "description": "Distance from wall start to opening center (meters)",
+                },
+                "width": {
+                    "type": "number",
+                    "description": "Opening width in meters",
+                },
+                "height": {
+                    "type": "number",
+                    "description": "Opening height in meters",
+                },
+                "base_height": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "Height from floor to opening base (meters)",
+                },
+                "opening_type": {
+                    "type": "string",
+                    "enum": ["door", "window", "generic"],
+                    "default": "generic",
+                    "description": "Opening type",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["host_id", "offset", "width", "height"],
+        },
+    ),
     # Join Tools
     Tool(
         name="detect_joins",
@@ -478,6 +518,37 @@ TOOLS = [
                 "element_id": {"type": "string", "description": "UUID of the element"}
             },
             "required": ["element_id"],
+        },
+    ),
+    Tool(
+        name="compute_mesh_batch",
+        description="Generate meshes for multiple elements at once. Optionally merge into single mesh.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of element UUIDs to generate meshes for",
+                },
+                "merge": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Merge all meshes into a single combined mesh",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "obj"],
+                    "default": "json",
+                    "description": "Output format",
+                },
+                "compute_normals": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Compute vertex normals for smooth shading",
+                },
+            },
+            "required": ["element_ids"],
         },
     ),
     # Building Tools
@@ -806,6 +877,31 @@ TOOLS = [
             "required": ["group_id"],
         },
     ),
+    # Boolean Operation Tool (Placeholder)
+    Tool(
+        name="boolean_operation",
+        description="Perform CSG boolean operations on meshes (union, difference, intersection). Note: Full implementation planned for Phase 3.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["union", "difference", "intersection"],
+                    "description": "Boolean operation type",
+                },
+                "target_id": {
+                    "type": "string",
+                    "description": "UUID of the target element (modified in-place for difference)",
+                },
+                "tool_id": {
+                    "type": "string",
+                    "description": "UUID of the tool element (subtracted/intersected)",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["operation", "target_id", "tool_id"],
+        },
+    ),
     # State Tools
     Tool(
         name="get_state_summary",
@@ -892,6 +988,8 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _place_door(state, args, reasoning)
     elif name == "place_window":
         return await _place_window(state, args, reasoning)
+    elif name == "create_opening":
+        return await _create_opening(state, args, reasoning)
 
     # Join Tools
     elif name == "detect_joins":
@@ -910,6 +1008,8 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _generate_mesh(state, args)
     elif name == "validate_mesh":
         return await _validate_mesh(state, args)
+    elif name == "compute_mesh_batch":
+        return await _compute_mesh_batch(state, args)
 
     # Building Tools
     elif name == "create_simple_building":
@@ -946,6 +1046,10 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _list_groups(state, args)
     elif name == "select_group":
         return await _select_group(state, args, reasoning)
+
+    # Boolean Operation
+    elif name == "boolean_operation":
+        return await _boolean_operation(state, args, reasoning)
 
     # State Tools
     elif name == "get_state_summary":
@@ -1183,6 +1287,47 @@ async def _place_window(
     )
 
 
+async def _create_opening(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Create a generic opening in a wall."""
+    params = CreateOpeningParams(**args)
+
+    # Get the wall
+    wall_record = state.get_element(params.host_id)
+    if not wall_record or wall_record.element_type != "wall":
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Wall not found: {params.host_id}"
+        )
+
+    wall = wall_record.element
+
+    # Create the opening using the Python binding
+    result = pg.create_opening(
+        wall,
+        offset=params.offset,
+        base_height=params.base_height,
+        width=params.width,
+        height=params.height,
+        opening_type=params.opening_type,
+    )
+
+    # Update the wall in state
+    state.update_element(params.host_id, wall)
+
+    return make_response(
+        {
+            "opening_id": result["opening"].id,
+            "wall_id": params.host_id,
+            "width": params.width,
+            "height": params.height,
+            "base_height": params.base_height,
+            "opening_type": params.opening_type,
+        },
+        reasoning=reasoning,
+    )
+
+
 # =============================================================================
 # Join Tool Handlers
 # =============================================================================
@@ -1399,6 +1544,119 @@ async def _validate_mesh(state: GeometryState, args: dict[str, Any]) -> dict[str
     )
 
 
+async def _compute_mesh_batch(
+    state: GeometryState, args: dict[str, Any]
+) -> dict[str, Any]:
+    """Generate meshes for multiple elements, optionally merging them."""
+    element_ids = args.get("element_ids", [])
+    merge = args.get("merge", False)
+    output_format = args.get("format", "json")
+    compute_normals = args.get("compute_normals", True)
+
+    if not element_ids:
+        return make_error(ErrorCodes.INVALID_PARAMS, "element_ids cannot be empty")
+
+    # Collect meshes
+    meshes = []
+    mesh_info = []
+    not_found = []
+
+    for element_id in element_ids:
+        record = state.get_element(element_id)
+        if not record:
+            not_found.append(element_id)
+            continue
+
+        mesh = record.element.to_mesh()
+        if compute_normals:
+            mesh.compute_smooth_normals()
+
+        meshes.append(mesh)
+        mesh_info.append(
+            {
+                "element_id": element_id,
+                "element_type": record.element_type,
+                "vertex_count": mesh.vertex_count(),
+                "triangle_count": mesh.triangle_count(),
+            }
+        )
+
+    warnings = []
+    if not_found:
+        warnings.append(f"Elements not found: {not_found}")
+
+    if not meshes:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, "No valid elements found for mesh generation"
+        )
+
+    if merge:
+        # Merge all meshes into one
+        combined = pg.merge_meshes(meshes)
+
+        if output_format == "obj":
+            obj_string = pg.mesh_to_obj(combined)
+            return make_response(
+                {
+                    "format": "obj",
+                    "merged": True,
+                    "content": obj_string,
+                    "total_vertices": combined.vertex_count(),
+                    "total_triangles": combined.triangle_count(),
+                    "element_count": len(meshes),
+                    "elements": mesh_info,
+                },
+                warnings=warnings,
+            )
+        else:
+            vertices = combined.vertices()
+            indices = combined.indices()
+            return make_response(
+                {
+                    "format": "json",
+                    "merged": True,
+                    "vertices": vertices,
+                    "indices": indices,
+                    "total_vertices": combined.vertex_count(),
+                    "total_triangles": combined.triangle_count(),
+                    "element_count": len(meshes),
+                    "elements": mesh_info,
+                },
+                warnings=warnings,
+            )
+
+    # Return individual meshes
+    result_meshes = []
+    for i, mesh in enumerate(meshes):
+        if output_format == "obj":
+            result_meshes.append(
+                {
+                    **mesh_info[i],
+                    "content": pg.mesh_to_obj(mesh),
+                }
+            )
+        else:
+            result_meshes.append(
+                {
+                    **mesh_info[i],
+                    "vertices": mesh.vertices(),
+                    "indices": mesh.indices(),
+                }
+            )
+
+    return make_response(
+        {
+            "format": output_format,
+            "merged": False,
+            "meshes": result_meshes,
+            "element_count": len(meshes),
+            "total_vertices": sum(m["vertex_count"] for m in mesh_info),
+            "total_triangles": sum(m["triangle_count"] for m in mesh_info),
+        },
+        warnings=warnings,
+    )
+
+
 # =============================================================================
 # Building Tool Handlers
 # =============================================================================
@@ -1535,6 +1793,80 @@ async def _attach_roof_to_walls(
             "wall_ids": result["wall_ids"],
         },
         reasoning=reasoning,
+    )
+
+
+# =============================================================================
+# Boolean Operation Handlers
+# =============================================================================
+
+
+async def _boolean_operation(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Perform CSG boolean operations on meshes.
+
+    Note: Full CSG implementation is planned for Phase 3 (Week 25).
+    Currently provides mesh-level union via merge_meshes().
+    """
+    operation = args.get("operation", "union")
+    target_id = args.get("target_id")
+    tool_id = args.get("tool_id")
+
+    # Validate elements exist
+    target_record = state.get_element(target_id)
+    tool_record = state.get_element(tool_id)
+
+    if not target_record:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Target element not found: {target_id}"
+        )
+    if not tool_record:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Tool element not found: {tool_id}"
+        )
+
+    # For now, only support union via mesh merge
+    if operation == "union":
+        # Get meshes from both elements
+        target_mesh = target_record.element.to_mesh()
+        tool_mesh = tool_record.element.to_mesh()
+
+        # Merge meshes
+        combined = pg.merge_meshes([target_mesh, tool_mesh])
+
+        return make_response(
+            {
+                "operation": "union",
+                "target_id": target_id,
+                "tool_id": tool_id,
+                "result": {
+                    "vertex_count": combined.vertex_count(),
+                    "triangle_count": combined.triangle_count(),
+                    "note": "Meshes merged. For true CSG union, see Phase 3 implementation.",
+                },
+            },
+            reasoning=reasoning,
+            warnings=[
+                "Full CSG boolean operations (difference, intersection) planned for Phase 3."
+            ],
+        )
+
+    # Difference and intersection require full CSG
+    return make_response(
+        {
+            "operation": operation,
+            "target_id": target_id,
+            "tool_id": tool_id,
+            "status": "not_implemented",
+            "message": f"CSG {operation} operation requires Phase 3 implementation. "
+            "Currently available: union (mesh merge). "
+            "For opening cuts, use create_opening or place_door/place_window instead.",
+        },
+        reasoning=reasoning,
+        warnings=[
+            f"CSG {operation} not yet implemented. Use create_opening for wall cuts."
+        ],
     )
 
 
