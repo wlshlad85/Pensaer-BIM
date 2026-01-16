@@ -80,6 +80,9 @@ pub mod util;
 // M1: Spatial indexing
 pub mod spatial;
 
+// M2: Topology graph
+pub mod topology;
+
 // PyO3 Python bindings (enabled with "python" feature)
 #[cfg(feature = "python")]
 pub mod bindings;
@@ -106,7 +109,15 @@ pub use constants::{
 };
 pub use exec::{exec_and_heal, Context, ExecResult};
 pub use io::{prepare_input, prepare_output, to_deterministic_json, to_deterministic_json_compact};
-pub use spatial::{orient2d, orient2d_robust, EdgeEntry, EdgeIndex, NodeIndex, Orientation};
+pub use spatial::{
+    orient2d, orient2d_robust, segment_intersection, segments_intersect, signed_area_2, EdgeEntry,
+    EdgeIndex, NodeIndex, Orientation,
+};
+
+// M2 re-exports
+pub use topology::{
+    Baseline, EdgeData, EdgeId, NodeId, OpeningRef, TopoEdge, TopoNode, TopologyGraph,
+};
 
 #[cfg(test)]
 mod tests {
