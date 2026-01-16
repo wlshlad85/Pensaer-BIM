@@ -73,20 +73,27 @@ pub fn snap_merge_nodes(graph: &mut TopologyGraph, tolerance: f64) -> usize {
     graph.snap_merge_nodes()
 }
 
-/// Split edges that cross each other, creating T-nodes.
+/// Split edges that cross each other or form T-junctions.
+///
+/// This handles two cases:
+/// 1. X-crossings: Two edges cross in their interiors
+/// 2. T-junctions: A node lies on another edge's interior
 ///
 /// When edges cross:
 /// - A new node is created at the intersection point
 /// - Each edge is split into two edges meeting at the new node
 ///
+/// When a T-junction is found:
+/// - The edge is split at the existing node position
+/// - The node is connected to the split point
+///
 /// # Returns
-/// Number of crossings split
+/// Number of splits performed
 pub fn split_crossings(graph: &mut TopologyGraph) -> usize {
     let mut split_count = 0;
     let tolerance = graph.snap_tolerance();
 
-    // We need to iterate until no more crossings are found,
-    // since splitting can create new crossings
+    // Phase 1: Handle X-crossings (two edges crossing in their interiors)
     loop {
         let crossing = find_crossing(graph, tolerance);
 
@@ -99,6 +106,21 @@ pub fn split_crossings(graph: &mut TopologyGraph) -> usize {
                     if graph.get_edge(edge2_id).is_some() {
                         let _ = graph.split_edge(edge2_id, intersection);
                     }
+                    split_count += 1;
+                }
+            }
+            None => break,
+        }
+    }
+
+    // Phase 2: Handle T-junctions (a node lies on an edge's interior)
+    loop {
+        let t_junction = find_t_junction(graph, tolerance);
+
+        match t_junction {
+            Some((edge_id, node_pos)) => {
+                // Split the edge at the node position
+                if graph.split_edge(edge_id, node_pos).is_some() {
                     split_count += 1;
                 }
             }
@@ -147,6 +169,85 @@ fn find_crossing(graph: &TopologyGraph, tolerance: f64) -> Option<(EdgeId, EdgeI
     }
 
     None
+}
+
+/// Find a T-junction: a node that lies on an edge's interior.
+///
+/// Returns the edge to split and the position where to split it.
+fn find_t_junction(graph: &TopologyGraph, tolerance: f64) -> Option<(EdgeId, [f64; 2])> {
+    let node_ids = graph.node_ids();
+    let edge_ids = graph.edge_ids();
+
+    for &node_id in &node_ids {
+        let node_pos = match graph.get_node(node_id) {
+            Some(n) => n.position,
+            None => continue,
+        };
+
+        for &edge_id in &edge_ids {
+            let edge = match graph.get_edge(edge_id) {
+                Some(e) => e,
+                None => continue,
+            };
+
+            // Skip if this node is already an endpoint of this edge
+            if edge.start_node == node_id || edge.end_node == node_id {
+                continue;
+            }
+
+            let (a, b) = match graph.edge_positions(edge_id) {
+                Some(p) => p,
+                None => continue,
+            };
+
+            // Check if node_pos lies on segment (a, b) but not at endpoints
+            if point_on_segment_interior(node_pos, a, b, tolerance) {
+                return Some((edge_id, node_pos));
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if a point lies on the interior of a line segment (not at endpoints).
+fn point_on_segment_interior(p: [f64; 2], a: [f64; 2], b: [f64; 2], tolerance: f64) -> bool {
+    // Check if point is at either endpoint
+    if points2_within(p, a, tolerance) || points2_within(p, b, tolerance) {
+        return false;
+    }
+
+    // Vector from a to b
+    let ab_x = b[0] - a[0];
+    let ab_y = b[1] - a[1];
+
+    // Vector from a to p
+    let ap_x = p[0] - a[0];
+    let ap_y = p[1] - a[1];
+
+    // Cross product to check collinearity (should be ~0)
+    let cross = ab_x * ap_y - ab_y * ap_x;
+    let ab_len_sq = ab_x * ab_x + ab_y * ab_y;
+
+    if ab_len_sq < tolerance * tolerance {
+        // Degenerate edge
+        return false;
+    }
+
+    // Distance from point to line (cross product / length)
+    let dist_to_line = cross.abs() / ab_len_sq.sqrt();
+    if dist_to_line > tolerance {
+        return false;
+    }
+
+    // Check if point is between a and b using parameter t
+    // p = a + t * (b - a), so t = (p - a) . (b - a) / |b - a|^2
+    let t = (ap_x * ab_x + ap_y * ab_y) / ab_len_sq;
+
+    // Must be strictly between 0 and 1 (not at endpoints)
+    // Use a small epsilon relative to tolerance for the boundary check
+    let epsilon = tolerance / ab_len_sq.sqrt();
+    t > epsilon && t < (1.0 - epsilon)
 }
 
 /// Merge colinear edges that share a node.
@@ -652,7 +753,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Requires proper T-junction and crossing split to detect all quadrant rooms
     fn heal_all_detects_rooms_after_healing() {
         let mut graph = TopologyGraph::new();
 
