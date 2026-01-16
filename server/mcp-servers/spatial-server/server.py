@@ -1,5 +1,6 @@
 """Spatial MCP server placeholder."""
 
+
 def main() -> None:
     raise SystemExit("Spatial MCP server not implemented yet.")
 

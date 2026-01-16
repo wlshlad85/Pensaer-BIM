@@ -1,5 +1,6 @@
 """Validation MCP server placeholder."""
 
+
 def main() -> None:
     raise SystemExit("Validation MCP server not implemented yet.")
 

@@ -58,11 +58,11 @@ jobs:
           pip install pytest pytest-asyncio pydantic mcp
 
       - name: Verify geometry-server imports
-        working-directory: server/mcp-servers/geometry-server
         run: |
           # Install without pensaer-geometry (not built in CI yet)
           pip install pydantic mcp
           # Check that the schemas module loads
+          cd server/mcp-servers/geometry-server
           python -c "from geometry_server.schemas import CreateWallParams; print('Schemas OK')"
 
       - name: Verify spatial-server syntax

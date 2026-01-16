@@ -1,5 +1,6 @@
 """Documentation MCP server placeholder."""
 
+
 def main() -> None:
     raise SystemExit("Documentation MCP server not implemented yet.")
 
