@@ -11,6 +11,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import clsx from "clsx";
+import { mcpClient, type MCPToolResult } from "../../services";
 
 interface TerminalProps {
   /** Whether the terminal panel is expanded */
@@ -190,7 +191,108 @@ export function Terminal({
     [commandBuffer],
   );
 
-  const processCommand = (terminal: XTerminal, cmd: string) => {
+  // Format MCP result for terminal display
+  const formatMcpResult = (
+    terminal: XTerminal,
+    result: MCPToolResult,
+    toolName: string,
+  ) => {
+    if (result.success) {
+      terminal.writeln(`\x1b[32m✓ ${toolName} completed\x1b[0m`);
+      if (result.data) {
+        formatObject(terminal, result.data, "  ");
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        terminal.writeln("\x1b[33mWarnings:\x1b[0m");
+        result.warnings.forEach((w) => terminal.writeln(`  ⚠ ${w}`));
+      }
+    } else {
+      terminal.writeln(`\x1b[31m✗ ${toolName} failed\x1b[0m`);
+      if (result.error) {
+        terminal.writeln(
+          `  Error ${result.error.code}: ${result.error.message}`,
+        );
+      }
+    }
+  };
+
+  // Format object for terminal display
+  const formatObject = (
+    terminal: XTerminal,
+    obj: Record<string, unknown>,
+    indent: string = "",
+  ) => {
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === null || value === undefined) {
+        terminal.writeln(`${indent}\x1b[36m${key}:\x1b[0m null`);
+      } else if (Array.isArray(value)) {
+        terminal.writeln(
+          `${indent}\x1b[36m${key}:\x1b[0m [${value.length} items]`,
+        );
+        value.slice(0, 5).forEach((item, i) => {
+          if (typeof item === "object" && item !== null) {
+            terminal.writeln(`${indent}  [${i}]:`);
+            formatObject(
+              terminal,
+              item as Record<string, unknown>,
+              indent + "    ",
+            );
+          } else {
+            terminal.writeln(`${indent}  [${i}]: ${item}`);
+          }
+        });
+        if (value.length > 5) {
+          terminal.writeln(`${indent}  ... and ${value.length - 5} more`);
+        }
+      } else if (typeof value === "object") {
+        terminal.writeln(`${indent}\x1b[36m${key}:\x1b[0m`);
+        formatObject(terminal, value as Record<string, unknown>, indent + "  ");
+      } else {
+        terminal.writeln(`${indent}\x1b[36m${key}:\x1b[0m ${value}`);
+      }
+    }
+  };
+
+  // Parse command arguments like --key value or --key=value
+  const parseArgs = (args: string[]): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    let i = 0;
+    while (i < args.length) {
+      const arg = args[i];
+      if (arg.startsWith("--")) {
+        const key = arg.slice(2);
+        if (key.includes("=")) {
+          const [k, v] = key.split("=", 2);
+          result[k] = parseValue(v);
+        } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+          result[key] = parseValue(args[i + 1]);
+          i++;
+        } else {
+          result[key] = true;
+        }
+      }
+      i++;
+    }
+    return result;
+  };
+
+  // Parse value to appropriate type
+  const parseValue = (v: string): unknown => {
+    // Check for coordinate pairs like "0,0" or "5,5,0"
+    if (/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?)+$/.test(v)) {
+      return v.split(",").map(Number);
+    }
+    // Check for numbers
+    if (/^-?\d+(\.\d+)?$/.test(v)) {
+      return Number(v);
+    }
+    // Check for booleans
+    if (v === "true") return true;
+    if (v === "false") return false;
+    return v;
+  };
+
+  const processCommand = async (terminal: XTerminal, cmd: string) => {
     const trimmed = cmd.trim();
 
     if (!trimmed) {
@@ -204,23 +306,48 @@ export function Terminal({
       case "help":
         terminal.writeln("\x1b[1;33mAvailable commands:\x1b[0m");
         terminal.writeln(
-          "  \x1b[32mhelp\x1b[0m          - Show this help message",
+          "  \x1b[32mhelp\x1b[0m              - Show this help message",
         );
-        terminal.writeln("  \x1b[32mclear\x1b[0m         - Clear the terminal");
-        terminal.writeln("  \x1b[32mstatus\x1b[0m        - Show model status");
-        terminal.writeln("  \x1b[32mlist walls\x1b[0m    - List all walls");
-        terminal.writeln("  \x1b[32mlist rooms\x1b[0m    - List all rooms");
-        terminal.writeln("  \x1b[32mversion\x1b[0m       - Show version info");
+        terminal.writeln(
+          "  \x1b[32mclear\x1b[0m             - Clear the terminal",
+        );
+        terminal.writeln(
+          "  \x1b[32mstatus\x1b[0m            - Show model status via MCP",
+        );
+        terminal.writeln(
+          "  \x1b[32mversion\x1b[0m           - Show version info",
+        );
         terminal.writeln("");
         terminal.writeln("\x1b[1;33mMCP Tool Commands:\x1b[0m");
         terminal.writeln(
-          "  \x1b[32mcreate wall\x1b[0m   - Create a wall (interactive)",
+          "  \x1b[32mlist [category]\x1b[0m   - List elements (walls, rooms, etc.)",
         );
         terminal.writeln(
-          "  \x1b[32mdetect rooms\x1b[0m  - Detect rooms from walls",
+          "  \x1b[32mwall\x1b[0m              - Create wall: wall --start 0,0 --end 5,0",
         );
         terminal.writeln(
-          "  \x1b[32manalyze\x1b[0m       - Analyze wall topology",
+          "  \x1b[32mfloor\x1b[0m             - Create floor: floor --min 0,0 --max 10,10",
+        );
+        terminal.writeln(
+          "  \x1b[32mroom\x1b[0m              - Create room: room --min 0,0 --max 5,5 --name Kitchen",
+        );
+        terminal.writeln(
+          "  \x1b[32mroof\x1b[0m              - Create roof: roof --min 0,0 --max 10,10 --type gable",
+        );
+        terminal.writeln(
+          "  \x1b[32mdoor\x1b[0m              - Place door: door --wall <id> --position 2.5",
+        );
+        terminal.writeln(
+          "  \x1b[32mwindow\x1b[0m            - Place window: window --wall <id> --position 1.5",
+        );
+        terminal.writeln(
+          "  \x1b[32mdetect-rooms\x1b[0m      - Detect rooms from wall topology",
+        );
+        terminal.writeln(
+          "  \x1b[32manalyze\x1b[0m           - Analyze wall topology",
+        );
+        terminal.writeln(
+          "  \x1b[32mdelete\x1b[0m            - Delete elements: delete <id1> <id2> ...",
         );
         break;
 
@@ -233,52 +360,234 @@ export function Terminal({
         terminal.writeln("  Version: 0.1.0 (Phase 1 Foundation)");
         terminal.writeln("  Kernel: pensaer-geometry 0.1.0");
         terminal.writeln("  Client: React 19 + TypeScript");
+        terminal.writeln("  MCP Mode: mock (development)");
         break;
 
-      case "status":
-        terminal.writeln("\x1b[1;33mModel Status:\x1b[0m");
-        terminal.writeln("  Elements: (fetch from store)");
-        terminal.writeln("  Selection: (fetch from store)");
-        terminal.writeln("  Mode: 2D Plan View");
+      case "status": {
+        terminal.writeln("\x1b[33mFetching model status...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "get_state_summary",
+          arguments: {},
+        });
+        formatMcpResult(terminal, result, "get_state_summary");
         break;
+      }
 
-      case "list":
-        if (args[0] === "walls") {
-          terminal.writeln("\x1b[1;33mWalls:\x1b[0m");
-          terminal.writeln("  (Connect to model store for wall data)");
-        } else if (args[0] === "rooms") {
-          terminal.writeln("\x1b[1;33mRooms:\x1b[0m");
-          terminal.writeln("  (Connect to model store for room data)");
-        } else {
-          terminal.writeln(`\x1b[31mUnknown list type: ${args[0]}\x1b[0m`);
-        }
+      case "list": {
+        const category = args[0] || undefined;
+        terminal.writeln(
+          `\x1b[33mListing elements${category ? ` (${category})` : ""}...\x1b[0m`,
+        );
+        const result = await mcpClient.callTool({
+          tool: "list_elements",
+          arguments: category ? { category } : {},
+        });
+        formatMcpResult(terminal, result, "list_elements");
         break;
+      }
 
-      case "create":
-        if (args[0] === "wall") {
-          terminal.writeln("\x1b[33mInteractive wall creation:\x1b[0m");
-          terminal.writeln("  Use the Toolbar > Wall tool for visual creation");
-          terminal.writeln("  Or call: mcp create_wall --start 0,0 --end 5,0");
-        } else {
-          terminal.writeln(`\x1b[31mUnknown create type: ${args[0]}\x1b[0m`);
-        }
-        break;
-
-      case "detect":
-        if (args[0] === "rooms") {
+      case "wall": {
+        const parsed = parseArgs(args);
+        if (!parsed.start || !parsed.end) {
           terminal.writeln(
-            "\x1b[33mDetecting rooms from wall topology...\x1b[0m",
+            "\x1b[31mUsage: wall --start x,y --end x,y [--height h] [--thickness t]\x1b[0m",
           );
-          terminal.writeln("  (Call MCP detect_rooms tool)");
-        } else {
-          terminal.writeln(`\x1b[31mUnknown detect type: ${args[0]}\x1b[0m`);
+          terminal.writeln(
+            "  Example: wall --start 0,0 --end 5,0 --height 3.0",
+          );
+          break;
         }
+        terminal.writeln("\x1b[33mCreating wall...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "create_wall",
+          arguments: parsed,
+        });
+        formatMcpResult(terminal, result, "create_wall");
         break;
+      }
 
-      case "analyze":
-        terminal.writeln("\x1b[33mAnalyzing wall topology...\x1b[0m");
-        terminal.writeln("  (Call MCP analyze_wall_topology tool)");
+      case "floor": {
+        const parsed = parseArgs(args);
+        if (!parsed.min || !parsed.max) {
+          terminal.writeln(
+            "\x1b[31mUsage: floor --min x,y --max x,y [--thickness t]\x1b[0m",
+          );
+          terminal.writeln("  Example: floor --min 0,0 --max 10,10");
+          break;
+        }
+        terminal.writeln("\x1b[33mCreating floor...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "create_floor",
+          arguments: {
+            min_point: parsed.min,
+            max_point: parsed.max,
+            thickness: parsed.thickness,
+          },
+        });
+        formatMcpResult(terminal, result, "create_floor");
         break;
+      }
+
+      case "room": {
+        const parsed = parseArgs(args);
+        if (!parsed.min || !parsed.max) {
+          terminal.writeln(
+            "\x1b[31mUsage: room --min x,y --max x,y [--name name] [--number num]\x1b[0m",
+          );
+          terminal.writeln(
+            "  Example: room --min 0,0 --max 5,5 --name Kitchen",
+          );
+          break;
+        }
+        terminal.writeln("\x1b[33mCreating room...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "create_room",
+          arguments: {
+            min_point: parsed.min,
+            max_point: parsed.max,
+            name: parsed.name,
+            number: parsed.number,
+            height: parsed.height,
+          },
+        });
+        formatMcpResult(terminal, result, "create_room");
+        break;
+      }
+
+      case "roof": {
+        const parsed = parseArgs(args);
+        if (!parsed.min || !parsed.max) {
+          terminal.writeln(
+            "\x1b[31mUsage: roof --min x,y --max x,y [--type flat|gable|hip] [--slope deg]\x1b[0m",
+          );
+          terminal.writeln(
+            "  Example: roof --min 0,0 --max 10,10 --type gable --slope 30",
+          );
+          break;
+        }
+        terminal.writeln("\x1b[33mCreating roof...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "create_roof",
+          arguments: {
+            min_point: parsed.min,
+            max_point: parsed.max,
+            roof_type: parsed.type,
+            slope_degrees: parsed.slope,
+          },
+        });
+        formatMcpResult(terminal, result, "create_roof");
+        break;
+      }
+
+      case "door": {
+        const parsed = parseArgs(args);
+        if (!parsed.wall) {
+          terminal.writeln(
+            "\x1b[31mUsage: door --wall <wall_id> [--position p] [--width w] [--height h]\x1b[0m",
+          );
+          terminal.writeln(
+            "  Example: door --wall wall-1 --position 2.5 --width 0.9",
+          );
+          break;
+        }
+        terminal.writeln("\x1b[33mPlacing door...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "place_door",
+          arguments: {
+            wall_id: parsed.wall,
+            position: parsed.position,
+            width: parsed.width,
+            height: parsed.height,
+            door_type: parsed.type,
+            swing: parsed.swing,
+          },
+        });
+        formatMcpResult(terminal, result, "place_door");
+        break;
+      }
+
+      case "window": {
+        const parsed = parseArgs(args);
+        if (!parsed.wall) {
+          terminal.writeln(
+            "\x1b[31mUsage: window --wall <wall_id> [--position p] [--width w] [--height h]\x1b[0m",
+          );
+          terminal.writeln(
+            "  Example: window --wall wall-1 --position 1.5 --sill 0.9",
+          );
+          break;
+        }
+        terminal.writeln("\x1b[33mPlacing window...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "place_window",
+          arguments: {
+            wall_id: parsed.wall,
+            position: parsed.position,
+            width: parsed.width,
+            height: parsed.height,
+            sill_height: parsed.sill,
+            window_type: parsed.type,
+          },
+        });
+        formatMcpResult(terminal, result, "place_window");
+        break;
+      }
+
+      case "detect-rooms": {
+        terminal.writeln(
+          "\x1b[33mDetecting rooms from wall topology...\x1b[0m",
+        );
+        const result = await mcpClient.callTool({
+          tool: "detect_rooms",
+          arguments: {},
+        });
+        formatMcpResult(terminal, result, "detect_rooms");
+        break;
+      }
+
+      case "analyze": {
+        terminal.writeln("\x1b[33mAnalyzing wall topology...\x1b[0m");
+        const result = await mcpClient.callTool({
+          tool: "analyze_wall_topology",
+          arguments: {},
+        });
+        formatMcpResult(terminal, result, "analyze_wall_topology");
+        break;
+      }
+
+      case "delete": {
+        if (args.length === 0) {
+          terminal.writeln(
+            "\x1b[31mUsage: delete <element_id> [<element_id2> ...]\x1b[0m",
+          );
+          terminal.writeln("  Example: delete wall-1 wall-2");
+          break;
+        }
+        terminal.writeln(
+          `\x1b[33mDeleting ${args.length} element(s)...\x1b[0m`,
+        );
+        const result = await mcpClient.callTool({
+          tool: "delete_element",
+          arguments: { element_ids: args },
+        });
+        formatMcpResult(terminal, result, "delete_element");
+        break;
+      }
+
+      case "get": {
+        if (args.length === 0) {
+          terminal.writeln("\x1b[31mUsage: get <element_id>\x1b[0m");
+          terminal.writeln("  Example: get wall-1");
+          break;
+        }
+        terminal.writeln(`\x1b[33mFetching element ${args[0]}...\x1b[0m`);
+        const result = await mcpClient.callTool({
+          tool: "get_element",
+          arguments: { element_id: args[0] },
+        });
+        formatMcpResult(terminal, result, "get_element");
+        break;
+      }
 
       default:
         terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
