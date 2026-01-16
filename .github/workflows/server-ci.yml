@@ -1,0 +1,97 @@
+name: Server CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-ci.yml'
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Check formatting with Ruff
+        run: ruff format --check server/
+
+      - name: Lint with Ruff
+        run: ruff check server/
+
+      - name: Type check with mypy
+        run: mypy server/ --ignore-missing-imports --no-error-summary || true
+        # Note: mypy errors are warnings for now until type hints are complete
+
+  test-mcp-servers:
+    name: Test MCP Servers
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pydantic mcp
+
+      - name: Verify geometry-server imports
+        working-directory: server/mcp-servers/geometry-server
+        run: |
+          # Install without pensaer-geometry (not built in CI yet)
+          pip install pydantic mcp
+          # Check that the schemas module loads
+          python -c "from geometry_server.schemas import CreateWallParams; print('Schemas OK')"
+
+      - name: Verify spatial-server syntax
+        run: python -m py_compile server/mcp-servers/spatial-server/server.py
+
+      - name: Verify validation-server syntax
+        run: python -m py_compile server/mcp-servers/validation-server/server.py
+
+      - name: Verify documentation-server syntax
+        run: python -m py_compile server/mcp-servers/documentation-server/server.py
+
+  test-common:
+    name: Test Common Utilities
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Verify common module
+        run: python -c "from server.common.self_healing import SelfHealingConfig; print('Common OK')"
+        env:
+          PYTHONPATH: .
