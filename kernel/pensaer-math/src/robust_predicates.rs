@@ -613,3 +613,157 @@ mod tests {
         assert_eq!(Orientation::Collinear.opposite(), Orientation::Collinear);
     }
 }
+
+// ============================================================================
+// Property-Based Tests for Edge Cases
+// ============================================================================
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Orientation is consistent under translation.
+        /// Moving all points by the same vector shouldn't change the result.
+        #[test]
+        fn orientation_translation_invariant(
+            ax in -1000.0..1000.0,
+            ay in -1000.0..1000.0,
+            bx in -1000.0..1000.0,
+            by in -1000.0..1000.0,
+            cx in -1000.0..1000.0,
+            cy in -1000.0..1000.0,
+            dx in -1e6..1e6,
+            dy in -1e6..1e6
+        ) {
+            let a = Point2::new(ax, ay);
+            let b = Point2::new(bx, by);
+            let c = Point2::new(cx, cy);
+
+            let original = orientation_2d(a, b, c);
+
+            // Translate all points by (dx, dy)
+            let a_t = Point2::new(ax + dx, ay + dy);
+            let b_t = Point2::new(bx + dx, by + dy);
+            let c_t = Point2::new(cx + dx, cy + dy);
+
+            let translated = orientation_2d(a_t, b_t, c_t);
+
+            prop_assert_eq!(original, translated,
+                "Orientation should be invariant under translation");
+        }
+
+        /// Swapping the direction (a,b) to (b,a) flips the orientation.
+        #[test]
+        fn orientation_direction_flips(
+            ax in -1000.0..1000.0,
+            ay in -1000.0..1000.0,
+            bx in -1000.0..1000.0,
+            by in -1000.0..1000.0,
+            cx in -1000.0..1000.0,
+            cy in -1000.0..1000.0
+        ) {
+            let a = Point2::new(ax, ay);
+            let b = Point2::new(bx, by);
+            let c = Point2::new(cx, cy);
+
+            let forward = orientation_2d(a, b, c);
+            let backward = orientation_2d(b, a, c);
+
+            // Flipping a,b should flip the result (or stay collinear)
+            match forward {
+                Orientation::CounterClockwise => prop_assert_eq!(backward, Orientation::Clockwise),
+                Orientation::Clockwise => prop_assert_eq!(backward, Orientation::CounterClockwise),
+                Orientation::Collinear => prop_assert_eq!(backward, Orientation::Collinear),
+            }
+        }
+
+        /// Large coordinates should still give consistent results.
+        /// This tests numerical stability far from origin (common in real-world BIM).
+        #[test]
+        fn large_coordinate_stability(
+            base in 1e5_f64..1e7_f64,
+            offset_x in 0.0_f64..100.0_f64,
+            offset_y in 0.1_f64..100.0_f64  // Ensure minimum offset for clear CCW
+        ) {
+            // Create a clearly CCW triangle far from origin
+            let a = Point2::new(base, base);
+            let b = Point2::new(base + offset_x, base);
+            let c = Point2::new(base + offset_x / 2.0, base + offset_y);
+
+            let result = orientation_2d(a, b, c);
+
+            // c is above line a-b, so should be CCW
+            prop_assert_eq!(result, Orientation::CounterClockwise,
+                "Point above line should be CCW even at large coordinates");
+        }
+
+        /// Point-in-triangle is consistent with boundary inclusion.
+        /// Vertices of a triangle should always be considered inside.
+        #[test]
+        fn triangle_vertex_is_inside_triangle(
+            size in 1.0_f64..100.0_f64,
+            angle in 0.0_f64..std::f64::consts::TAU
+        ) {
+            // Create a non-degenerate triangle at origin
+            let a = Point2::new(0.0, 0.0);
+            let b = Point2::new(size, 0.0);
+            let c = Point2::new(size * 0.5 * angle.cos(), size * 0.5 * angle.sin().abs() + 0.1);
+
+            // All vertices should be inside
+            prop_assert!(point_in_triangle(a, a, b, c), "Vertex A should be inside");
+            prop_assert!(point_in_triangle(b, a, b, c), "Vertex B should be inside");
+            prop_assert!(point_in_triangle(c, a, b, c), "Vertex C should be inside");
+        }
+
+        /// Segments that clearly don't overlap shouldn't intersect.
+        #[test]
+        fn disjoint_segments_no_intersection(
+            gap in 1.0..100.0
+        ) {
+            // Two parallel horizontal segments with a gap
+            let a1 = Point2::new(0.0, 0.0);
+            let a2 = Point2::new(10.0, 0.0);
+            let b1 = Point2::new(0.0, gap);
+            let b2 = Point2::new(10.0, gap);
+
+            prop_assert!(!segments_intersect(a1, a2, b1, b2),
+                "Parallel segments with gap should not intersect");
+        }
+
+        /// Crossing X segments should always intersect.
+        #[test]
+        fn crossing_segments_intersect(
+            size in 1.0..100.0
+        ) {
+            // X pattern
+            let a1 = Point2::new(0.0, 0.0);
+            let a2 = Point2::new(size, size);
+            let b1 = Point2::new(0.0, size);
+            let b2 = Point2::new(size, 0.0);
+
+            prop_assert!(segments_intersect(a1, a2, b1, b2),
+                "X-crossing segments should intersect");
+            prop_assert!(segments_properly_intersect(a1, a2, b1, b2),
+                "X-crossing segments should properly intersect");
+        }
+
+        /// Segments sharing only an endpoint should intersect but not properly.
+        #[test]
+        fn endpoint_touching_segments(
+            len1 in 1.0..50.0,
+            len2 in 1.0..50.0
+        ) {
+            // Two segments meeting at a point
+            let shared = Point2::new(5.0, 5.0);
+            let a1 = Point2::new(5.0 - len1, 5.0);
+            let b1 = Point2::new(5.0, 5.0 + len2);
+
+            prop_assert!(segments_intersect(a1, shared, shared, b1),
+                "Segments sharing endpoint should intersect");
+            prop_assert!(!segments_properly_intersect(a1, shared, shared, b1),
+                "Segments sharing only endpoint should not properly intersect");
+        }
+    }
+}
