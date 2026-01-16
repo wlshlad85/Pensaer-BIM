@@ -788,3 +788,178 @@ pub fn analyze_wall_topology(walls: Vec<PyWall>, tolerance: f64) -> PyResult<Py<
         Ok(dict.unbind())
     })
 }
+
+/// Detect clashes (geometric intersections) between BIM elements.
+///
+/// This function identifies where elements occupy the same space (hard clashes),
+/// violate clearance requirements (soft clashes), or are duplicates.
+///
+/// Args:
+///     elements: List of tuples (element_id, element_type, bbox_min, bbox_max)
+///         - element_id: UUID string identifying the element
+///         - element_type: Type name (e.g., "wall", "door", "floor")
+///         - bbox_min: Tuple (x, y, z) minimum corner of bounding box
+///         - bbox_max: Tuple (x, y, z) maximum corner of bounding box
+///     tolerance: Distance tolerance for overlap detection (default 0.001 = 1mm)
+///     clearance: Minimum clearance for soft clash detection (default 0.0 = disabled)
+///     ignore_same_type: Whether to ignore clashes between same element types (default False)
+///
+/// Returns:
+///     list[dict]: List of detected clashes, each containing:
+///         - id: Unique identifier for this clash
+///         - element_a_id: First element ID
+///         - element_b_id: Second element ID
+///         - element_a_type: First element type
+///         - element_b_type: Second element type
+///         - clash_type: "Hard", "Clearance", or "Duplicate"
+///         - clash_point: (x, y, z) approximate location of clash
+///         - distance: Penetration depth or clearance gap
+///         - overlap_volume: Volume of overlap region (for hard clashes)
+///
+/// Example:
+///     >>> walls = create_rectangular_walls((0, 0), (10, 8), height=3.0, thickness=0.2)
+///     >>> elements = [(str(w.id()), "wall", w.bounding_box().min_tuple(), w.bounding_box().max_tuple()) for w in walls]
+///     >>> clashes = detect_clashes(elements)
+///     >>> len(clashes)  # Typically 0 for properly placed walls
+///     0
+#[pyfunction]
+#[pyo3(signature = (elements, tolerance=0.001, clearance=0.0, ignore_same_type=false))]
+pub fn detect_clashes(
+    elements: Vec<(String, String, (f64, f64, f64), (f64, f64, f64))>,
+    tolerance: f64,
+    clearance: f64,
+    ignore_same_type: bool,
+) -> PyResult<Py<PyList>> {
+    use crate::spatial::{ClashDetector, ClashElement, ClashFilter};
+    use pensaer_math::{BoundingBox3, Point3};
+    use uuid::Uuid;
+
+    // Convert input to ClashElement list
+    let clash_elements: Vec<ClashElement> = elements
+        .into_iter()
+        .map(|(id_str, element_type, min, max)| {
+            let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+            let bbox = BoundingBox3::new(
+                Point3::new(min.0, min.1, min.2),
+                Point3::new(max.0, max.1, max.2),
+            );
+            ClashElement::new(id, element_type, bbox)
+        })
+        .collect();
+
+    // Create filter
+    let mut filter = ClashFilter::new();
+    if clearance > 0.0 {
+        filter = filter.with_clearance(clearance);
+    }
+    if ignore_same_type {
+        filter = filter.ignore_same_type();
+    }
+
+    // Create detector and run
+    let detector = ClashDetector::new(tolerance).with_filter(filter);
+    let clashes = detector.detect_clashes_in_list(&clash_elements);
+
+    // Convert to Python list of dicts
+    Python::with_gil(|py| {
+        let clash_list: Vec<Py<PyDict>> = clashes
+            .iter()
+            .map(|clash| {
+                let dict = PyDict::new_bound(py);
+                dict.set_item("id", clash.id.to_string()).ok();
+                dict.set_item("element_a_id", clash.element_a_id.to_string()).ok();
+                dict.set_item("element_b_id", clash.element_b_id.to_string()).ok();
+                dict.set_item("element_a_type", &clash.element_a_type).ok();
+                dict.set_item("element_b_type", &clash.element_b_type).ok();
+                dict.set_item("clash_type", clash.clash_type.name()).ok();
+                dict.set_item("clash_point", clash.clash_point).ok();
+                dict.set_item("distance", clash.distance).ok();
+                dict.set_item("overlap_volume", clash.overlap_volume).ok();
+                dict.unbind()
+            })
+            .collect();
+
+        Ok(PyList::new_bound(py, clash_list).unbind())
+    })
+}
+
+/// Detect clashes between two sets of elements.
+///
+/// Checks all pairs between set A and set B for geometric intersections.
+///
+/// Args:
+///     set_a: First list of element tuples (id, type, bbox_min, bbox_max)
+///     set_b: Second list of element tuples (id, type, bbox_min, bbox_max)
+///     tolerance: Distance tolerance for overlap detection (default 0.001 = 1mm)
+///     clearance: Minimum clearance for soft clash detection (default 0.0 = disabled)
+///
+/// Returns:
+///     list[dict]: List of detected clashes between the two sets
+///
+/// Example:
+///     >>> walls_data = [(str(w.id()), "wall", ...) for w in walls]
+///     >>> doors_data = [(str(d.id()), "door", ...) for d in doors]
+///     >>> clashes = detect_clashes_between_sets(walls_data, doors_data)
+#[pyfunction]
+#[pyo3(signature = (set_a, set_b, tolerance=0.001, clearance=0.0))]
+pub fn detect_clashes_between_sets(
+    set_a: Vec<(String, String, (f64, f64, f64), (f64, f64, f64))>,
+    set_b: Vec<(String, String, (f64, f64, f64), (f64, f64, f64))>,
+    tolerance: f64,
+    clearance: f64,
+) -> PyResult<Py<PyList>> {
+    use crate::spatial::{ClashDetector, ClashElement, ClashFilter};
+    use pensaer_math::{BoundingBox3, Point3};
+    use uuid::Uuid;
+
+    // Convert inputs to ClashElement lists
+    let convert = |items: Vec<(String, String, (f64, f64, f64), (f64, f64, f64))>| {
+        items
+            .into_iter()
+            .map(|(id_str, element_type, min, max)| {
+                let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+                let bbox = BoundingBox3::new(
+                    Point3::new(min.0, min.1, min.2),
+                    Point3::new(max.0, max.1, max.2),
+                );
+                ClashElement::new(id, element_type, bbox)
+            })
+            .collect::<Vec<_>>()
+    };
+
+    let elements_a = convert(set_a);
+    let elements_b = convert(set_b);
+
+    // Create filter
+    let filter = if clearance > 0.0 {
+        ClashFilter::new().with_clearance(clearance)
+    } else {
+        ClashFilter::new()
+    };
+
+    // Create detector and run
+    let detector = ClashDetector::new(tolerance).with_filter(filter);
+    let clashes = detector.detect_clashes_between(&elements_a, &elements_b);
+
+    // Convert to Python list of dicts
+    Python::with_gil(|py| {
+        let clash_list: Vec<Py<PyDict>> = clashes
+            .iter()
+            .map(|clash| {
+                let dict = PyDict::new_bound(py);
+                dict.set_item("id", clash.id.to_string()).ok();
+                dict.set_item("element_a_id", clash.element_a_id.to_string()).ok();
+                dict.set_item("element_b_id", clash.element_b_id.to_string()).ok();
+                dict.set_item("element_a_type", &clash.element_a_type).ok();
+                dict.set_item("element_b_type", &clash.element_b_type).ok();
+                dict.set_item("clash_type", clash.clash_type.name()).ok();
+                dict.set_item("clash_point", clash.clash_point).ok();
+                dict.set_item("distance", clash.distance).ok();
+                dict.set_item("overlap_volume", clash.overlap_volume).ok();
+                dict.unbind()
+            })
+            .collect();
+
+        Ok(PyList::new_bound(py, clash_list).unbind())
+    })
+}

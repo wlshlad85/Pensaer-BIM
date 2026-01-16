@@ -90,5 +90,9 @@ fn pensaer_geometry(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_rooms, m)?)?;
     m.add_function(wrap_pyfunction!(analyze_wall_topology, m)?)?;
 
+    // Clash detection
+    m.add_function(wrap_pyfunction!(detect_clashes, m)?)?;
+    m.add_function(wrap_pyfunction!(detect_clashes_between_sets, m)?)?;
+
     Ok(())
 }

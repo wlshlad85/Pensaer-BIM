@@ -110,8 +110,9 @@ pub use constants::{
 pub use exec::{exec_and_heal, Context, ExecResult};
 pub use io::{prepare_input, prepare_output, to_deterministic_json, to_deterministic_json_compact};
 pub use spatial::{
-    orient2d, orient2d_robust, segment_intersection, segments_intersect, signed_area_2, EdgeEntry,
-    EdgeIndex, NodeIndex, Orientation,
+    orient2d, orient2d_robust, segment_intersection, segments_intersect, signed_area_2,
+    Clash, ClashDetector, ClashElement, ClashFilter, ClashType,
+    EdgeEntry, EdgeIndex, NodeIndex, Orientation,
 };
 
 // M2 re-exports

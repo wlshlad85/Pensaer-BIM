@@ -565,6 +565,70 @@ class AnalyzeTopologyParams(BaseModel):
 
 
 # =============================================================================
+# Clash Detection Tool Schemas
+# =============================================================================
+
+
+class ClashElementInput(BaseModel):
+    """Input for a single element in clash detection."""
+
+    id: str = Field(..., description="UUID of the element")
+    element_type: str = Field(..., description="Type of element (wall, floor, door, etc.)")
+    bbox_min: Point3D = Field(..., description="Bounding box minimum (x, y, z)")
+    bbox_max: Point3D = Field(..., description="Bounding box maximum (x, y, z)")
+
+
+class DetectClashesParams(BaseModel):
+    """Parameters for detecting clashes within a set of elements."""
+
+    element_ids: list[str] | None = Field(
+        None,
+        description="UUIDs of elements to check for clashes. If None, uses all elements in model.",
+    )
+    tolerance: float = Field(
+        0.001,
+        description="Distance tolerance for clash detection (meters). Default 1mm.",
+        ge=0.0,
+        le=0.1,
+    )
+    clearance: float = Field(
+        0.0,
+        description="Minimum clearance distance (meters). Elements closer than this trigger a clearance clash.",
+        ge=0.0,
+    )
+    ignore_same_type: bool = Field(
+        False,
+        description="If True, ignores clashes between elements of the same type (e.g., wall-wall).",
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class DetectClashesBetweenSetsParams(BaseModel):
+    """Parameters for detecting clashes between two sets of elements."""
+
+    set_a_ids: list[str] = Field(
+        ...,
+        description="UUIDs of first set of elements",
+    )
+    set_b_ids: list[str] = Field(
+        ...,
+        description="UUIDs of second set of elements",
+    )
+    tolerance: float = Field(
+        0.001,
+        description="Distance tolerance for clash detection (meters). Default 1mm.",
+        ge=0.0,
+        le=0.1,
+    )
+    clearance: float = Field(
+        0.0,
+        description="Minimum clearance distance (meters).",
+        ge=0.0,
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+# =============================================================================
 # Response Schemas
 # =============================================================================
 

@@ -4,6 +4,7 @@
 //! - Find nodes within radius
 //! - Find edges intersecting a bounding box
 //! - Nearest neighbor queries
+//! - Clash detection between elements
 //!
 //! # Example
 //!
@@ -18,10 +19,12 @@
 //! let nearby = nodes.within_radius([500.0, 0.0], 10.0);
 //! ```
 
+mod clash;
 mod edge_index;
 mod node_index;
 mod predicates;
 
+pub use clash::{Clash, ClashDetector, ClashElement, ClashFilter, ClashType};
 pub use edge_index::{EdgeEntry, EdgeIndex};
 pub use node_index::NodeIndex;
 pub use predicates::{

@@ -72,6 +72,9 @@ from .schemas import (
     # Room detection schemas
     DetectRoomsParams,
     AnalyzeTopologyParams,
+    # Clash detection schemas
+    DetectClashesParams,
+    DetectClashesBetweenSetsParams,
     ErrorCodes,
 )
 from .state import get_state, GeometryState
@@ -948,6 +951,70 @@ TOOLS = [
             },
         },
     ),
+    # Clash Detection Tools
+    Tool(
+        name="detect_clashes",
+        description="Detect geometric clashes (intersections) between BIM elements. "
+        "Returns hard clashes (solid intersections), clearance violations, and potential duplicates.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of elements to check. If not provided, checks all elements in model.",
+                },
+                "tolerance": {
+                    "type": "number",
+                    "default": 0.001,
+                    "description": "Distance tolerance for clash detection in meters (default 1mm)",
+                },
+                "clearance": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "Minimum clearance distance in meters. Elements closer trigger clearance clash.",
+                },
+                "ignore_same_type": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "If true, ignores clashes between elements of the same type",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+        },
+    ),
+    Tool(
+        name="detect_clashes_between_sets",
+        description="Detect geometric clashes between two sets of BIM elements. "
+        "Useful for checking new elements against existing model, or comparing different building systems.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "set_a_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of first set of elements",
+                },
+                "set_b_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of second set of elements",
+                },
+                "tolerance": {
+                    "type": "number",
+                    "default": 0.001,
+                    "description": "Distance tolerance for clash detection in meters (default 1mm)",
+                },
+                "clearance": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "Minimum clearance distance in meters",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["set_a_ids", "set_b_ids"],
+        },
+    ),
     # State Tools
     Tool(
         name="get_state_summary",
@@ -1102,6 +1169,12 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _detect_rooms(state, args, reasoning)
     elif name == "analyze_wall_topology":
         return await _analyze_wall_topology(state, args, reasoning)
+
+    # Clash Detection Tools
+    elif name == "detect_clashes":
+        return await _detect_clashes(state, args, reasoning)
+    elif name == "detect_clashes_between_sets":
+        return await _detect_clashes_between_sets(state, args, reasoning)
 
     # State Tools
     elif name == "get_state_summary":
