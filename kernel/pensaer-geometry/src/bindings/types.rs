@@ -12,8 +12,8 @@ use pensaer_math::{BoundingBox3, Point2, Point3, Vector2, Vector3};
 
 use crate::element::Element;
 use crate::elements::{
-    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, Room, Wall, WallOpening, WallType,
-    Window, WindowType,
+    Door, DoorSwing, DoorType, Floor, FloorType, OpeningType, RidgeDirection, Roof, RoofType,
+    Room, Wall, WallOpening, WallType, Window, WindowType,
 };
 use crate::joins::{JoinResolver, JoinType, WallJoin};
 use crate::mesh::TriangleMesh;
@@ -1188,5 +1188,261 @@ impl PyJoinResolver {
 
     fn __repr__(&self) -> String {
         "JoinResolver()".to_string()
+    }
+}
+
+// =============================================================================
+// Roof Element Wrapper
+// =============================================================================
+
+/// Roof BIM element wrapper.
+#[pyclass(name = "Roof")]
+#[derive(Clone)]
+pub struct PyRoof {
+    pub inner: Roof,
+}
+
+#[pymethods]
+impl PyRoof {
+    /// Create a flat rectangular roof.
+    #[staticmethod]
+    #[pyo3(signature = (min_point, max_point, thickness, roof_type=None, slope_degrees=None))]
+    pub fn rectangle(
+        min_point: (f64, f64),
+        max_point: (f64, f64),
+        thickness: f64,
+        roof_type: Option<&str>,
+        slope_degrees: Option<f64>,
+    ) -> PyResult<Self> {
+        let mut roof = Roof::rectangle(
+            Point2::new(min_point.0, min_point.1),
+            Point2::new(max_point.0, max_point.1),
+            thickness,
+        )
+        .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+
+        if let Some(rt) = roof_type {
+            let rtype = match rt.to_lowercase().as_str() {
+                "gable" => RoofType::Gable,
+                "hip" => RoofType::Hip,
+                "shed" => RoofType::Shed,
+                "mansard" => RoofType::Mansard,
+                "flat" | _ => RoofType::Flat,
+            };
+            let slope = slope_degrees.unwrap_or(match rtype {
+                RoofType::Flat => 0.0,
+                _ => 30.0, // Default 30 degrees for pitched roofs
+            });
+            roof.set_type(rtype, slope);
+        }
+
+        Ok(Self { inner: roof })
+    }
+
+    /// Create a gable roof.
+    #[staticmethod]
+    #[pyo3(signature = (min_point, max_point, thickness, slope_degrees, ridge_along_x=true))]
+    pub fn gable(
+        min_point: (f64, f64),
+        max_point: (f64, f64),
+        thickness: f64,
+        slope_degrees: f64,
+        ridge_along_x: bool,
+    ) -> PyResult<Self> {
+        let ridge_direction = if ridge_along_x {
+            RidgeDirection::AlongX
+        } else {
+            RidgeDirection::AlongY
+        };
+
+        let roof = Roof::gable(
+            Point2::new(min_point.0, min_point.1),
+            Point2::new(max_point.0, max_point.1),
+            thickness,
+            slope_degrees,
+            ridge_direction,
+        )
+        .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+
+        Ok(Self { inner: roof })
+    }
+
+    /// Create a hip roof.
+    #[staticmethod]
+    #[pyo3(signature = (min_point, max_point, thickness, slope_degrees))]
+    pub fn hip(
+        min_point: (f64, f64),
+        max_point: (f64, f64),
+        thickness: f64,
+        slope_degrees: f64,
+    ) -> PyResult<Self> {
+        let roof = Roof::hip(
+            Point2::new(min_point.0, min_point.1),
+            Point2::new(max_point.0, max_point.1),
+            thickness,
+            slope_degrees,
+        )
+        .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+
+        Ok(Self { inner: roof })
+    }
+
+    /// Create a shed (single-slope) roof.
+    #[staticmethod]
+    #[pyo3(signature = (min_point, max_point, thickness, slope_degrees, slope_faces_south=true))]
+    pub fn shed(
+        min_point: (f64, f64),
+        max_point: (f64, f64),
+        thickness: f64,
+        slope_degrees: f64,
+        slope_faces_south: bool,
+    ) -> PyResult<Self> {
+        let ridge_direction = if slope_faces_south {
+            RidgeDirection::AlongX
+        } else {
+            RidgeDirection::AlongY
+        };
+
+        let roof = Roof::shed(
+            Point2::new(min_point.0, min_point.1),
+            Point2::new(max_point.0, max_point.1),
+            thickness,
+            slope_degrees,
+            ridge_direction,
+        )
+        .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+
+        Ok(Self { inner: roof })
+    }
+
+    #[getter]
+    fn id(&self) -> String {
+        self.inner.id.to_string()
+    }
+
+    #[getter]
+    fn thickness(&self) -> f64 {
+        self.inner.thickness
+    }
+
+    #[getter]
+    fn base_elevation(&self) -> f64 {
+        self.inner.base_elevation
+    }
+
+    #[getter]
+    fn slope_degrees(&self) -> f64 {
+        self.inner.slope_degrees
+    }
+
+    #[getter]
+    fn eave_overhang(&self) -> f64 {
+        self.inner.eave_overhang
+    }
+
+    #[getter]
+    fn roof_type(&self) -> String {
+        self.inner.roof_type.name().to_lowercase()
+    }
+
+    fn set_elevation(&mut self, elevation: f64) {
+        self.inner.set_elevation(elevation);
+    }
+
+    fn set_eave_overhang(&mut self, overhang: f64) {
+        self.inner.set_eave_overhang(overhang);
+    }
+
+    fn footprint_area(&self) -> f64 {
+        self.inner.footprint_area()
+    }
+
+    fn surface_area(&self) -> f64 {
+        self.inner.surface_area()
+    }
+
+    fn perimeter(&self) -> f64 {
+        self.inner.perimeter()
+    }
+
+    fn ridge_height(&self) -> f64 {
+        self.inner.ridge_height()
+    }
+
+    fn top_elevation(&self) -> f64 {
+        self.inner.top_elevation()
+    }
+
+    /// Attach roof to a wall by its UUID string.
+    fn attach_to_wall(&mut self, wall_id: &str) -> PyResult<()> {
+        let uuid = Uuid::parse_str(wall_id)
+            .map_err(|e| PyValueError::new_err(format!("Invalid UUID: {}", e)))?;
+        self.inner.attach_to_wall(uuid);
+        Ok(())
+    }
+
+    /// Attach roof to multiple walls by their UUID strings.
+    fn attach_to_walls(&mut self, wall_ids: Vec<String>) -> PyResult<()> {
+        let uuids: Result<Vec<Uuid>, _> = wall_ids.iter().map(|s| Uuid::parse_str(s)).collect();
+        let uuids = uuids.map_err(|e| PyValueError::new_err(format!("Invalid UUID: {}", e)))?;
+        self.inner.attach_to_walls(&uuids);
+        Ok(())
+    }
+
+    /// Detach roof from a wall.
+    fn detach_from_wall(&mut self, wall_id: &str) -> PyResult<bool> {
+        let uuid = Uuid::parse_str(wall_id)
+            .map_err(|e| PyValueError::new_err(format!("Invalid UUID: {}", e)))?;
+        Ok(self.inner.detach_from_wall(uuid))
+    }
+
+    /// Check if roof is attached to a wall.
+    fn is_attached_to(&self, wall_id: &str) -> PyResult<bool> {
+        let uuid = Uuid::parse_str(wall_id)
+            .map_err(|e| PyValueError::new_err(format!("Invalid UUID: {}", e)))?;
+        Ok(self.inner.is_attached_to(uuid))
+    }
+
+    /// Get list of attached wall UUIDs.
+    fn attached_wall_ids(&self) -> Vec<String> {
+        self.inner
+            .attached_walls()
+            .iter()
+            .map(|u| u.to_string())
+            .collect()
+    }
+
+    fn to_mesh(&self) -> PyResult<PyTriangleMesh> {
+        self.inner
+            .to_mesh()
+            .map(|m| PyTriangleMesh { inner: m })
+            .map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
+    }
+
+    fn to_dict(&self) -> PyResult<Py<PyDict>> {
+        Python::with_gil(|py| {
+            let dict = PyDict::new_bound(py);
+            dict.set_item("id", self.inner.id.to_string())?;
+            dict.set_item("thickness", self.inner.thickness)?;
+            dict.set_item("base_elevation", self.inner.base_elevation)?;
+            dict.set_item("roof_type", self.roof_type())?;
+            dict.set_item("slope_degrees", self.inner.slope_degrees)?;
+            dict.set_item("eave_overhang", self.inner.eave_overhang)?;
+            dict.set_item("footprint_area", self.inner.footprint_area())?;
+            dict.set_item("surface_area", self.inner.surface_area())?;
+            dict.set_item("ridge_height", self.inner.ridge_height())?;
+            dict.set_item("attached_wall_ids", self.attached_wall_ids())?;
+            Ok(dict.unbind())
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "Roof(id={}, type={}, slope={}°, area={:.2})",
+            self.inner.id,
+            self.roof_type(),
+            self.inner.slope_degrees,
+            self.inner.footprint_area()
+        )
     }
 }

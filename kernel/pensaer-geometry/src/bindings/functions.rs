@@ -13,7 +13,7 @@ use crate::joins::JoinResolver;
 use crate::mesh::TriangleMesh;
 
 use super::types::{
-    PyDoor, PyFloor, PyRoom, PyTriangleMesh, PyWall, PyWallJoin, PyWallOpening, PyWindow,
+    PyDoor, PyFloor, PyRoof, PyRoom, PyTriangleMesh, PyWall, PyWallJoin, PyWallOpening, PyWindow,
 };
 
 /// Create a new wall element.
@@ -465,4 +465,95 @@ pub fn merge_meshes(meshes: Vec<PyTriangleMesh>) -> PyTriangleMesh {
         combined.merge(&mesh.inner);
     }
     PyTriangleMesh { inner: combined }
+}
+
+/// Create a roof element.
+///
+/// Creates a roof that can be attached to walls. Supports multiple roof types:
+/// flat, gable, hip, shed, and mansard.
+///
+/// Args:
+///     min_point: Minimum corner as (x, y) tuple for rectangular roof
+///     max_point: Maximum corner as (x, y) tuple for rectangular roof
+///     thickness: Roof thickness
+///     roof_type: Roof type ("flat", "gable", "hip", "shed", "mansard")
+///     slope_degrees: Slope angle in degrees (default 30.0)
+///     ridge_along_x: For gable/shed: ridge along X axis (True) or Y axis (False)
+///     eave_overhang: Overhang at eaves in model units (default 0.3)
+///
+/// Returns:
+///     PyRoof: The created roof element
+///
+/// Example:
+///     >>> roof = create_roof((0, 0), (10, 8), 0.25, roof_type="gable", slope_degrees=35.0)
+///     >>> roof.footprint_area()
+///     80.0
+#[pyfunction]
+#[pyo3(signature = (min_point, max_point, thickness, roof_type="flat", slope_degrees=30.0, ridge_along_x=true, eave_overhang=0.3))]
+pub fn create_roof(
+    min_point: (f64, f64),
+    max_point: (f64, f64),
+    thickness: f64,
+    roof_type: &str,
+    slope_degrees: f64,
+    ridge_along_x: bool,
+    eave_overhang: f64,
+) -> PyResult<PyRoof> {
+    let mut roof = match roof_type.to_lowercase().as_str() {
+        "flat" => PyRoof::rectangle(min_point, max_point, thickness, Some("flat"), Some(0.0))?,
+        "gable" => PyRoof::gable(min_point, max_point, thickness, slope_degrees, ridge_along_x)?,
+        "hip" => PyRoof::hip(min_point, max_point, thickness, slope_degrees)?,
+        "shed" => PyRoof::shed(min_point, max_point, thickness, slope_degrees, ridge_along_x)?,
+        "mansard" => {
+            // Mansard uses gable with steeper slope
+            PyRoof::gable(min_point, max_point, thickness, slope_degrees.max(60.0), ridge_along_x)?
+        }
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "Unknown roof type: {}. Valid types: flat, gable, hip, shed, mansard",
+                roof_type
+            )))
+        }
+    };
+
+    // Set eave overhang on the inner Roof
+    roof.inner.set_eave_overhang(eave_overhang);
+
+    Ok(roof)
+}
+
+/// Attach a roof to multiple walls.
+///
+/// This function associates a roof with the walls it rests on,
+/// enabling proper join computation and visualization.
+///
+/// Args:
+///     roof: The roof element to attach
+///     walls: List of wall elements the roof connects to
+///
+/// Returns:
+///     dict: Contains 'roof' (updated PyRoof), 'attached_wall_count', and 'wall_ids'
+///
+/// Example:
+///     >>> walls = create_rectangular_walls((0, 0), (10, 8), 3.0, 0.2)
+///     >>> roof = create_roof((0, 0), (10, 8), 0.25, roof_type="gable")
+///     >>> result = attach_roof_to_walls(roof, walls)
+///     >>> result['attached_wall_count']
+///     4
+#[pyfunction]
+pub fn attach_roof_to_walls(mut roof: PyRoof, walls: Vec<PyWall>) -> PyResult<Py<PyDict>> {
+    // Collect wall UUIDs and string IDs
+    let wall_uuids: Vec<uuid::Uuid> = walls.iter().map(|w| w.inner.id).collect();
+    let wall_ids: Vec<String> = wall_uuids.iter().map(|u| u.to_string()).collect();
+
+    // Attach all walls to roof using inner Roof method
+    roof.inner.attach_to_walls(&wall_uuids);
+
+    Python::with_gil(|py| {
+        let dict = PyDict::new_bound(py);
+        dict.set_item("roof", roof.into_py(py))?;
+        dict.set_item("attached_wall_count", wall_ids.len())?;
+        dict.set_item("wall_ids", wall_ids)?;
+        Ok(dict.unbind())
+    })
 }

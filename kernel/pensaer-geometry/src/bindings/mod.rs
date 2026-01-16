@@ -58,6 +58,7 @@ fn pensaer_geometry(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Geometry elements
     m.add_class::<PyWall>()?;
     m.add_class::<PyFloor>()?;
+    m.add_class::<PyRoof>()?;
     m.add_class::<PyDoor>()?;
     m.add_class::<PyWindow>()?;
     m.add_class::<PyRoom>()?;
@@ -83,6 +84,8 @@ fn pensaer_geometry(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_rectangular_walls, m)?)?;
     m.add_function(wrap_pyfunction!(create_simple_building, m)?)?;
     m.add_function(wrap_pyfunction!(merge_meshes, m)?)?;
+    m.add_function(wrap_pyfunction!(create_roof, m)?)?;
+    m.add_function(wrap_pyfunction!(attach_roof_to_walls, m)?)?;
 
     Ok(())
 }
