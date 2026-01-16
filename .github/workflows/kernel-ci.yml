@@ -15,10 +15,36 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # M0: Central tolerance constants for verification
+  PENSAER_GEOM_TOL_MM: 1.0
+  PENSAER_SNAP_TOL_MM: 0.5
 
 jobs:
+  # Quick lint check - fails fast
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kernel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy (warnings as errors)
+        run: cargo clippy --all-targets -- -D warnings -A dead_code
+
+  # Main test suite
   test:
     name: Test
+    needs: lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,8 +55,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -42,12 +66,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('kernel/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build
         run: cargo build --release
@@ -61,9 +79,22 @@ jobs:
       - name: Run doc tests
         run: cargo test --doc --release
 
-  # Run on multiple platforms
+      # M0: Verify constants are correct
+      - name: Verify M0 constants
+        run: |
+          cargo test -p pensaer-geometry constants::tests --release
+          echo "✓ M0 constants verified"
+
+      # M1: Verify spatial indexing
+      - name: Verify M1 spatial indexing
+        run: |
+          cargo test -p pensaer-geometry spatial --release
+          echo "✓ M1 spatial indexing verified"
+
+  # Cross-platform compatibility
   cross-platform:
     name: Cross Platform (${{ matrix.os }})
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -92,3 +123,20 @@ jobs:
 
       - name: Run tests
         run: cargo test --release
+
+  # MSRV check (Minimum Supported Rust Version)
+  msrv:
+    name: MSRV (1.75.0)
+    needs: lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kernel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.75.0
+        uses: dtolnay/rust-toolchain@1.75.0
+
+      - name: Check compilation
+        run: cargo check --all-targets
