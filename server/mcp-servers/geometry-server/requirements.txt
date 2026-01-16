@@ -1,0 +1,15 @@
+# Pensaer Geometry MCP Server Dependencies
+# ==========================================
+
+# MCP SDK
+mcp>=1.0.0
+
+# Data validation
+pydantic>=2.0.0
+
+# Geometry kernel (local wheel or from PyPI when published)
+# Install with: pip install path/to/pensaer_geometry-*.whl
+pensaer-geometry>=0.1.0
+
+# Utilities
+uuid

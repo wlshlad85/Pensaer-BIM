@@ -36,11 +36,8 @@ import pensaer_geometry as pg
 # Self-healing utilities
 from .self_healing import (
     heal_tool_args,
-    heal_response,
     get_circuit_breaker,
     get_argument_healer,
-    bim_fuzzy_get,
-    CircuitState,
 )
 
 from .schemas import (
@@ -50,23 +47,15 @@ from .schemas import (
     CreateRoomParams,
     PlaceDoorParams,
     PlaceWindowParams,
-    CreateOpeningParams,
     DetectJoinsParams,
-    ComputeJoinGeometryParams,
-    JoinElementsParams,
     GetElementParams,
     ListElementsParams,
-    MoveElementParams,
-    CopyElementParams,
     DeleteElementParams,
-    ModifyParameterParams,
     GenerateMeshParams,
-    MergeMeshesParams,
     ValidateMeshParams,
     CreateSimpleBuildingParams,
     CreateRoofParams,
     AttachRoofToWallsParams,
-    MCPResponse,
     ErrorCodes,
 )
 from .state import get_state, GeometryState

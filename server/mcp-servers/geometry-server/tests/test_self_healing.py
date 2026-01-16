@@ -19,7 +19,6 @@ from geometry_server.self_healing import (
     get_argument_healer,
     get_circuit_breaker,
     reset_circuit_breaker,
-    BIM_SEMANTIC_ALIASES,
     get_bim_aliases,
     ArgumentHealer,
 )

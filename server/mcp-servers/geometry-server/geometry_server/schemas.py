@@ -6,8 +6,7 @@ Conversion can be applied at the API boundary if needed.
 """
 
 from datetime import datetime
-from typing import Literal, Any
-from uuid import UUID, uuid4
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 

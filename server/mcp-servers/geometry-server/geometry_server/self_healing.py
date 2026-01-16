@@ -32,7 +32,7 @@ _common_path = Path(__file__).parent.parent.parent.parent / "common"
 if str(_common_path) not in sys.path:
     sys.path.insert(0, str(_common_path))
 
-from self_healing import (
+from self_healing import (  # noqa: E402
     SelfHealingConfig,
     SelfHealingResponse,
     FuzzyDict,

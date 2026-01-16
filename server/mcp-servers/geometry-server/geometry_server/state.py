@@ -9,9 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
-import json
 
-import pensaer_geometry as pg
 
 
 @dataclass
