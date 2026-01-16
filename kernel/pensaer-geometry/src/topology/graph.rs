@@ -274,8 +274,7 @@ impl TopologyGraph {
                 continue;
             }
 
-            for j in (i + 1)..node_ids.len() {
-                let id_b = node_ids[j];
+            for &id_b in node_ids.iter().skip(i + 1) {
 
                 // Skip if already merged
                 if merge_map.contains_key(&id_b) {
