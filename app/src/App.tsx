@@ -5,7 +5,7 @@
  * Layout matches the prototype exactly with header, toolbar, canvas, and properties panel.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   useUIStore,
   useModelStore,
@@ -20,6 +20,7 @@ import {
   Toolbar,
   PropertiesPanel,
   CommandPalette,
+  Terminal,
 } from "./components/layout";
 import clsx from "clsx";
 
@@ -57,30 +58,41 @@ function App() {
   const elements = useModelStore((s) => s.elements);
   const selectedIds = useSelectionStore((s) => s.selectedIds);
 
+  // Terminal state
+  const [terminalExpanded, setTerminalExpanded] = useState(false);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
       {/* Header */}
       <Header onOpenPalette={openCommandPalette} />
 
       {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Toolbar */}
-        <Toolbar />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Toolbar */}
+          <Toolbar />
 
-        {/* Canvas Area */}
-        <div className="flex-1 relative">
-          {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
+          {/* Canvas Area */}
+          <div className="flex-1 relative">
+            {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
 
-          {/* Zoom indicator (2D only) */}
-          {viewMode === "2d" && (
-            <div className="absolute bottom-4 left-4 px-2 py-1 rounded bg-gray-900/80 text-xs text-gray-400">
-              {Math.round(zoom * 100)}%
-            </div>
-          )}
+            {/* Zoom indicator (2D only) */}
+            {viewMode === "2d" && (
+              <div className="absolute bottom-4 left-4 px-2 py-1 rounded bg-gray-900/80 text-xs text-gray-400">
+                {Math.round(zoom * 100)}%
+              </div>
+            )}
+          </div>
+
+          {/* Right Properties Panel */}
+          <PropertiesPanel />
         </div>
 
-        {/* Right Properties Panel */}
-        <PropertiesPanel />
+        {/* Terminal Panel */}
+        <Terminal
+          isExpanded={terminalExpanded}
+          onToggle={() => setTerminalExpanded(!terminalExpanded)}
+        />
       </main>
 
       {/* Status Bar */}

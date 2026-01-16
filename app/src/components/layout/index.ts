@@ -6,3 +6,4 @@ export { Header } from "./Header";
 export { Toolbar } from "./Toolbar";
 export { PropertiesPanel } from "./PropertiesPanel";
 export { CommandPalette } from "./CommandPalette";
+export { Terminal } from "./Terminal";
