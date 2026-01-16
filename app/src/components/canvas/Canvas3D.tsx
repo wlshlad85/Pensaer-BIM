@@ -13,6 +13,31 @@ import { ViewCube } from "./ViewCube";
 
 type ViewType = "perspective" | "top" | "front" | "side";
 
+/**
+ * Parse wall thickness from property value (e.g., "200mm" → 0.2 meters)
+ * Supports mm, cm, m units. Defaults to 0.2m if unparseable.
+ */
+function parseThickness(value: string | number | boolean | undefined): number {
+  if (typeof value === "number") return value / 1000; // Assume mm
+  if (typeof value !== "string") return 0.2; // Default 200mm
+
+  const match = value.match(/^([\d.]+)\s*(mm|cm|m)?$/i);
+  if (!match) return 0.2;
+
+  const num = parseFloat(match[1]);
+  const unit = (match[2] || "mm").toLowerCase();
+
+  switch (unit) {
+    case "m":
+      return num;
+    case "cm":
+      return num / 100;
+    case "mm":
+    default:
+      return num / 1000;
+  }
+}
+
 // Camera presets matching prototype
 const CAMERA_PRESETS: Record<
   ViewType,
@@ -189,33 +214,73 @@ export function Canvas3D() {
     const offsetX = -3;
     const offsetZ = -2.5;
 
-    // Build walls
+    // Build walls with proper thickness using ExtrudeGeometry
     elements
       .filter((el) => el.type === "wall")
       .forEach((wall) => {
         const isSelected = selectedIds.includes(wall.id);
-        const width = wall.width * scale;
-        const depth = wall.height * scale;
-        const height = wallHeight;
+        const width2D = wall.width * scale;
+        const height2D = wall.height * scale;
 
-        const geometry = new THREE.BoxGeometry(
-          Math.max(width, 0.15),
-          height,
-          Math.max(depth, 0.15),
-        );
+        // Determine wall orientation and dimensions
+        // In 2D: longer dimension is wall length, shorter is visual thickness
+        const isHorizontal = width2D >= height2D;
+        const wallLength = isHorizontal ? Math.max(width2D, 0.15) : Math.max(height2D, 0.15);
+
+        // Parse wall thickness from properties (e.g., "200mm" → 0.2m)
+        // Use the parsed value, or fall back to a minimum for visibility
+        const parsedThickness = parseThickness(wall.properties.thickness);
+        const wallThickness = Math.max(parsedThickness, 0.1);
+
+        // Create wall cross-section shape (rectangle profile: thickness × height)
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        shape.lineTo(wallThickness, 0);
+        shape.lineTo(wallThickness, wallHeight);
+        shape.lineTo(0, wallHeight);
+        shape.lineTo(0, 0);
+
+        // Extrude settings for wall length
+        const extrudeSettings = {
+          depth: wallLength,
+          bevelEnabled: false,
+        };
+
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        geometry.computeVertexNormals();
+
         const material = new THREE.MeshStandardMaterial({
           color: isSelected ? colors.wallSelected : colors.wall,
           roughness: 0.7,
           metalness: 0.1,
+          side: THREE.DoubleSide,
         });
+
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = wall.id;
         mesh.userData = { element: wall };
-        mesh.position.set(
-          wall.x * scale + width / 2 + offsetX,
-          height / 2,
-          wall.y * scale + depth / 2 + offsetZ,
-        );
+
+        // Position and rotate based on wall orientation
+        // Center the wall thickness around the 2D position
+        const thicknessOffset = wallThickness / 2;
+
+        if (isHorizontal) {
+          // Horizontal wall: extrusion runs along X axis
+          mesh.rotation.y = -Math.PI / 2;
+          mesh.position.set(
+            wall.x * scale + offsetX,
+            0,
+            wall.y * scale + thicknessOffset + offsetZ,
+          );
+        } else {
+          // Vertical wall: extrusion runs along Z axis
+          mesh.position.set(
+            wall.x * scale - thicknessOffset + offsetX,
+            0,
+            wall.y * scale + offsetZ,
+          );
+        }
+
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         buildingGroup.add(mesh);
