@@ -7,7 +7,6 @@
 import { useRef, useCallback, useState } from 'react';
 import { useModelStore, useSelectionStore, useUIStore, useHistoryStore } from '../../stores';
 import type { Element } from '../../types';
-import { screenToCanvas } from '../../utils/geometry';
 import { snapPoint, type SnapResult } from '../../utils/snap';
 
 import { Grid } from './Grid';
@@ -198,15 +197,30 @@ export function Canvas2D() {
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
   // Get canvas coordinates from mouse event
+  // Accounts for: 1) SVG viewBox scaling, 2) pan translation, 3) zoom scale
   const getCanvasPoint = useCallback(
     (e: React.MouseEvent) => {
       if (!svgRef.current) return { x: 0, y: 0 };
       const rect = svgRef.current.getBoundingClientRect();
-      const screenPoint = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+
+      // Step 1: Get mouse position relative to SVG element (viewport pixels)
+      const viewportX = e.clientX - rect.left;
+      const viewportY = e.clientY - rect.top;
+
+      // Step 2: Convert viewport pixels to viewBox coordinates
+      // viewBox is 2000x1500, but rendered size may differ
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      const viewBoxX = viewportX * scaleX;
+      const viewBoxY = viewportY * scaleY;
+
+      // Step 3: Apply inverse of the <g> transform (pan and zoom)
+      // The transform is: translate(panX, panY) scale(zoom)
+      // Inverse: (point - pan) / zoom
+      return {
+        x: (viewBoxX - panX) / zoom,
+        y: (viewBoxY - panY) / zoom,
       };
-      return screenToCanvas(screenPoint, { x: panX, y: panY }, zoom);
     },
     [panX, panY, zoom]
   );
@@ -562,6 +576,7 @@ export function Canvas2D() {
       drawStart,
       drawEnd,
       addElement,
+      updateElement,
       addToast,
       recordAction,
     ]
