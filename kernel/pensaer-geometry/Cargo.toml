@@ -15,6 +15,13 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 
+# M1: Spatial indexing and geometry operations
+rstar = "0.12"                    # R*-tree for spatial queries (node/edge lookup)
+geo = "0.28"                      # Geometric primitives and algorithms
+geo-clipper = "0.8"               # Boolean polygon operations (wall joins)
+earcutr = "0.4"                   # Fast ear-cutting triangulation
+robust = "1.1"                    # Robust geometric predicates (orient2d, incircle)
+
 [dependencies.pyo3]
 version = "0.22"
 features = ["extension-module"]

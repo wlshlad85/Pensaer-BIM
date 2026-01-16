@@ -77,6 +77,9 @@ pub mod io;
 pub mod fixup;
 pub mod exec;
 
+// M1: Spatial indexing
+pub mod spatial;
+
 // PyO3 Python bindings (enabled with "python" feature)
 #[cfg(feature = "python")]
 pub mod bindings;
@@ -103,6 +106,7 @@ pub use constants::{
 };
 pub use exec::{exec_and_heal, Context, ExecResult};
 pub use io::{prepare_input, prepare_output, to_deterministic_json, to_deterministic_json_compact};
+pub use spatial::{NodeIndex, EdgeIndex, EdgeEntry, orient2d, orient2d_robust, Orientation};
 
 #[cfg(test)]
 mod tests {
