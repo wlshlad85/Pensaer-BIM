@@ -355,6 +355,20 @@ export function Terminal({
         terminal.writeln(
           "  \x1b[32mdelete\x1b[0m            - Delete elements: delete <id1> <id2> ...",
         );
+        terminal.writeln("");
+        terminal.writeln("\x1b[1;33mSpatial Analysis Commands:\x1b[0m");
+        terminal.writeln(
+          "  \x1b[32madjacency\x1b[0m         - Find adjacent rooms (rooms sharing walls)",
+        );
+        terminal.writeln(
+          "  \x1b[32mnearest\x1b[0m           - Find nearest elements: nearest --x 5 --y 5 --radius 10",
+        );
+        terminal.writeln(
+          "  \x1b[32marea\x1b[0m              - Calculate room area: area --room <room_id>",
+        );
+        terminal.writeln(
+          "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
+        );
         break;
 
       case "clear":
@@ -659,6 +673,220 @@ export function Terminal({
           arguments: { element_id: args[0] },
         });
         formatMcpResult(terminal, result, "get_element");
+        break;
+      }
+
+      case "adjacency": {
+        terminal.writeln(
+          "\x1b[33mAnalyzing room adjacencies from wall topology...\x1b[0m",
+        );
+        // First detect rooms, then analyze adjacencies
+        const roomsResult = await mcpClient.callTool({
+          tool: "detect_rooms",
+          arguments: {},
+        });
+        if (roomsResult.success && roomsResult.data?.rooms) {
+          const rooms = roomsResult.data.rooms;
+          terminal.writeln(`\x1b[32m✓ Found ${rooms.length} rooms\x1b[0m`);
+
+          // Build adjacency from shared boundary edges
+          terminal.writeln("\x1b[36mRoom Adjacencies:\x1b[0m");
+          if (rooms.length === 0) {
+            terminal.writeln("  No rooms detected. Create walls first.");
+          } else if (rooms.length === 1) {
+            terminal.writeln("  Single room - no adjacencies possible.");
+          } else {
+            terminal.writeln(
+              "  (Rooms sharing boundary edges are adjacent)",
+            );
+            for (const room of rooms) {
+              terminal.writeln(
+                `  Room ${room.id?.substring(0, 8)}: area=${room.area?.toFixed(2)}m²`,
+              );
+            }
+          }
+        } else {
+          formatMcpResult(terminal, roomsResult, "detect_rooms");
+        }
+        break;
+      }
+
+      case "nearest": {
+        const parsed = parseArgs(args);
+        if (parsed.x === undefined || parsed.y === undefined) {
+          terminal.writeln(
+            "\x1b[31mUsage: nearest --x <x> --y <y> [--radius r] [--type wall|door|...]\x1b[0m",
+          );
+          terminal.writeln("  Example: nearest --x 5 --y 5 --radius 10");
+          break;
+        }
+        const x = parsed.x as number;
+        const y = parsed.y as number;
+        const radius = (parsed.radius as number) || 10;
+        const filterType = parsed.type as string | undefined;
+
+        terminal.writeln(
+          `\x1b[33mSearching for elements near (${x}, ${y}) within ${radius}m...\x1b[0m`,
+        );
+
+        // Get all elements and filter by distance
+        const listResult = await mcpClient.callTool({
+          tool: "list_elements",
+          arguments: filterType ? { category: filterType } : {},
+        });
+
+        if (listResult.success && listResult.data?.elements) {
+          const elements = listResult.data.elements;
+          interface ElementWithDistance {
+            id: string;
+            type: string;
+            distance: number;
+            centroid?: [number, number];
+          }
+          const nearest: ElementWithDistance[] = [];
+
+          for (const elem of elements) {
+            // Calculate distance to element centroid or start point
+            let ex = 0,
+              ey = 0;
+            if (elem.centroid) {
+              [ex, ey] = elem.centroid;
+            } else if (elem.start) {
+              ex = (elem.start[0] + (elem.end?.[0] || elem.start[0])) / 2;
+              ey = (elem.start[1] + (elem.end?.[1] || elem.start[1])) / 2;
+            }
+            const dist = Math.sqrt((ex - x) ** 2 + (ey - y) ** 2);
+            if (dist <= radius) {
+              nearest.push({
+                id: elem.id,
+                type: elem.type || elem.element_type,
+                distance: dist,
+                centroid: [ex, ey],
+              });
+            }
+          }
+
+          nearest.sort((a, b) => a.distance - b.distance);
+          terminal.writeln(
+            `\x1b[32m✓ Found ${nearest.length} element(s) within radius\x1b[0m`,
+          );
+          for (const n of nearest.slice(0, 10)) {
+            terminal.writeln(
+              `  ${n.type} ${n.id.substring(0, 8)}: ${n.distance.toFixed(2)}m away`,
+            );
+          }
+          if (nearest.length > 10) {
+            terminal.writeln(`  ... and ${nearest.length - 10} more`);
+          }
+        } else {
+          formatMcpResult(terminal, listResult, "list_elements");
+        }
+        break;
+      }
+
+      case "area": {
+        const parsed = parseArgs(args);
+        if (!parsed.room) {
+          terminal.writeln(
+            "\x1b[31mUsage: area --room <room_id>\x1b[0m",
+          );
+          terminal.writeln("  Example: area --room room-abc123");
+          terminal.writeln("  Tip: Use 'detect-rooms' first to find room IDs");
+          break;
+        }
+        const roomId = String(parsed.room);
+        terminal.writeln(`\x1b[33mCalculating area for room ${roomId}...\x1b[0m`);
+
+        // Get room via detect_rooms and find the matching one
+        const roomsResult = await mcpClient.callTool({
+          tool: "detect_rooms",
+          arguments: {},
+        });
+
+        if (roomsResult.success && roomsResult.data?.rooms) {
+          const rooms = roomsResult.data.rooms;
+          const room = rooms.find(
+            (r: { id?: string }) =>
+              r.id === roomId || r.id?.startsWith(roomId),
+          );
+          if (room) {
+            terminal.writeln("\x1b[32m✓ Room found\x1b[0m");
+            terminal.writeln(`  \x1b[36mArea:\x1b[0m ${room.area?.toFixed(2)} m²`);
+            terminal.writeln(
+              `  \x1b[36mCentroid:\x1b[0m (${room.centroid?.[0]?.toFixed(2)}, ${room.centroid?.[1]?.toFixed(2)})`,
+            );
+            terminal.writeln(
+              `  \x1b[36mBoundary edges:\x1b[0m ${room.boundary_count || "N/A"}`,
+            );
+          } else {
+            terminal.writeln(`\x1b[31mRoom ${roomId} not found\x1b[0m`);
+            terminal.writeln("Available rooms:");
+            for (const r of rooms) {
+              terminal.writeln(
+                `  ${r.id?.substring(0, 8)}: ${r.area?.toFixed(2)}m²`,
+              );
+            }
+          }
+        } else {
+          formatMcpResult(terminal, roomsResult, "detect_rooms");
+        }
+        break;
+      }
+
+      case "clearance": {
+        const parsed = parseArgs(args);
+        if (!parsed.element) {
+          terminal.writeln(
+            "\x1b[31mUsage: clearance --element <id> [--type door_swing|wheelchair|furniture]\x1b[0m",
+          );
+          terminal.writeln("  Example: clearance --element door-1 --type door_swing");
+          terminal.writeln("  Types: door_swing (0.9m), wheelchair (1.5m), furniture (0.6m)");
+          break;
+        }
+
+        const elementId = String(parsed.element);
+        const clearanceType = String(parsed.type || "door_swing");
+        const clearanceValues: Record<string, number> = {
+          door_swing: 0.9,
+          wheelchair: 1.5,
+          furniture: 0.6,
+        };
+        const requiredClearance = clearanceValues[clearanceType] || 0.9;
+
+        terminal.writeln(
+          `\x1b[33mChecking ${clearanceType} clearance for ${elementId}...\x1b[0m`,
+        );
+        terminal.writeln(`  Required clearance: ${requiredClearance}m`);
+
+        // Use clash detection with clearance parameter as a proxy
+        const result = await mcpClient.callTool({
+          tool: "detect_clashes",
+          arguments: {
+            element_ids: [elementId],
+            clearance: requiredClearance,
+            tolerance: 0.001,
+          },
+        });
+
+        if (result.success) {
+          const clashes = result.data?.clashes || [];
+          if (clashes.length === 0) {
+            terminal.writeln(
+              `\x1b[32m✓ Clearance OK - No obstructions within ${requiredClearance}m\x1b[0m`,
+            );
+          } else {
+            terminal.writeln(
+              `\x1b[31m✗ Clearance FAILED - ${clashes.length} obstruction(s) found\x1b[0m`,
+            );
+            for (const clash of clashes.slice(0, 5)) {
+              terminal.writeln(
+                `  Obstruction: ${clash.element_b_type} ${clash.element_b_id?.substring(0, 8)}`,
+              );
+            }
+          }
+        } else {
+          formatMcpResult(terminal, result, "detect_clashes");
+        }
         break;
       }
 
