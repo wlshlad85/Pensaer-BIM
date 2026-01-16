@@ -3,7 +3,7 @@
 **Document Version:** 2.0 (Consolidated)
 **Initiated:** January 13, 2026
 **Updated:** January 15, 2026
-**Status:** Founding Document + Extended Timeline
+**Status:** Phase 1 Complete ✅ | Phase 2 In Progress
 
 ---
 
@@ -13,7 +13,7 @@ This roadmap contains two timelines:
 1. **Original 16-week plan** (v1.0) - MVP prototype focused on web client
 2. **Extended 48-week plan** (v2.0) - Full platform with server, kernel, and AI agents
 
-See [PRD.md](./PRD.md) for detailed requirements.
+See [PRD.md](./PRD.md) for detailed requirements and acceptance criteria.
 
 ---
 
@@ -61,37 +61,38 @@ This section outlines the original 16-week initial development plan for Pensaer,
 **Goal:** Establish the foundational architecture and basic BIM functionality.
 
 ### Week 1: Project Setup
-- [ ] Initialize Vite + React + TypeScript project
-- [ ] Configure Tailwind CSS
-- [ ] Set up ESLint, Prettier, Husky
-- [ ] Create component folder structure
-- [ ] Migrate prototype components to proper React structure
+- [x] Initialize Vite + React + TypeScript project
+- [x] Configure Tailwind CSS
+- [x] Set up ESLint, Prettier, Husky
+- [x] Create component folder structure
+- [x] Migrate prototype components to proper React structure
 
 ### Week 2: Data Model & State
-- [ ] Implement Element, Relationship TypeScript interfaces
-- [ ] Set up Zustand stores (model, selection, ui, history)
-- [ ] Implement basic CRUD operations for elements
-- [ ] Create element factory functions
+- [x] Implement Element, Relationship TypeScript interfaces
+- [x] Set up Zustand stores (model, selection, ui, history)
+- [x] Implement basic CRUD operations for elements
+- [x] Create element factory functions
 
 ### Week 3: Canvas & Interaction
-- [ ] Build 2D SVG canvas component
-- [ ] Implement element rendering (wall, door, window, room)
-- [ ] Add selection system (click, shift-click, box select)
-- [ ] Implement drag-to-move functionality
-- [ ] Add snap system (grid, element, endpoint)
+- [x] Build 2D SVG canvas component
+- [x] Implement element rendering (wall, door, window, room)
+- [x] Add selection system (click, shift-click, box select)
+- [x] Implement drag-to-move functionality
+- [x] Add snap system (grid, element, endpoint)
 
 ### Week 4: Transactions & Persistence
-- [ ] Build transaction manager for undo/redo
-- [ ] Implement operation recording
-- [ ] Add IndexedDB persistence layer
-- [ ] Create auto-save functionality
-- [ ] **Release: v0.1.0-alpha**
+- [x] Build transaction manager for undo/redo
+- [x] Implement operation recording
+- [x] Add IndexedDB persistence layer
+- [x] Create auto-save functionality
+- [x] **Release: v0.1.0-alpha** ✅
 
-**Deliverables:**
+**Deliverables:** ✅ ALL COMPLETE
 - Working 2D canvas with element creation/editing
 - Undo/redo system
 - Local persistence
 - Basic element types (wall, door, window, room)
+- *Bonus: Rust kernel with geometry + MCP geometry server*
 
 ---
 
@@ -100,11 +101,11 @@ This section outlines the original 16-week initial development plan for Pensaer,
 **Goal:** Add terminal, command palette, and keyboard-first workflows.
 
 ### Week 5: Command Palette
-- [ ] Build command palette component
-- [ ] Implement fuzzy search algorithm
-- [ ] Add command registration system
-- [ ] Create keyboard shortcut manager
-- [ ] Implement ⌘K trigger
+- [x] Build command palette component
+- [x] Implement fuzzy search algorithm
+- [x] Add command registration system
+- [x] Create keyboard shortcut manager
+- [x] Implement ⌘K trigger
 
 ### Week 6: Terminal Panel
 - [ ] Integrate xterm.js
