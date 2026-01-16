@@ -53,6 +53,7 @@ impl PartialEq for EdgeEntry {
 }
 
 /// Spatial index for geometry edges using R*-tree.
+#[derive(Debug)]
 pub struct EdgeIndex {
     tree: RTree<EdgeEntry>,
 }

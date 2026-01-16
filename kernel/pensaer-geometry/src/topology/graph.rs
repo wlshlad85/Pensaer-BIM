@@ -83,7 +83,7 @@ impl TopologyGraph {
         // Check for existing node within tolerance
         let nearby = self.node_index.within_radius(position, self.snap_tolerance);
 
-        if let Some((id_str, _pos)) = nearby.first() {
+        if let Some((_id_str, _pos)) = nearby.first() {
             // Parse the ID back - we stored it as string in the index
             if let Some((id, _node)) = self.nodes.iter().find(|(_, n)| {
                 points2_within(n.position, position, self.snap_tolerance)

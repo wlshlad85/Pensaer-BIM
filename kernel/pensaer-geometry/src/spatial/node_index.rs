@@ -28,6 +28,7 @@ impl PointDistance for NodeEntry {
 }
 
 /// Spatial index for geometry nodes using R*-tree.
+#[derive(Debug)]
 pub struct NodeIndex {
     tree: RTree<NodeEntry>,
 }
