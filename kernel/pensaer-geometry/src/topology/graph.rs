@@ -2,10 +2,11 @@
 
 use super::edge::{EdgeData, EdgeId, TopoEdge};
 use super::node::{NodeId, TopoNode};
+use super::room::{HalfEdge, RoomId, TopoRoom};
 use crate::constants::SNAP_MERGE_TOL;
 use crate::spatial::{EdgeIndex, NodeIndex};
 use crate::util::float::points2_within;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// The topology graph storing the wall network.
 ///
@@ -15,6 +16,7 @@ use std::collections::HashMap;
 /// - HashMap storage for O(1) lookup by ID
 /// - R*-tree spatial indexes for efficient range queries
 /// - Automatic node merging within SNAP_MERGE_TOL
+/// - Room detection via boundary tracing
 #[derive(Debug)]
 pub struct TopologyGraph {
     /// All nodes in the graph
@@ -22,6 +24,9 @@ pub struct TopologyGraph {
 
     /// All edges in the graph
     edges: HashMap<EdgeId, TopoEdge>,
+
+    /// All detected rooms (closed regions)
+    rooms: HashMap<RoomId, TopoRoom>,
 
     /// Spatial index for nodes
     node_index: NodeIndex,
@@ -39,6 +44,7 @@ impl TopologyGraph {
         Self {
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            rooms: HashMap::new(),
             node_index: NodeIndex::new(),
             edge_index: EdgeIndex::new(),
             snap_tolerance: SNAP_MERGE_TOL,
@@ -50,6 +56,7 @@ impl TopologyGraph {
         Self {
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            rooms: HashMap::new(),
             node_index: NodeIndex::new(),
             edge_index: EdgeIndex::new(),
             snap_tolerance,
@@ -399,8 +406,491 @@ impl TopologyGraph {
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.edges.clear();
+        self.rooms.clear();
         self.node_index = NodeIndex::new();
         self.edge_index = EdgeIndex::new();
+    }
+
+    // =========================================================================
+    // M3: Crossing Detection & Colinear Merge
+    // =========================================================================
+
+    /// Add an edge between two existing nodes.
+    ///
+    /// Unlike `add_edge`, this doesn't create nodes - they must already exist.
+    /// Returns None if nodes don't exist or are the same.
+    pub fn add_edge_between_nodes(
+        &mut self,
+        start_node: NodeId,
+        end_node: NodeId,
+        data: EdgeData,
+    ) -> Option<EdgeId> {
+        // Validate nodes exist
+        if !self.nodes.contains_key(&start_node) || !self.nodes.contains_key(&end_node) {
+            return None;
+        }
+
+        // Don't create self-loop
+        if start_node == end_node {
+            return None;
+        }
+
+        // Create edge
+        let edge = TopoEdge::new(start_node, end_node, data);
+        let edge_id = edge.id;
+
+        // Get node positions for edge index
+        let start = self.nodes.get(&start_node)?.position;
+        let end = self.nodes.get(&end_node)?.position;
+
+        // Add to edge index
+        self.edge_index.insert(edge_id.0.to_string(), start, end);
+
+        // Connect nodes to edge
+        self.nodes.get_mut(&start_node)?.add_edge(edge_id);
+        self.nodes.get_mut(&end_node)?.add_edge(edge_id);
+
+        // Store edge
+        self.edges.insert(edge_id, edge);
+
+        Some(edge_id)
+    }
+
+    /// Split an edge at a given position, creating two new edges.
+    ///
+    /// The original edge is removed and replaced by two edges:
+    /// - One from start_node to the new split node
+    /// - One from the split node to end_node
+    ///
+    /// Returns (new_node_id, edge1_id, edge2_id) or None if the edge doesn't exist
+    /// or the split point is at an endpoint.
+    pub fn split_edge(
+        &mut self,
+        edge_id: EdgeId,
+        split_position: [f64; 2],
+    ) -> Option<(NodeId, EdgeId, EdgeId)> {
+        // Get edge data before removal
+        let edge = self.edges.get(&edge_id)?;
+        let start_node = edge.start_node;
+        let end_node = edge.end_node;
+        let data = edge.data.clone();
+
+        // Check split point isn't at an endpoint
+        let start_pos = self.nodes.get(&start_node)?.position;
+        let end_pos = self.nodes.get(&end_node)?.position;
+
+        if points2_within(split_position, start_pos, self.snap_tolerance)
+            || points2_within(split_position, end_pos, self.snap_tolerance)
+        {
+            return None; // Split point is at endpoint
+        }
+
+        // Remove original edge (but don't clean up nodes yet)
+        let removed_edge = self.edges.remove(&edge_id)?;
+
+        // Remove edge from nodes
+        if let Some(start) = self.nodes.get_mut(&start_node) {
+            start.remove_edge(edge_id);
+        }
+        if let Some(end) = self.nodes.get_mut(&end_node) {
+            end.remove_edge(edge_id);
+        }
+
+        // Remove from edge index
+        self.edge_index
+            .remove(&edge_id.0.to_string(), start_pos, end_pos);
+
+        // Create new node at split point
+        let split_node = self.find_or_create_node(split_position);
+
+        // Create two new edges
+        let edge1_id = self
+            .add_edge_between_nodes(start_node, split_node, data.clone())
+            .unwrap_or_else(|| {
+                // Restore original edge if first new edge fails
+                self.edges.insert(removed_edge.id, removed_edge.clone());
+                removed_edge.id
+            });
+
+        let edge2_id = self
+            .add_edge_between_nodes(split_node, end_node, data)
+            .unwrap_or(edge1_id); // Use edge1 as fallback (shouldn't happen)
+
+        Some((split_node, edge1_id, edge2_id))
+    }
+
+    /// Get all edge IDs as a vector.
+    pub fn edge_ids(&self) -> Vec<EdgeId> {
+        self.edges.keys().copied().collect()
+    }
+
+    /// Get all node IDs as a vector.
+    pub fn node_ids(&self) -> Vec<NodeId> {
+        self.nodes.keys().copied().collect()
+    }
+
+    /// Check if two edges share a node.
+    pub fn edges_share_node(&self, edge1: EdgeId, edge2: EdgeId) -> bool {
+        let e1 = match self.edges.get(&edge1) {
+            Some(e) => e,
+            None => return false,
+        };
+        let e2 = match self.edges.get(&edge2) {
+            Some(e) => e,
+            None => return false,
+        };
+
+        e1.start_node == e2.start_node
+            || e1.start_node == e2.end_node
+            || e1.end_node == e2.start_node
+            || e1.end_node == e2.end_node
+    }
+
+    /// Get the shared node between two edges, if any.
+    pub fn shared_node(&self, edge1: EdgeId, edge2: EdgeId) -> Option<NodeId> {
+        let e1 = self.edges.get(&edge1)?;
+        let e2 = self.edges.get(&edge2)?;
+
+        if e1.start_node == e2.start_node || e1.start_node == e2.end_node {
+            Some(e1.start_node)
+        } else if e1.end_node == e2.start_node || e1.end_node == e2.end_node {
+            Some(e1.end_node)
+        } else {
+            None
+        }
+    }
+
+    /// Get the other node of an edge given one node.
+    pub fn other_node(&self, edge_id: EdgeId, node_id: NodeId) -> Option<NodeId> {
+        self.edges.get(&edge_id)?.other_node(node_id)
+    }
+
+    /// Get the snap tolerance.
+    pub fn snap_tolerance(&self) -> f64 {
+        self.snap_tolerance
+    }
+
+    // =========================================================================
+    // M4: Room Detection & Boundary Tracing
+    // =========================================================================
+
+    /// Get the number of detected rooms.
+    pub fn room_count(&self) -> usize {
+        self.rooms.len()
+    }
+
+    /// Get a room by ID.
+    pub fn get_room(&self, id: RoomId) -> Option<&TopoRoom> {
+        self.rooms.get(&id)
+    }
+
+    /// Iterate over all rooms.
+    pub fn rooms(&self) -> impl Iterator<Item = &TopoRoom> {
+        self.rooms.values()
+    }
+
+    /// Get all room IDs as a vector.
+    pub fn room_ids(&self) -> Vec<RoomId> {
+        self.rooms.keys().copied().collect()
+    }
+
+    /// Get interior rooms (excluding the exterior unbounded region).
+    pub fn interior_rooms(&self) -> Vec<&TopoRoom> {
+        self.rooms.values().filter(|r| !r.is_exterior).collect()
+    }
+
+    /// Find rooms containing a specific node.
+    pub fn rooms_at_node(&self, node_id: NodeId) -> Vec<RoomId> {
+        self.rooms
+            .iter()
+            .filter(|(_, room)| room.contains_node(node_id))
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// Find rooms containing a specific edge.
+    pub fn rooms_at_edge(&self, edge_id: EdgeId) -> Vec<RoomId> {
+        self.rooms
+            .iter()
+            .filter(|(_, room)| room.contains_edge(edge_id))
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// Rebuild all rooms by tracing boundaries.
+    ///
+    /// This uses the "turn-right" (clockwise traversal) algorithm:
+    /// 1. Generate all half-edges
+    /// 2. For each unused half-edge, trace a boundary by always turning right
+    /// 3. The resulting closed loops are room boundaries
+    ///
+    /// Returns the number of rooms detected.
+    pub fn rebuild_rooms(&mut self) -> usize {
+        self.rooms.clear();
+
+        if self.edges.is_empty() {
+            return 0;
+        }
+
+        // Generate all half-edges
+        let mut all_half_edges: Vec<HalfEdge> = Vec::new();
+        for edge in self.edges.values() {
+            all_half_edges.push(HalfEdge::new(edge.id, edge.start_node, edge.end_node));
+            all_half_edges.push(HalfEdge::new(edge.id, edge.end_node, edge.start_node));
+        }
+
+        // Track which half-edges have been used
+        let mut used: HashSet<(EdgeId, NodeId, NodeId)> = HashSet::new();
+
+        // For each node, precompute sorted outgoing half-edges by angle
+        let outgoing_map = self.build_outgoing_half_edge_map(&all_half_edges);
+
+        // Trace boundaries
+        for he in &all_half_edges {
+            let key = (he.edge_id, he.from_node, he.to_node);
+            if used.contains(&key) {
+                continue;
+            }
+
+            // Trace a boundary starting from this half-edge
+            if let Some(room) = self.trace_boundary(he, &outgoing_map, &mut used) {
+                self.rooms.insert(room.id, room);
+            }
+        }
+
+        self.rooms.len()
+    }
+
+    /// Build a map of node -> outgoing half-edges sorted by angle (counter-clockwise).
+    fn build_outgoing_half_edge_map(
+        &self,
+        half_edges: &[HalfEdge],
+    ) -> HashMap<NodeId, Vec<HalfEdge>> {
+        let mut map: HashMap<NodeId, Vec<HalfEdge>> = HashMap::new();
+
+        for he in half_edges {
+            map.entry(he.from_node).or_default().push(*he);
+        }
+
+        // Sort each node's outgoing half-edges by angle (counter-clockwise from +X axis)
+        for (node_id, edges) in map.iter_mut() {
+            let node_pos = match self.nodes.get(node_id) {
+                Some(n) => n.position,
+                None => continue,
+            };
+
+            edges.sort_by(|a, b| {
+                let angle_a = self.half_edge_angle(node_pos, a);
+                let angle_b = self.half_edge_angle(node_pos, b);
+                angle_a
+                    .partial_cmp(&angle_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+
+        map
+    }
+
+    /// Calculate the angle of a half-edge from its start node.
+    fn half_edge_angle(&self, from_pos: [f64; 2], he: &HalfEdge) -> f64 {
+        let to_pos = match self.nodes.get(&he.to_node) {
+            Some(n) => n.position,
+            None => return 0.0,
+        };
+
+        let dx = to_pos[0] - from_pos[0];
+        let dy = to_pos[1] - from_pos[1];
+
+        dy.atan2(dx)
+    }
+
+    /// Trace a boundary starting from a half-edge.
+    ///
+    /// Uses the "turn-right" rule: at each node, take the next half-edge
+    /// in counter-clockwise order (which is the rightmost turn from the
+    /// incoming direction).
+    fn trace_boundary(
+        &self,
+        start: &HalfEdge,
+        outgoing_map: &HashMap<NodeId, Vec<HalfEdge>>,
+        used: &mut HashSet<(EdgeId, NodeId, NodeId)>,
+    ) -> Option<TopoRoom> {
+        let mut boundary_nodes: Vec<NodeId> = Vec::new();
+        let mut boundary_edges: Vec<EdgeId> = Vec::new();
+        let mut half_edges: Vec<HalfEdge> = Vec::new();
+
+        let mut current = *start;
+        let max_iterations = self.edges.len() * 2 + 10; // Safety limit
+
+        for _ in 0..max_iterations {
+            // Mark this half-edge as used
+            let key = (current.edge_id, current.from_node, current.to_node);
+            if used.contains(&key) {
+                // If we've returned to start, we're done
+                if current.edge_id == start.edge_id
+                    && current.from_node == start.from_node
+                    && current.to_node == start.to_node
+                {
+                    break;
+                }
+                // Otherwise, this half-edge is already part of another boundary
+                return None;
+            }
+
+            used.insert(key);
+            boundary_nodes.push(current.from_node);
+            boundary_edges.push(current.edge_id);
+            half_edges.push(current);
+
+            // Find the next half-edge by turning right at the to_node
+            let incoming_reversed = current.reversed();
+            let next = self.next_half_edge_cw(&incoming_reversed, outgoing_map)?;
+
+            // Check if we've completed the loop
+            if next.edge_id == start.edge_id
+                && next.from_node == start.from_node
+                && next.to_node == start.to_node
+            {
+                break;
+            }
+
+            current = next;
+        }
+
+        // Need at least 3 edges to form a room
+        if boundary_nodes.len() < 3 {
+            return None;
+        }
+
+        // Calculate signed area and centroid
+        let (signed_area, centroid) = self.compute_polygon_properties(&boundary_nodes);
+
+        // Filter out degenerate rooms (near-zero area)
+        // This happens with open graphs where we trace back and forth
+        if signed_area.abs() < 1.0 {
+            return None;
+        }
+
+        Some(TopoRoom::new(
+            boundary_nodes,
+            boundary_edges,
+            half_edges,
+            signed_area,
+            centroid,
+        ))
+    }
+
+    /// Get the next half-edge in clockwise order (the "turn right" rule).
+    ///
+    /// Given an incoming half-edge (reversed to be outgoing from the node),
+    /// find the next outgoing half-edge in clockwise order.
+    fn next_half_edge_cw(
+        &self,
+        incoming_reversed: &HalfEdge,
+        outgoing_map: &HashMap<NodeId, Vec<HalfEdge>>,
+    ) -> Option<HalfEdge> {
+        let node = incoming_reversed.from_node;
+        let outgoing = outgoing_map.get(&node)?;
+
+        if outgoing.is_empty() {
+            return None;
+        }
+
+        // Find the index of the incoming edge (reversed) in the sorted list
+        let incoming_idx = outgoing.iter().position(|he| {
+            he.edge_id == incoming_reversed.edge_id && he.to_node == incoming_reversed.to_node
+        });
+
+        match incoming_idx {
+            Some(idx) => {
+                // The next edge in CW order is the previous one in CCW-sorted list
+                // (wrapping around)
+                let next_idx = if idx == 0 {
+                    outgoing.len() - 1
+                } else {
+                    idx - 1
+                };
+                Some(outgoing[next_idx])
+            }
+            None => {
+                // Fallback: just return the first edge
+                Some(outgoing[0])
+            }
+        }
+    }
+
+    /// Compute signed area and centroid of a polygon from node IDs.
+    fn compute_polygon_properties(&self, nodes: &[NodeId]) -> (f64, [f64; 2]) {
+        if nodes.len() < 3 {
+            return (0.0, [0.0, 0.0]);
+        }
+
+        let positions: Vec<[f64; 2]> = nodes
+            .iter()
+            .filter_map(|id| self.nodes.get(id).map(|n| n.position))
+            .collect();
+
+        if positions.len() < 3 {
+            return (0.0, [0.0, 0.0]);
+        }
+
+        // Shoelace formula for signed area
+        let mut signed_area = 0.0;
+        let mut cx = 0.0;
+        let mut cy = 0.0;
+
+        let n = positions.len();
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let xi = positions[i][0];
+            let yi = positions[i][1];
+            let xj = positions[j][0];
+            let yj = positions[j][1];
+
+            let cross = xi * yj - xj * yi;
+            signed_area += cross;
+            cx += (xi + xj) * cross;
+            cy += (yi + yj) * cross;
+        }
+
+        signed_area /= 2.0;
+
+        if signed_area.abs() < 1e-10 {
+            // Degenerate polygon - use simple centroid
+            let sum_x: f64 = positions.iter().map(|p| p[0]).sum();
+            let sum_y: f64 = positions.iter().map(|p| p[1]).sum();
+            return (signed_area, [sum_x / n as f64, sum_y / n as f64]);
+        }
+
+        cx /= 6.0 * signed_area;
+        cy /= 6.0 * signed_area;
+
+        (signed_area, [cx, cy])
+    }
+
+    /// Clear all rooms (used before rebuild).
+    pub fn clear_rooms(&mut self) {
+        self.rooms.clear();
+    }
+
+    /// Remove rooms that contain any of the specified nodes.
+    ///
+    /// Returns the IDs of removed rooms.
+    pub fn invalidate_rooms_at_nodes(&mut self, node_ids: &[NodeId]) -> Vec<RoomId> {
+        let node_set: HashSet<NodeId> = node_ids.iter().copied().collect();
+
+        let to_remove: Vec<RoomId> = self
+            .rooms
+            .iter()
+            .filter(|(_, room)| room.boundary_nodes.iter().any(|n| node_set.contains(n)))
+            .map(|(id, _)| *id)
+            .collect();
+
+        for id in &to_remove {
+            self.rooms.remove(id);
+        }
+
+        to_remove
     }
 }
 
@@ -483,5 +973,343 @@ mod tests {
 
         assert_eq!(graph.node_count(), 0);
         assert_eq!(graph.edge_count(), 0);
+    }
+
+    // =========================================================================
+    // M3 Tests
+    // =========================================================================
+
+    #[test]
+    fn split_edge_creates_two_edges() {
+        let mut graph = TopologyGraph::new();
+        let edge_id = graph
+            .add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0))
+            .unwrap();
+
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 1);
+
+        // Split at midpoint
+        let result = graph.split_edge(edge_id, [500.0, 0.0]);
+        assert!(result.is_some());
+
+        let (split_node, edge1, edge2) = result.unwrap();
+
+        // Should now have 3 nodes and 2 edges
+        assert_eq!(graph.node_count(), 3);
+        assert_eq!(graph.edge_count(), 2);
+
+        // Split node should have 2 edges
+        let split_edges = graph.edges_at_node(split_node);
+        assert_eq!(split_edges.len(), 2);
+
+        // Verify edges exist
+        assert!(graph.get_edge(edge1).is_some());
+        assert!(graph.get_edge(edge2).is_some());
+    }
+
+    #[test]
+    fn split_edge_at_endpoint_returns_none() {
+        let mut graph = TopologyGraph::new();
+        let edge_id = graph
+            .add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0))
+            .unwrap();
+
+        // Try to split at start endpoint
+        let result = graph.split_edge(edge_id, [0.0, 0.0]);
+        assert!(result.is_none());
+
+        // Try to split at end endpoint
+        let result = graph.split_edge(edge_id, [1000.0, 0.0]);
+        assert!(result.is_none());
+
+        // Edge should still exist
+        assert_eq!(graph.edge_count(), 1);
+    }
+
+    #[test]
+    fn add_edge_between_nodes_works() {
+        let mut graph = TopologyGraph::new();
+
+        // Create two disconnected edges to get 4 nodes
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [0.0, 1000.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+
+        assert_eq!(graph.node_count(), 4);
+        assert_eq!(graph.edge_count(), 2);
+
+        // Get nodes to connect
+        let node1 = graph.nodes_within([0.0, 0.0], 1.0)[0];
+        let node2 = graph.nodes_within([0.0, 1000.0], 1.0)[0];
+
+        // Add edge between existing nodes
+        let new_edge = graph.add_edge_between_nodes(node1, node2, EdgeData::wall(200.0, 2700.0));
+        assert!(new_edge.is_some());
+
+        assert_eq!(graph.node_count(), 4); // No new nodes
+        assert_eq!(graph.edge_count(), 3); // One new edge
+    }
+
+    #[test]
+    fn edges_share_node_detection() {
+        let mut graph = TopologyGraph::new();
+
+        // Create L-shape
+        let edge1 = graph
+            .add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0))
+            .unwrap();
+        let edge2 = graph
+            .add_edge(
+                [1000.0, 0.0],
+                [1000.0, 1000.0],
+                EdgeData::wall(200.0, 2700.0),
+            )
+            .unwrap();
+
+        // Create disconnected edge
+        let edge3 = graph
+            .add_edge([5000.0, 0.0], [6000.0, 0.0], EdgeData::wall(200.0, 2700.0))
+            .unwrap();
+
+        assert!(graph.edges_share_node(edge1, edge2));
+        assert!(!graph.edges_share_node(edge1, edge3));
+        assert!(!graph.edges_share_node(edge2, edge3));
+    }
+
+    #[test]
+    fn shared_node_returns_correct_node() {
+        let mut graph = TopologyGraph::new();
+
+        // Create L-shape
+        let edge1 = graph
+            .add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0))
+            .unwrap();
+        let edge2 = graph
+            .add_edge(
+                [1000.0, 0.0],
+                [1000.0, 1000.0],
+                EdgeData::wall(200.0, 2700.0),
+            )
+            .unwrap();
+
+        let shared = graph.shared_node(edge1, edge2);
+        assert!(shared.is_some());
+
+        let shared_node = shared.unwrap();
+        let pos = graph.get_node(shared_node).unwrap().position;
+
+        // Should be at the corner
+        assert!((pos[0] - 1000.0).abs() < 1e-10);
+        assert!((pos[1] - 0.0).abs() < 1e-10);
+    }
+
+    // =========================================================================
+    // M4 Tests: Room Detection
+    // =========================================================================
+
+    #[test]
+    fn single_rectangular_room() {
+        let mut graph = TopologyGraph::new();
+
+        // Create a simple rectangular room (4 walls)
+        // Going counter-clockwise: bottom, right, top, left
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0)); // bottom
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        ); // right
+        graph.add_edge(
+            [1000.0, 1000.0],
+            [0.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        ); // top
+        graph.add_edge([0.0, 1000.0], [0.0, 0.0], EdgeData::wall(200.0, 2700.0)); // left
+
+        assert_eq!(graph.node_count(), 4);
+        assert_eq!(graph.edge_count(), 4);
+
+        // Detect rooms
+        let room_count = graph.rebuild_rooms();
+
+        // Should have 2 rooms: interior (the rectangle) and exterior
+        assert_eq!(room_count, 2);
+        assert_eq!(graph.room_count(), 2);
+
+        // One interior room
+        let interior = graph.interior_rooms();
+        assert_eq!(interior.len(), 1);
+
+        // Interior room should have 4 nodes/edges
+        let room = interior[0];
+        assert_eq!(room.boundary_nodes.len(), 4);
+        assert_eq!(room.boundary_edges.len(), 4);
+
+        // Area should be 1000 * 1000 = 1,000,000 (positive for interior)
+        assert!(room.signed_area > 0.0);
+        assert!((room.area() - 1_000_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn two_adjacent_rooms() {
+        let mut graph = TopologyGraph::new();
+
+        // Create two adjacent rooms sharing a middle wall
+        //
+        // (0,1000)---(1000,1000)---(2000,1000)
+        //    |           |             |
+        //    |   Room1   |    Room2    |
+        //    |           |             |
+        // (0,0)-----(1000,0)------(2000,0)
+        //
+        // We must manually create T-junctions by splitting edges
+        // or by creating the proper topology directly
+
+        // Create the outer perimeter with T-junction points
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0)); // bottom left
+        graph.add_edge([1000.0, 0.0], [2000.0, 0.0], EdgeData::wall(200.0, 2700.0)); // bottom right
+        graph.add_edge(
+            [2000.0, 0.0],
+            [2000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        ); // right
+        graph.add_edge(
+            [2000.0, 1000.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        ); // top right
+        graph.add_edge(
+            [1000.0, 1000.0],
+            [0.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        ); // top left
+        graph.add_edge([0.0, 1000.0], [0.0, 0.0], EdgeData::wall(200.0, 2700.0)); // left
+
+        // Middle dividing wall (connects to existing T-junction nodes)
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+
+        assert_eq!(graph.node_count(), 6); // 4 corners + 2 T-junction points
+        assert_eq!(graph.edge_count(), 7); // 6 perimeter + 1 middle
+
+        // Detect rooms
+        let room_count = graph.rebuild_rooms();
+
+        // Should have 3 rooms: 2 interior + 1 exterior
+        assert_eq!(room_count, 3);
+
+        let interior = graph.interior_rooms();
+        assert_eq!(interior.len(), 2);
+
+        // Each interior room should have area 1000 * 1000 = 1,000,000
+        for room in interior {
+            assert!(room.signed_area > 0.0);
+            assert!((room.area() - 1_000_000.0).abs() < 1.0);
+        }
+    }
+
+    #[test]
+    fn no_rooms_in_open_graph() {
+        let mut graph = TopologyGraph::new();
+
+        // Create an L-shape (not closed)
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+
+        // Detect rooms
+        let room_count = graph.rebuild_rooms();
+
+        // Open graph has no proper rooms (only degenerate "exterior")
+        // The algorithm will find 0 valid rooms since there's no closed loop
+        assert!(room_count <= 1); // At most exterior or nothing
+        assert!(graph.interior_rooms().is_empty());
+    }
+
+    #[test]
+    fn triangular_room() {
+        let mut graph = TopologyGraph::new();
+
+        // Create a triangle
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge([1000.0, 0.0], [500.0, 866.0], EdgeData::wall(200.0, 2700.0)); // ~60 degree
+        graph.add_edge([500.0, 866.0], [0.0, 0.0], EdgeData::wall(200.0, 2700.0));
+
+        assert_eq!(graph.node_count(), 3);
+        assert_eq!(graph.edge_count(), 3);
+
+        let room_count = graph.rebuild_rooms();
+
+        // Should have 2 rooms: interior triangle + exterior
+        assert_eq!(room_count, 2);
+
+        let interior = graph.interior_rooms();
+        assert_eq!(interior.len(), 1);
+
+        // Triangle has 3 boundary nodes
+        assert_eq!(interior[0].boundary_nodes.len(), 3);
+    }
+
+    #[test]
+    fn rooms_at_node_works() {
+        let mut graph = TopologyGraph::new();
+
+        // Create a rectangular room
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+        graph.add_edge(
+            [1000.0, 1000.0],
+            [0.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+        graph.add_edge([0.0, 1000.0], [0.0, 0.0], EdgeData::wall(200.0, 2700.0));
+
+        graph.rebuild_rooms();
+
+        // Find a corner node
+        let corner = graph.nodes_within([0.0, 0.0], 1.0)[0];
+
+        // This node should be part of 2 rooms (interior + exterior)
+        let rooms = graph.rooms_at_node(corner);
+        assert_eq!(rooms.len(), 2);
+    }
+
+    #[test]
+    fn clear_rooms_works() {
+        let mut graph = TopologyGraph::new();
+
+        // Create a rectangular room
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        graph.add_edge(
+            [1000.0, 0.0],
+            [1000.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+        graph.add_edge(
+            [1000.0, 1000.0],
+            [0.0, 1000.0],
+            EdgeData::wall(200.0, 2700.0),
+        );
+        graph.add_edge([0.0, 1000.0], [0.0, 0.0], EdgeData::wall(200.0, 2700.0));
+
+        graph.rebuild_rooms();
+        assert!(graph.room_count() > 0);
+
+        graph.clear_rooms();
+        assert_eq!(graph.room_count(), 0);
     }
 }

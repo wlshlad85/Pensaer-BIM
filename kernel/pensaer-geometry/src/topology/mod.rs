@@ -13,6 +13,7 @@
 //! TopologyGraph
 //! ├── nodes: HashMap<NodeId, TopoNode>     # All nodes
 //! ├── edges: HashMap<EdgeId, TopoEdge>     # All edges
+//! ├── rooms: HashMap<RoomId, TopoRoom>     # Detected rooms
 //! ├── node_index: NodeIndex                # R*-tree for node queries
 //! └── edge_index: EdgeIndex                # R*-tree for edge queries
 //! ```
@@ -29,15 +30,20 @@
 //!
 //! // Query nodes near a point
 //! let nearby = graph.nodes_within([100.0, 0.0], 500.0);
+//!
+//! // Detect rooms (closed regions)
+//! graph.rebuild_rooms();
 //! ```
 
 mod edge;
 mod graph;
 mod node;
+mod room;
 
 pub use edge::{Baseline, EdgeData, EdgeId, OpeningRef, TopoEdge};
 pub use graph::TopologyGraph;
 pub use node::{NodeId, TopoNode};
+pub use room::{HalfEdge, RoomId, TopoRoom};
 
 #[cfg(test)]
 mod tests {

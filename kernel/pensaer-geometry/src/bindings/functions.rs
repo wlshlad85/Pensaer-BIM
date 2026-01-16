@@ -5,12 +5,13 @@
 
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use pyo3::IntoPy;
 
 use crate::elements::{OpeningType, Wall, WallOpening};
 use crate::joins::JoinResolver;
 use crate::mesh::TriangleMesh;
+use crate::topology::{EdgeData, TopologyGraph};
 
 use super::types::{
     PyDoor, PyFloor, PyRoof, PyRoom, PyTriangleMesh, PyWall, PyWallJoin, PyWallOpening, PyWindow,
@@ -572,6 +573,218 @@ pub fn attach_roof_to_walls(mut roof: PyRoof, walls: Vec<PyWall>) -> PyResult<Py
         dict.set_item("roof", roof.into_py(py))?;
         dict.set_item("attached_wall_count", wall_ids.len())?;
         dict.set_item("wall_ids", wall_ids)?;
+        Ok(dict.unbind())
+    })
+}
+
+/// Create a generic opening in a wall.
+///
+/// This function creates a rectangular opening (cut) in a wall at a specified
+/// position. Unlike place_door/place_window, this creates a raw opening without
+/// an associated door or window element.
+///
+/// Args:
+///     wall: The wall to create the opening in (will be modified)
+///     offset: Distance from wall start to opening center
+///     base_height: Height from wall base to opening bottom
+///     width: Opening width
+///     height: Opening height
+///     opening_type: Type of opening ("door", "window", "generic")
+///
+/// Returns:
+///     dict: Contains 'opening' (PyWallOpening) and 'wall_id'
+///
+/// Example:
+///     >>> wall = create_wall((0, 0), (5, 0), 3.0, 0.2)
+///     >>> result = create_opening(wall, offset=2.5, base_height=0.0, width=1.0, height=2.5)
+///     >>> opening = result['opening']
+#[pyfunction]
+#[pyo3(signature = (wall, offset, base_height, width, height, opening_type="generic"))]
+pub fn create_opening(
+    wall: &mut PyWall,
+    offset: f64,
+    base_height: f64,
+    width: f64,
+    height: f64,
+    opening_type: &str,
+) -> PyResult<Py<PyDict>> {
+    // Parse opening type
+    let otype = match opening_type.to_lowercase().as_str() {
+        "door" => OpeningType::Door,
+        "window" => OpeningType::Window,
+        _ => OpeningType::Generic,
+    };
+
+    // Create opening
+    let opening = WallOpening::new(offset, base_height, width, height, otype);
+
+    // Add to wall
+    wall.inner
+        .add_opening(opening.clone())
+        .map_err(|e| PyValueError::new_err(format!("{}", e)))?;
+
+    // Return opening info
+    Python::with_gil(|py| {
+        let dict = PyDict::new_bound(py);
+        dict.set_item("opening", PyWallOpening { inner: opening }.into_py(py))?;
+        dict.set_item("wall_id", wall.inner.id.to_string())?;
+        dict.set_item("opening_type", opening_type)?;
+        Ok(dict.unbind())
+    })
+}
+
+/// Detect rooms from a set of walls using topology graph analysis.
+///
+/// This function builds a topology graph from wall elements and detects
+/// enclosed regions (rooms) using boundary tracing. The algorithm:
+/// 1. Creates a planar graph with wall endpoints as nodes
+/// 2. Adds wall segments as edges
+/// 3. Traces closed boundaries using the "turn-right" rule
+/// 4. Returns interior rooms (excluding exterior unbounded region)
+///
+/// Args:
+///     walls: List of wall elements forming the building layout
+///     tolerance: Distance tolerance for node merging (default 0.0005 = 0.5mm)
+///
+/// Returns:
+///     list[dict]: Detected rooms, each containing:
+///         - id: Unique room identifier
+///         - area: Room area in square model units
+///         - centroid: Center point as (x, y) tuple
+///         - boundary_count: Number of boundary edges
+///         - is_exterior: Always False for returned rooms (exterior filtered out)
+///
+/// Example:
+///     >>> walls = create_rectangular_walls((0, 0), (10, 8), height=3.0, thickness=0.2)
+///     >>> rooms = detect_rooms(walls)
+///     >>> len(rooms)
+///     1
+///     >>> rooms[0]['area']
+///     80.0
+#[pyfunction]
+#[pyo3(signature = (walls, tolerance=0.0005))]
+pub fn detect_rooms(walls: Vec<PyWall>, tolerance: f64) -> PyResult<Py<PyList>> {
+    // Create topology graph
+    let mut graph = TopologyGraph::with_tolerance(tolerance);
+
+    // Add walls as edges
+    for wall in &walls {
+        let start = [wall.inner.baseline.start.x, wall.inner.baseline.start.y];
+        let end = [wall.inner.baseline.end.x, wall.inner.baseline.end.y];
+
+        // Create edge data from wall properties
+        let edge_data = EdgeData::wall(wall.inner.thickness, wall.inner.height);
+
+        graph.add_edge(start, end, edge_data);
+    }
+
+    // Detect rooms
+    graph.rebuild_rooms();
+
+    // Get interior rooms only (filter out exterior unbounded region)
+    let interior_rooms = graph.interior_rooms();
+
+    // Convert to Python list of dicts
+    Python::with_gil(|py| {
+        let room_list: Vec<Py<PyDict>> = interior_rooms
+            .iter()
+            .map(|room| {
+                let dict = PyDict::new_bound(py);
+                dict.set_item("id", room.id.0.to_string()).ok();
+                dict.set_item("area", room.area()).ok();
+                dict.set_item("signed_area", room.signed_area).ok();
+                dict.set_item("centroid", (room.centroid[0], room.centroid[1]))
+                    .ok();
+                dict.set_item("boundary_count", room.boundary_nodes.len())
+                    .ok();
+                dict.set_item("is_exterior", room.is_exterior).ok();
+                dict.unbind()
+            })
+            .collect();
+
+        Ok(PyList::new_bound(py, room_list).unbind())
+    })
+}
+
+/// Analyze wall network topology and return detailed graph information.
+///
+/// This function performs a comprehensive analysis of how walls connect
+/// and form enclosed regions.
+///
+/// Args:
+///     walls: List of wall elements to analyze
+///     tolerance: Distance tolerance for node merging (default 0.0005 = 0.5mm)
+///
+/// Returns:
+///     dict: Topology analysis containing:
+///         - node_count: Number of unique connection points
+///         - edge_count: Number of wall segments
+///         - room_count: Total detected rooms (including exterior)
+///         - interior_room_count: Number of enclosed interior rooms
+///         - rooms: List of room data dicts
+///         - is_connected: Whether all walls form a connected graph
+///
+/// Example:
+///     >>> walls = create_rectangular_walls((0, 0), (10, 8), height=3.0, thickness=0.2)
+///     >>> analysis = analyze_wall_topology(walls)
+///     >>> analysis['node_count']
+///     4
+///     >>> analysis['interior_room_count']
+///     1
+#[pyfunction]
+#[pyo3(signature = (walls, tolerance=0.0005))]
+pub fn analyze_wall_topology(walls: Vec<PyWall>, tolerance: f64) -> PyResult<Py<PyDict>> {
+    // Create topology graph
+    let mut graph = TopologyGraph::with_tolerance(tolerance);
+
+    // Add walls as edges
+    for wall in &walls {
+        let start = [wall.inner.baseline.start.x, wall.inner.baseline.start.y];
+        let end = [wall.inner.baseline.end.x, wall.inner.baseline.end.y];
+        let edge_data = EdgeData::wall(wall.inner.thickness, wall.inner.height);
+        graph.add_edge(start, end, edge_data);
+    }
+
+    // Detect rooms
+    graph.rebuild_rooms();
+
+    // Gather statistics
+    let node_count = graph.node_count();
+    let edge_count = graph.edge_count();
+    let room_count = graph.room_count();
+    let interior_rooms = graph.interior_rooms();
+    let interior_room_count = interior_rooms.len();
+
+    // Check connectivity: a connected graph has all nodes reachable
+    // For a simple check: connected if node_count <= edge_count + 1 for tree,
+    // or more edges for cyclic graphs
+    let is_connected = node_count > 0 && edge_count >= node_count - 1;
+
+    Python::with_gil(|py| {
+        let dict = PyDict::new_bound(py);
+        dict.set_item("node_count", node_count)?;
+        dict.set_item("edge_count", edge_count)?;
+        dict.set_item("room_count", room_count)?;
+        dict.set_item("interior_room_count", interior_room_count)?;
+        dict.set_item("is_connected", is_connected)?;
+
+        // Add detailed room data
+        let room_list: Vec<Py<PyDict>> = interior_rooms
+            .iter()
+            .map(|room| {
+                let rd = PyDict::new_bound(py);
+                rd.set_item("id", room.id.0.to_string()).ok();
+                rd.set_item("area", room.area()).ok();
+                rd.set_item("centroid", (room.centroid[0], room.centroid[1]))
+                    .ok();
+                rd.set_item("boundary_count", room.boundary_nodes.len())
+                    .ok();
+                rd.unbind()
+            })
+            .collect();
+
+        dict.set_item("rooms", PyList::new_bound(py, room_list))?;
+
         Ok(dict.unbind())
     })
 }

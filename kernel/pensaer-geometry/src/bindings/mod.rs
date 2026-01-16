@@ -86,6 +86,9 @@ fn pensaer_geometry(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(merge_meshes, m)?)?;
     m.add_function(wrap_pyfunction!(create_roof, m)?)?;
     m.add_function(wrap_pyfunction!(attach_roof_to_walls, m)?)?;
+    m.add_function(wrap_pyfunction!(create_opening, m)?)?;
+    m.add_function(wrap_pyfunction!(detect_rooms, m)?)?;
+    m.add_function(wrap_pyfunction!(analyze_wall_topology, m)?)?;
 
     Ok(())
 }
