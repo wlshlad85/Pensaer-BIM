@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd app && npx prettier --write . 2>/dev/null || cd ../server && black . 2>/dev/null || cd ../kernel && cargo fmt 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "npm run *",
+      "npx *",
+      "cargo *",
+      "python *",
+      "pytest *",
+      "git *",
+      "cat *",
+      "ls *",
+      "cd *",
+      "echo *"
+    ]
+  }
+}
