@@ -4,10 +4,10 @@
  * Renders a door with swing arc indicator.
  */
 
-import { memo } from 'react';
-import type { Element } from '../../../types';
-import { useSelectionStore } from '../../../stores';
-import clsx from 'clsx';
+import { memo } from "react";
+import type { Element } from "../../../types";
+import { useSelectionStore } from "../../../stores";
+import clsx from "clsx";
 
 interface DoorElementProps {
   element: Element;
@@ -31,7 +31,7 @@ export const DoorElement = memo(function DoorElement({
   const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
 
   const hasIssues = element.issues.length > 0;
-  const hasErrors = element.issues.some((i) => i.type === 'error');
+  const hasErrors = element.issues.some((i) => i.type === "error");
 
   // Calculate swing arc
   const swingRadius = Math.max(element.width, element.height) * 1.5;
@@ -40,11 +40,11 @@ export const DoorElement = memo(function DoorElement({
   return (
     <g
       className={clsx(
-        'model-element',
-        isSelected && 'selected',
-        isHighlighted && 'highlighted'
+        "model-element",
+        isSelected && "selected",
+        isHighlighted && "highlighted",
       )}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: "pointer" }}
       onClick={(e) => onClick?.(e, element)}
       onMouseDown={(e) => onMouseDown?.(e, element)}
       onContextMenu={(e) => onContextMenu?.(e, element)}
@@ -67,15 +67,15 @@ export const DoorElement = memo(function DoorElement({
         y={element.y + 2}
         width={element.width - 4}
         height={element.height - 4}
-        fill={isSelected ? '#d97706' : '#fbbf24'}
+        fill={isSelected ? "#d97706" : "#fbbf24"}
         stroke={
           hasErrors
-            ? '#ef4444'
+            ? "#ef4444"
             : hasIssues
-              ? '#f59e0b'
+              ? "#f59e0b"
               : isHovered
-                ? '#60a5fa'
-                : '#92400e'
+                ? "#60a5fa"
+                : "#92400e"
         }
         strokeWidth={isSelected ? 2 : 1}
         rx={1}
@@ -112,7 +112,7 @@ export const DoorElement = memo(function DoorElement({
           cx={element.x + element.width / 2}
           cy={element.y - 8}
           r={5}
-          fill={hasErrors ? '#ef4444' : '#f59e0b'}
+          fill={hasErrors ? "#ef4444" : "#f59e0b"}
           stroke="#1e293b"
           strokeWidth={1}
         />

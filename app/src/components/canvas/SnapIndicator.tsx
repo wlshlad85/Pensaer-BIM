@@ -4,9 +4,9 @@
  * Visual feedback when snapping to grid or elements.
  */
 
-import { memo } from 'react';
-import type { SnapType } from '../../utils/snap';
-import { getSnapIndicatorStyle } from '../../utils/snap';
+import { memo } from "react";
+import type { SnapType } from "../../utils/snap";
+import { getSnapIndicatorStyle } from "../../utils/snap";
 
 interface SnapIndicatorProps {
   x: number;
@@ -25,7 +25,7 @@ export const SnapIndicator = memo(function SnapIndicator({
 
   const style = getSnapIndicatorStyle(snapType);
 
-  if (style.shape === 'circle') {
+  if (style.shape === "circle") {
     return (
       <circle
         cx={x}
@@ -34,12 +34,12 @@ export const SnapIndicator = memo(function SnapIndicator({
         fill={style.color}
         stroke="#fff"
         strokeWidth={1}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       />
     );
   }
 
-  if (style.shape === 'square') {
+  if (style.shape === "square") {
     return (
       <rect
         x={x - style.size / 2}
@@ -49,12 +49,12 @@ export const SnapIndicator = memo(function SnapIndicator({
         fill={style.color}
         stroke="#fff"
         strokeWidth={1}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       />
     );
   }
 
-  if (style.shape === 'diamond') {
+  if (style.shape === "diamond") {
     const points = `
       ${x},${y - style.size}
       ${x + style.size},${y}
@@ -67,7 +67,7 @@ export const SnapIndicator = memo(function SnapIndicator({
         fill={style.color}
         stroke="#fff"
         strokeWidth={1}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       />
     );
   }

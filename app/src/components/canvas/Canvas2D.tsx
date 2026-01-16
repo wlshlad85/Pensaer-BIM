@@ -4,16 +4,26 @@
  * Main SVG-based canvas for 2D BIM visualization and interaction.
  */
 
-import { useRef, useCallback, useState } from 'react';
-import { useModelStore, useSelectionStore, useUIStore, useHistoryStore } from '../../stores';
-import type { Element } from '../../types';
-import { snapPoint, type SnapResult } from '../../utils/snap';
+import { useRef, useCallback, useState } from "react";
+import {
+  useModelStore,
+  useSelectionStore,
+  useUIStore,
+  useHistoryStore,
+} from "../../stores";
+import type { Element } from "../../types";
+import { snapPoint, type SnapResult } from "../../utils/snap";
 
-import { Grid } from './Grid';
-import { SelectionBox } from './SelectionBox';
-import { SnapIndicator } from './SnapIndicator';
-import { DrawingPreview } from './DrawingPreview';
-import { WallElement, DoorElement, WindowElement, RoomElement } from './elements';
+import { Grid } from "./Grid";
+import { SelectionBox } from "./SelectionBox";
+import { SnapIndicator } from "./SnapIndicator";
+import { DrawingPreview } from "./DrawingPreview";
+import {
+  WallElement,
+  DoorElement,
+  WindowElement,
+  RoomElement,
+} from "./elements";
 
 const CANVAS_WIDTH = 2000;
 const CANVAS_HEIGHT = 1500;
@@ -29,9 +39,9 @@ const CANVAS_HEIGHT = 1500;
 function findWallAtPoint(
   point: { x: number; y: number },
   elements: Element[],
-  hitTolerance = 20
+  hitTolerance = 20,
 ): { wall: Element; positionAlongWall: number } | null {
-  const walls = elements.filter((el) => el.type === 'wall');
+  const walls = elements.filter((el) => el.type === "wall");
 
   for (const wall of walls) {
     // Check if point is within the wall bounds (with tolerance)
@@ -41,20 +51,30 @@ function findWallAtPoint(
       // Horizontal wall - check Y proximity and X within bounds
       const wallCenterY = wall.y + wall.height / 2;
       const isNearY = Math.abs(point.y - wallCenterY) <= hitTolerance;
-      const isWithinX = point.x >= wall.x - hitTolerance && point.x <= wall.x + wall.width + hitTolerance;
+      const isWithinX =
+        point.x >= wall.x - hitTolerance &&
+        point.x <= wall.x + wall.width + hitTolerance;
 
       if (isNearY && isWithinX) {
-        const positionAlongWall = Math.max(0, Math.min(1, (point.x - wall.x) / wall.width));
+        const positionAlongWall = Math.max(
+          0,
+          Math.min(1, (point.x - wall.x) / wall.width),
+        );
         return { wall, positionAlongWall };
       }
     } else {
       // Vertical wall - check X proximity and Y within bounds
       const wallCenterX = wall.x + wall.width / 2;
       const isNearX = Math.abs(point.x - wallCenterX) <= hitTolerance;
-      const isWithinY = point.y >= wall.y - hitTolerance && point.y <= wall.y + wall.height + hitTolerance;
+      const isWithinY =
+        point.y >= wall.y - hitTolerance &&
+        point.y <= wall.y + wall.height + hitTolerance;
 
       if (isNearX && isWithinY) {
-        const positionAlongWall = Math.max(0, Math.min(1, (point.y - wall.y) / wall.height));
+        const positionAlongWall = Math.max(
+          0,
+          Math.min(1, (point.y - wall.y) / wall.height),
+        );
         return { wall, positionAlongWall };
       }
     }
@@ -70,7 +90,7 @@ function calculateHostedElementPosition(
   wall: Element,
   positionAlongWall: number,
   elementWidth: number,
-  elementHeight: number
+  elementHeight: number,
 ): { x: number; y: number; width: number; height: number } {
   const isHorizontal = wall.width > wall.height;
 
@@ -94,7 +114,10 @@ function calculateHostedElementPosition(
 /**
  * Get the endpoints of a wall.
  */
-function getWallEndpoints(wall: Element): { start: { x: number; y: number }; end: { x: number; y: number } } {
+function getWallEndpoints(wall: Element): {
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+} {
   const isHorizontal = wall.width > wall.height;
 
   if (isHorizontal) {
@@ -118,7 +141,7 @@ function getWallEndpoints(wall: Element): { start: { x: number; y: number }; end
 function findWallsToJoin(
   newWall: Element,
   existingWalls: Element[],
-  tolerance = 30
+  tolerance = 30,
 ): string[] {
   const wallsToJoin: string[] = [];
   const newEndpoints = getWallEndpoints(newWall);
@@ -130,10 +153,22 @@ function findWallsToJoin(
 
     // Check if any endpoint of the new wall is near any endpoint of the existing wall
     const distances = [
-      Math.hypot(newEndpoints.start.x - endpoints.start.x, newEndpoints.start.y - endpoints.start.y),
-      Math.hypot(newEndpoints.start.x - endpoints.end.x, newEndpoints.start.y - endpoints.end.y),
-      Math.hypot(newEndpoints.end.x - endpoints.start.x, newEndpoints.end.y - endpoints.start.y),
-      Math.hypot(newEndpoints.end.x - endpoints.end.x, newEndpoints.end.y - endpoints.end.y),
+      Math.hypot(
+        newEndpoints.start.x - endpoints.start.x,
+        newEndpoints.start.y - endpoints.start.y,
+      ),
+      Math.hypot(
+        newEndpoints.start.x - endpoints.end.x,
+        newEndpoints.start.y - endpoints.end.y,
+      ),
+      Math.hypot(
+        newEndpoints.end.x - endpoints.start.x,
+        newEndpoints.end.y - endpoints.start.y,
+      ),
+      Math.hypot(
+        newEndpoints.end.x - endpoints.end.x,
+        newEndpoints.end.y - endpoints.end.y,
+      ),
     ];
 
     const minDistance = Math.min(...distances);
@@ -186,7 +221,7 @@ export function Canvas2D() {
     y: number;
     width: number;
     height: number;
-    type: 'door' | 'window';
+    type: "door" | "window";
     wallId: string;
   } | null>(null);
 
@@ -222,7 +257,7 @@ export function Canvas2D() {
         y: (viewBoxY - panY) / zoom,
       };
     },
-    [panX, panY, zoom]
+    [panX, panY, zoom],
   );
 
   // Handle mouse down
@@ -241,9 +276,9 @@ export function Canvas2D() {
 
       const point = getCanvasPoint(e);
 
-      if (activeTool === 'select') {
+      if (activeTool === "select") {
         // Start box selection if clicking on empty space
-        if (!(e.target as HTMLElement).closest?.('.model-element')) {
+        if (!(e.target as HTMLElement).closest?.(".model-element")) {
           setIsBoxSelecting(true);
           setBoxStart(point);
           setBoxEnd(point);
@@ -251,39 +286,44 @@ export function Canvas2D() {
             clearSelection();
           }
         }
-      } else if (['wall', 'room'].includes(activeTool)) {
+      } else if (["wall", "room"].includes(activeTool)) {
         // Start drawing
         const snapped = snapPoint(point, elements);
         setIsDrawing(true);
         setDrawStart(snapped.point);
         setDrawEnd(snapped.point);
         setSnapResult(snapped);
-      } else if (['door', 'window'].includes(activeTool)) {
+      } else if (["door", "window"].includes(activeTool)) {
         // Click on wall to place door/window
         const hitResult = findWallAtPoint(point, elements);
 
         if (hitResult) {
           const { wall, positionAlongWall } = hitResult;
 
-          if (activeTool === 'door') {
+          if (activeTool === "door") {
             // Create door on wall
             const doorWidth = 90; // ~900mm at scale
             const doorHeight = 24;
-            const position = calculateHostedElementPosition(wall, positionAlongWall, doorWidth, doorHeight);
+            const position = calculateHostedElementPosition(
+              wall,
+              positionAlongWall,
+              doorWidth,
+              doorHeight,
+            );
 
             const newDoor: Element = {
               id: `door-${Date.now()}`,
-              type: 'door',
+              type: "door",
               name: `Door-${Date.now().toString(36).slice(-4).toUpperCase()}`,
               ...position,
               properties: {
-                width: '900mm',
-                height: '2100mm',
-                material: 'Wood',
-                fireRating: '30 min',
-                swingDirection: 'Inward',
-                handleSide: 'Right',
-                level: 'Level 1',
+                width: "900mm",
+                height: "2100mm",
+                material: "Wood",
+                fireRating: "30 min",
+                swingDirection: "Inward",
+                handleSide: "Right",
+                level: "Level 1",
               },
               relationships: {
                 hostedBy: wall.id,
@@ -296,33 +336,41 @@ export function Canvas2D() {
             addElement(newDoor);
 
             // Update wall's hosts relationship
-            const updatedHosts = [...(wall.relationships.hosts || []), newDoor.id];
+            const updatedHosts = [
+              ...(wall.relationships.hosts || []),
+              newDoor.id,
+            ];
             updateElement(wall.id, {
               relationships: { ...wall.relationships, hosts: updatedHosts },
             });
 
             recordAction(`Place ${newDoor.name} on ${wall.name}`);
-            addToast('success', `Placed door on ${wall.name}`);
-          } else if (activeTool === 'window') {
+            addToast("success", `Placed door on ${wall.name}`);
+          } else if (activeTool === "window") {
             // Create window on wall
             const windowWidth = 100; // ~1000mm at scale
             const windowHeight = 24;
-            const position = calculateHostedElementPosition(wall, positionAlongWall, windowWidth, windowHeight);
+            const position = calculateHostedElementPosition(
+              wall,
+              positionAlongWall,
+              windowWidth,
+              windowHeight,
+            );
 
             const newWindow: Element = {
               id: `window-${Date.now()}`,
-              type: 'window',
+              type: "window",
               name: `Window-${Date.now().toString(36).slice(-4).toUpperCase()}`,
               ...position,
               properties: {
-                width: '1000mm',
-                height: '1200mm',
-                sillHeight: '900mm',
-                glazingType: 'Double',
-                uValue: '1.4 W/m²K',
-                openingType: 'Casement',
-                frame: 'Aluminum',
-                level: 'Level 1',
+                width: "1000mm",
+                height: "1200mm",
+                sillHeight: "900mm",
+                glazingType: "Double",
+                uValue: "1.4 W/m²K",
+                openingType: "Casement",
+                frame: "Aluminum",
+                level: "Level 1",
               },
               relationships: {
                 hostedBy: wall.id,
@@ -335,17 +383,20 @@ export function Canvas2D() {
             addElement(newWindow);
 
             // Update wall's hosts relationship
-            const updatedHosts = [...(wall.relationships.hosts || []), newWindow.id];
+            const updatedHosts = [
+              ...(wall.relationships.hosts || []),
+              newWindow.id,
+            ];
             updateElement(wall.id, {
               relationships: { ...wall.relationships, hosts: updatedHosts },
             });
 
             recordAction(`Place ${newWindow.name} on ${wall.name}`);
-            addToast('success', `Placed window on ${wall.name}`);
+            addToast("success", `Placed window on ${wall.name}`);
           }
         } else {
           // No wall found - show helpful message
-          addToast('warning', `Click on a wall to place ${activeTool}`);
+          addToast("warning", `Click on a wall to place ${activeTool}`);
         }
       }
     },
@@ -361,7 +412,7 @@ export function Canvas2D() {
       updateElement,
       recordAction,
       addToast,
-    ]
+    ],
   );
 
   // Handle mouse move
@@ -395,23 +446,28 @@ export function Canvas2D() {
         setSnapResult(snapped);
       } else if (isBoxSelecting) {
         setBoxEnd(point);
-      } else if (['wall', 'room'].includes(activeTool)) {
+      } else if (["wall", "room"].includes(activeTool)) {
         // Show snap preview while moving
         const snapped = snapPoint(point, elements);
         setSnapResult(snapped.snapped ? snapped : null);
-      } else if (['door', 'window'].includes(activeTool)) {
+      } else if (["door", "window"].includes(activeTool)) {
         // Show placement preview when hovering over walls
         const hitResult = findWallAtPoint(point, elements);
 
         if (hitResult) {
           const { wall, positionAlongWall } = hitResult;
-          const elementWidth = activeTool === 'door' ? 90 : 100;
+          const elementWidth = activeTool === "door" ? 90 : 100;
           const elementHeight = 24;
-          const position = calculateHostedElementPosition(wall, positionAlongWall, elementWidth, elementHeight);
+          const position = calculateHostedElementPosition(
+            wall,
+            positionAlongWall,
+            elementWidth,
+            elementHeight,
+          );
 
           setPlacementPreview({
             ...position,
-            type: activeTool as 'door' | 'window',
+            type: activeTool as "door" | "window",
             wallId: wall.id,
           });
         } else {
@@ -434,7 +490,7 @@ export function Canvas2D() {
       panY,
       pan,
       updateElement,
-    ]
+    ],
   );
 
   // Handle mouse up
@@ -453,11 +509,12 @@ export function Canvas2D() {
         const currentElement = elements.find((el) => el.id === dragElement.id);
         if (
           currentElement &&
-          (currentElement.x !== dragStartPos.x || currentElement.y !== dragStartPos.y)
+          (currentElement.x !== dragStartPos.x ||
+            currentElement.y !== dragStartPos.y)
         ) {
           // Record the move action in history
           recordAction(`Move ${dragElement.name}`);
-          addToast('info', `Moved ${dragElement.name}`);
+          addToast("info", `Moved ${dragElement.name}`);
         }
 
         setDragElement(null);
@@ -475,29 +532,33 @@ export function Canvas2D() {
         const height = Math.abs(drawEnd.y - drawStart.y);
 
         if (width > 10 || height > 10) {
-          if (activeTool === 'wall') {
+          if (activeTool === "wall") {
             const isHorizontal = width > height;
             const wallId = `wall-${Date.now()}`;
             const wallName = `Wall-${Date.now().toString(36).slice(-4).toUpperCase()}`;
 
             // Find existing walls to check for auto-join
-            const existingWalls = elements.filter((el) => el.type === 'wall');
+            const existingWalls = elements.filter((el) => el.type === "wall");
 
             const newWall: Element = {
               id: wallId,
-              type: 'wall',
+              type: "wall",
               name: wallName,
-              x: isHorizontal ? Math.min(drawStart.x, drawEnd.x) : drawStart.x - 6,
-              y: isHorizontal ? drawStart.y - 6 : Math.min(drawStart.y, drawEnd.y),
+              x: isHorizontal
+                ? Math.min(drawStart.x, drawEnd.x)
+                : drawStart.x - 6,
+              y: isHorizontal
+                ? drawStart.y - 6
+                : Math.min(drawStart.y, drawEnd.y),
               width: isHorizontal ? width : 12,
               height: isHorizontal ? 12 : height,
               properties: {
-                thickness: '200mm',
-                height: '3000mm',
-                material: 'Concrete',
-                fireRating: '60 min',
+                thickness: "200mm",
+                height: "3000mm",
+                material: "Concrete",
+                fireRating: "60 min",
                 structural: true,
-                level: 'Level 1',
+                level: "Level 1",
               },
               relationships: { hosts: [], joins: [], bounds: [] },
               issues: [],
@@ -517,9 +578,15 @@ export function Canvas2D() {
             for (const joinWallId of wallsToJoin) {
               const joinWall = elements.find((el) => el.id === joinWallId);
               if (joinWall) {
-                const updatedJoins = [...(joinWall.relationships.joins || []), wallId];
+                const updatedJoins = [
+                  ...(joinWall.relationships.joins || []),
+                  wallId,
+                ];
                 updateElement(joinWallId, {
-                  relationships: { ...joinWall.relationships, joins: updatedJoins },
+                  relationships: {
+                    ...joinWall.relationships,
+                    joins: updatedJoins,
+                  },
                 });
               }
             }
@@ -527,14 +594,17 @@ export function Canvas2D() {
             recordAction(`Create ${wallName}`);
 
             if (wallsToJoin.length > 0) {
-              addToast('success', `Created ${wallName} (joined to ${wallsToJoin.length} wall${wallsToJoin.length > 1 ? 's' : ''})`);
+              addToast(
+                "success",
+                `Created ${wallName} (joined to ${wallsToJoin.length} wall${wallsToJoin.length > 1 ? "s" : ""})`,
+              );
             } else {
-              addToast('success', `Created ${wallName}`);
+              addToast("success", `Created ${wallName}`);
             }
-          } else if (activeTool === 'room') {
+          } else if (activeTool === "room") {
             const newRoom: Element = {
               id: `room-${Date.now()}`,
-              type: 'room',
+              type: "room",
               name: `Room ${Date.now().toString(36).slice(-4).toUpperCase()}`,
               x: Math.min(drawStart.x, drawEnd.x),
               y: Math.min(drawStart.y, drawEnd.y),
@@ -542,9 +612,9 @@ export function Canvas2D() {
               height,
               properties: {
                 area: `${((width * height) / 10000).toFixed(1)} m²`,
-                perimeter: `${((width + height) * 2 / 100).toFixed(1)} m`,
-                occupancy: 'B - Business',
-                level: 'Level 1',
+                perimeter: `${(((width + height) * 2) / 100).toFixed(1)} m`,
+                occupancy: "B - Business",
+                level: "Level 1",
               },
               relationships: { boundedBy: [], accessVia: [] },
               issues: [],
@@ -552,7 +622,7 @@ export function Canvas2D() {
             };
             addElement(newRoom);
             recordAction(`Create ${newRoom.name}`);
-            addToast('success', `Created ${newRoom.name}`);
+            addToast("success", `Created ${newRoom.name}`);
           }
         }
         return;
@@ -579,7 +649,7 @@ export function Canvas2D() {
       updateElement,
       addToast,
       recordAction,
-    ]
+    ],
   );
 
   // Handle wheel for zoom
@@ -589,13 +659,13 @@ export function Canvas2D() {
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       setZoom(zoom * delta);
     },
-    [zoom, setZoom]
+    [zoom, setZoom],
   );
 
   // Element mouse down handler (for drag initiation)
   const handleElementMouseDown = useCallback(
     (e: React.MouseEvent, element: Element) => {
-      if (activeTool !== 'select' || e.button !== 0) return;
+      if (activeTool !== "select" || e.button !== 0) return;
       e.stopPropagation();
 
       // Select the element
@@ -612,19 +682,19 @@ export function Canvas2D() {
       setDragOffset({ x: point.x - element.x, y: point.y - element.y });
       setDragStartPos({ x: element.x, y: element.y });
     },
-    [activeTool, select, addToSelection, getCanvasPoint]
+    [activeTool, select, addToSelection, getCanvasPoint],
   );
 
   // Element click handler (for selection only, drag is handled by mousedown/mouseup)
   const handleElementClick = useCallback(
     (e: React.MouseEvent, _element: Element) => {
       e.stopPropagation();
-      if (activeTool !== 'select') return;
+      if (activeTool !== "select") return;
 
       // Click selection is handled in mousedown now
       // This is kept for potential future use
     },
-    [activeTool]
+    [activeTool],
   );
 
   // Element context menu handler
@@ -635,7 +705,7 @@ export function Canvas2D() {
       select(element.id);
       showContextMenu(e.clientX, e.clientY, element.id);
     },
-    [select, showContextMenu]
+    [select, showContextMenu],
   );
 
   // Render element based on type
@@ -650,13 +720,13 @@ export function Canvas2D() {
     };
 
     switch (element.type) {
-      case 'wall':
+      case "wall":
         return <WallElement key={element.id} {...commonProps} />;
-      case 'door':
+      case "door":
         return <DoorElement key={element.id} {...commonProps} />;
-      case 'window':
+      case "window":
         return <WindowElement key={element.id} {...commonProps} />;
-      case 'room':
+      case "room":
         return <RoomElement key={element.id} {...commonProps} />;
       default:
         return null;
@@ -693,11 +763,12 @@ export function Canvas2D() {
       }}
       onWheel={handleWheel}
       style={{
-        cursor: isPanning || isDragging
-          ? 'grabbing'
-          : activeTool === 'select'
-            ? 'default'
-            : 'crosshair',
+        cursor:
+          isPanning || isDragging
+            ? "grabbing"
+            : activeTool === "select"
+              ? "default"
+              : "crosshair",
       }}
     >
       {/* Transform group for pan/zoom */}
@@ -747,8 +818,12 @@ export function Canvas2D() {
               y={placementPreview.y}
               width={placementPreview.width}
               height={placementPreview.height}
-              fill={placementPreview.type === 'door' ? 'rgba(139, 92, 246, 0.5)' : 'rgba(59, 130, 246, 0.5)'}
-              stroke={placementPreview.type === 'door' ? '#8b5cf6' : '#3b82f6'}
+              fill={
+                placementPreview.type === "door"
+                  ? "rgba(139, 92, 246, 0.5)"
+                  : "rgba(59, 130, 246, 0.5)"
+              }
+              stroke={placementPreview.type === "door" ? "#8b5cf6" : "#3b82f6"}
               strokeWidth={2}
               strokeDasharray="4 2"
             />
@@ -757,7 +832,7 @@ export function Canvas2D() {
               cx={placementPreview.x + placementPreview.width / 2}
               cy={placementPreview.y + placementPreview.height / 2}
               r={4}
-              fill={placementPreview.type === 'door' ? '#8b5cf6' : '#3b82f6'}
+              fill={placementPreview.type === "door" ? "#8b5cf6" : "#3b82f6"}
             />
           </g>
         )}

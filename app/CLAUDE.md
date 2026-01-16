@@ -7,6 +7,7 @@
 ## Purpose
 
 The app is the React/TypeScript web client providing:
+
 - 2D canvas for floor plan editing
 - 3D view via Three.js
 - Command palette and terminal
@@ -52,6 +53,7 @@ app/
 ## Key Patterns
 
 ### Zustand Stores
+
 ```typescript
 // stores/modelStore.ts
 interface ModelState {
@@ -63,14 +65,16 @@ interface ModelState {
 
 export const useModelStore = create<ModelState>((set) => ({
   elements: new Map(),
-  addElement: (element) => set((state) => ({
-    elements: new Map(state.elements).set(element.id, element)
-  })),
+  addElement: (element) =>
+    set((state) => ({
+      elements: new Map(state.elements).set(element.id, element),
+    })),
   // ...
 }));
 ```
 
 ### Component Pattern
+
 ```typescript
 // components/canvas/elements/WallElement.tsx
 interface WallElementProps {
@@ -99,20 +103,21 @@ export const WallElement: React.FC<WallElementProps> = ({
 ```
 
 ### Hooks Pattern
+
 ```typescript
 // hooks/useKeyboardShortcuts.ts
 export const useKeyboardShortcuts = () => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Delete') {
+      if (e.key === "Delete") {
         deleteSelectedElements();
       }
-      if (e.metaKey && e.key === 'z') {
+      if (e.metaKey && e.key === "z") {
         undo();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 };
 ```
@@ -145,6 +150,7 @@ npm run preview   # Preview production build
 ## Visual-First Development Loop
 
 Following the Base44 pattern:
+
 1. Run `npm run dev` to see app running
 2. Notice what's off visually
 3. Describe changes in natural language
@@ -154,9 +160,9 @@ Following the Base44 pattern:
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| Initial load | < 2s |
-| Element selection | < 16ms |
-| Canvas re-render | < 16ms (60fps) |
-| 3D view toggle | < 200ms |
+| Metric            | Target         |
+| ----------------- | -------------- |
+| Initial load      | < 2s           |
+| Element selection | < 16ms         |
+| Canvas re-render  | < 16ms (60fps) |
+| 3D view toggle    | < 200ms        |

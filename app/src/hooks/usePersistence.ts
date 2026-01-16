@@ -5,8 +5,8 @@
  * Uses debouncing to avoid excessive writes during rapid changes.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useModelStore } from '../stores';
+import { useEffect, useRef, useCallback, useState } from "react";
+import { useModelStore } from "../stores";
 import {
   saveElements,
   loadElements,
@@ -14,14 +14,14 @@ import {
   saveProjectMetadata,
   loadProjectMetadata,
   type ProjectMetadata,
-} from '../lib';
+} from "../lib";
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
 const DEBOUNCE_MS = 1000; // Wait 1 second after last change before saving
-const PROJECT_ID = 'default-project'; // Single project for now
+const PROJECT_ID = "default-project"; // Single project for now
 
 // ============================================
 // HOOK
@@ -48,7 +48,7 @@ export function usePersistence() {
   });
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const previousElementsRef = useRef<string>('');
+  const previousElementsRef = useRef<string>("");
   const isInitializedRef = useRef(false);
 
   // Load data on mount
@@ -61,23 +61,27 @@ export function usePersistence() {
 
         if (savedElements.length > 0) {
           setElements(savedElements);
-          console.log(`📂 Restored ${savedElements.length} elements from IndexedDB`);
+          console.log(
+            `📂 Restored ${savedElements.length} elements from IndexedDB`,
+          );
         }
 
         // Load project metadata
         const metadata = await loadProjectMetadata(PROJECT_ID);
         if (metadata) {
-          console.log(`📋 Project: ${metadata.name}, last updated: ${new Date(metadata.updatedAt).toLocaleString()}`);
+          console.log(
+            `📋 Project: ${metadata.name}, last updated: ${new Date(metadata.updatedAt).toLocaleString()}`,
+          );
         }
 
         setState((s) => ({ ...s, isLoading: false, error: null }));
         isInitializedRef.current = true;
       } catch (error) {
-        console.error('Failed to load from IndexedDB:', error);
+        console.error("Failed to load from IndexedDB:", error);
         setState((s) => ({
           ...s,
           isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load data',
+          error: error instanceof Error ? error.message : "Failed to load data",
         }));
         isInitializedRef.current = true;
       }
@@ -98,7 +102,7 @@ export function usePersistence() {
       // Update project metadata
       const metadata: ProjectMetadata = {
         id: PROJECT_ID,
-        name: 'Office Building',
+        name: "Office Building",
         createdAt: Date.now(), // Will be overwritten if exists
         updatedAt: Date.now(),
         elementCount: elements.length,
@@ -112,11 +116,11 @@ export function usePersistence() {
         error: null,
       }));
     } catch (error) {
-      console.error('Failed to save to IndexedDB:', error);
+      console.error("Failed to save to IndexedDB:", error);
       setState((s) => ({
         ...s,
         isSaving: false,
-        error: error instanceof Error ? error.message : 'Failed to save data',
+        error: error instanceof Error ? error.message : "Failed to save data",
       }));
     }
   }, [elements, state.isAvailable]);

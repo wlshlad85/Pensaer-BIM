@@ -5,11 +5,16 @@
  * Triggered with ⌘K (Mac) or Ctrl+K (Windows).
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useUIStore, useHistoryStore, useSelectionStore, useModelStore } from '../../stores';
-import { commandDefinitions, type CommandDefinition } from '../../lib/commands';
-import { searchCommands } from '../../lib/fuzzySearch';
-import type { ToolType, ViewMode, CommandCategory } from '../../types';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  useUIStore,
+  useHistoryStore,
+  useSelectionStore,
+  useModelStore,
+} from "../../stores";
+import { commandDefinitions, type CommandDefinition } from "../../lib/commands";
+import { searchCommands } from "../../lib/fuzzySearch";
+import type { ToolType, ViewMode, CommandCategory } from "../../types";
 
 interface CommandPaletteProps {
   onClose: () => void;
@@ -36,67 +41,67 @@ function useCommandsWithActions() {
   const actionMap: Record<string, () => void> = useMemo(
     () => ({
       // Tools
-      'tool.select': () => setTool('select' as ToolType),
-      'tool.wall': () => setTool('wall' as ToolType),
-      'tool.door': () => setTool('door' as ToolType),
-      'tool.window': () => setTool('window' as ToolType),
-      'tool.room': () => setTool('room' as ToolType),
-      'tool.floor': () => setTool('floor' as ToolType),
-      'tool.roof': () => {
-        setTool('roof' as ToolType);
-        addToast('info', 'Select walls to create roof');
+      "tool.select": () => setTool("select" as ToolType),
+      "tool.wall": () => setTool("wall" as ToolType),
+      "tool.door": () => setTool("door" as ToolType),
+      "tool.window": () => setTool("window" as ToolType),
+      "tool.room": () => setTool("room" as ToolType),
+      "tool.floor": () => setTool("floor" as ToolType),
+      "tool.roof": () => {
+        setTool("roof" as ToolType);
+        addToast("info", "Select walls to create roof");
       },
-      'tool.column': () => setTool('column' as ToolType),
+      "tool.column": () => setTool("column" as ToolType),
 
       // Views
-      'view.2d': () => setViewMode('2d' as ViewMode),
-      'view.3d': () => setViewMode('3d' as ViewMode),
-      'view.zoomIn': () => zoomIn(),
-      'view.zoomOut': () => zoomOut(),
-      'view.zoomFit': () => zoomToFit(),
+      "view.2d": () => setViewMode("2d" as ViewMode),
+      "view.3d": () => setViewMode("3d" as ViewMode),
+      "view.zoomIn": () => zoomIn(),
+      "view.zoomOut": () => zoomOut(),
+      "view.zoomFit": () => zoomToFit(),
 
       // Edit
-      'edit.undo': () => undo(),
-      'edit.redo': () => redo(),
-      'edit.delete': () => {
+      "edit.undo": () => undo(),
+      "edit.redo": () => redo(),
+      "edit.delete": () => {
         if (selectedIds.length > 0) {
           deleteElements(selectedIds);
           clearSelection();
-          addToast('success', `Deleted ${selectedIds.length} element(s)`);
+          addToast("success", `Deleted ${selectedIds.length} element(s)`);
         } else {
-          addToast('warning', 'No elements selected');
+          addToast("warning", "No elements selected");
         }
       },
-      'edit.selectAll': () => {
+      "edit.selectAll": () => {
         selectAll(elements.map((e) => e.id));
-        addToast('info', `Selected ${elements.length} element(s)`);
+        addToast("info", `Selected ${elements.length} element(s)`);
       },
-      'edit.deselectAll': () => {
+      "edit.deselectAll": () => {
         clearSelection();
       },
 
       // Analysis
-      'analysis.validate': () => {
-        addToast('success', 'Validation complete - 2 issues found');
+      "analysis.validate": () => {
+        addToast("success", "Validation complete - 2 issues found");
       },
-      'analysis.clashDetection': () => {
-        addToast('info', 'Running clash detection...');
+      "analysis.clashDetection": () => {
+        addToast("info", "Running clash detection...");
       },
 
       // Documentation
-      'docs.doorSchedule': () => {
-        addToast('info', 'Generating door schedule...');
+      "docs.doorSchedule": () => {
+        addToast("info", "Generating door schedule...");
       },
-      'docs.roomSchedule': () => {
-        addToast('info', 'Generating room schedule...');
+      "docs.roomSchedule": () => {
+        addToast("info", "Generating room schedule...");
       },
 
       // System
-      'system.settings': () => {
-        addToast('info', 'Settings coming soon');
+      "system.settings": () => {
+        addToast("info", "Settings coming soon");
       },
-      'system.help': () => {
-        addToast('info', 'Press ? for keyboard shortcuts');
+      "system.help": () => {
+        addToast("info", "Press ? for keyboard shortcuts");
       },
     }),
     [
@@ -113,7 +118,7 @@ function useCommandsWithActions() {
       elements,
       deleteElements,
       selectedIds,
-    ]
+    ],
   );
 
   return { actionMap };
@@ -123,20 +128,20 @@ function useCommandsWithActions() {
  * Category display order
  */
 const categoryOrder: CommandCategory[] = [
-  'Tools',
-  'Modeling',
-  'Views',
-  'Edit',
-  'Selection',
-  'Spaces',
-  'Structure',
-  'Analysis',
-  'Documentation',
-  'System',
+  "Tools",
+  "Modeling",
+  "Views",
+  "Edit",
+  "Selection",
+  "Spaces",
+  "Structure",
+  "Analysis",
+  "Documentation",
+  "System",
 ];
 
 export function CommandPalette({ onClose }: CommandPaletteProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -159,7 +164,10 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     }
 
     // Sort by category order
-    const sorted: { category: CommandCategory; commands: CommandDefinition[] }[] = [];
+    const sorted: {
+      category: CommandCategory;
+      commands: CommandDefinition[];
+    }[] = [];
     for (const category of categoryOrder) {
       const cmds = groups.get(category);
       if (cmds && cmds.length > 0) {
@@ -184,36 +192,36 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
       }
       onClose();
     },
-    [actionMap, onClose]
+    [actionMap, onClose],
   );
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           setSelectedIndex((i) => Math.min(i + 1, flatCommands.length - 1));
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           setSelectedIndex((i) => Math.max(i - 1, 0));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           if (flatCommands[selectedIndex]) {
             executeCommand(flatCommands[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           onClose();
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [flatCommands, selectedIndex, executeCommand, onClose]);
 
   // Reset selection when query changes
@@ -223,8 +231,10 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
   // Scroll selected item into view
   useEffect(() => {
-    const selectedEl = listRef.current?.querySelector(`[data-index="${selectedIndex}"]`);
-    selectedEl?.scrollIntoView({ block: 'nearest' });
+    const selectedEl = listRef.current?.querySelector(
+      `[data-index="${selectedIndex}"]`,
+    );
+    selectedEl?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 
   // Focus input on mount
@@ -258,7 +268,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
               className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               autoFocus
             />
-            <kbd className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded">ESC</kbd>
+            <kbd className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded">
+              ESC
+            </kbd>
           </div>
         </div>
 
@@ -271,7 +283,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           ) : (
             groupedCommands.map(({ category, commands }) => (
               <div key={category}>
-                <div className="text-xs text-gray-500 uppercase px-3 py-2">{category}</div>
+                <div className="text-xs text-gray-500 uppercase px-3 py-2">
+                  {category}
+                </div>
                 {commands.map((cmd) => {
                   flatIndex++;
                   const isSelected = flatIndex === selectedIndex;
@@ -283,15 +297,15 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                       data-index={currentIndex}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
                         isSelected
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-300 hover:bg-gray-800 hover:text-white"
                       }`}
                       onClick={() => executeCommand(cmd)}
                       onMouseEnter={() => setSelectedIndex(currentIndex)}
                     >
                       <i
                         className={`fa-solid ${cmd.icon} w-5 text-center ${
-                          isSelected ? 'text-white' : 'text-gray-500'
+                          isSelected ? "text-white" : "text-gray-500"
                         }`}
                       ></i>
                       <div className="flex-1">
@@ -299,7 +313,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                         {query && (
                           <span
                             className={`ml-2 text-xs ${
-                              isSelected ? 'text-blue-200' : 'text-gray-500'
+                              isSelected ? "text-blue-200" : "text-gray-500"
                             }`}
                           >
                             {cmd.description}
@@ -309,7 +323,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                       {cmd.shortcut && (
                         <kbd
                           className={`px-2 py-0.5 text-xs rounded ${
-                            isSelected ? 'bg-blue-700 text-blue-100' : 'bg-gray-800 text-gray-500'
+                            isSelected
+                              ? "bg-blue-700 text-blue-100"
+                              : "bg-gray-800 text-gray-500"
                           }`}
                         >
                           {cmd.shortcut}
@@ -327,7 +343,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
         <div className="p-3 border-t border-gray-700/50 bg-purple-900/10">
           <div className="flex items-center gap-2 text-xs text-purple-400">
             <i className="fa-solid fa-wand-magic-sparkles"></i>
-            <span>Try: "Add a door to Wall-101" or "Check fire compliance"</span>
+            <span>
+              Try: "Add a door to Wall-101" or "Check fire compliance"
+            </span>
           </div>
         </div>
 

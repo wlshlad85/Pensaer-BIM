@@ -4,8 +4,13 @@
  * Provides snapping functionality for precise element placement.
  */
 
-import type { Element } from '../types';
-import { distance, getWallEndpoints, type Point, type Bounds } from './geometry';
+import type { Element } from "../types";
+import {
+  distance,
+  getWallEndpoints,
+  type Point,
+  type Bounds,
+} from "./geometry";
 
 export interface SnapResult {
   point: Point;
@@ -14,7 +19,13 @@ export interface SnapResult {
   snapTargetId: string | null;
 }
 
-export type SnapType = 'grid' | 'endpoint' | 'midpoint' | 'center' | 'edge' | 'intersection';
+export type SnapType =
+  | "grid"
+  | "endpoint"
+  | "midpoint"
+  | "center"
+  | "edge"
+  | "intersection";
 
 export interface SnapOptions {
   gridSize: number;
@@ -43,7 +54,7 @@ const DEFAULT_OPTIONS: SnapOptions = {
 export function snapPoint(
   point: Point,
   elements: Element[],
-  options: Partial<SnapOptions> = {}
+  options: Partial<SnapOptions> = {},
 ): SnapResult {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   let bestSnap: SnapResult = {
@@ -57,7 +68,7 @@ export function snapPoint(
   // Try element snaps first (they take priority over grid)
   for (const element of elements) {
     // Skip rooms (virtual elements)
-    if (element.type === 'room') continue;
+    if (element.type === "room") continue;
 
     // Endpoint snap
     if (opts.enableEndpoint) {
@@ -69,7 +80,7 @@ export function snapPoint(
           bestSnap = {
             point: endpoint,
             snapped: true,
-            snapType: 'endpoint',
+            snapType: "endpoint",
             snapTargetId: element.id,
           };
         }
@@ -85,14 +96,14 @@ export function snapPoint(
         bestSnap = {
           point: center,
           snapped: true,
-          snapType: 'center',
+          snapType: "center",
           snapTargetId: element.id,
         };
       }
     }
 
     // Midpoint snap (for walls)
-    if (opts.enableMidpoint && element.type === 'wall') {
+    if (opts.enableMidpoint && element.type === "wall") {
       const midpoints = getWallMidpoints(element);
       for (const midpoint of midpoints) {
         const d = distance(point, midpoint);
@@ -101,7 +112,7 @@ export function snapPoint(
           bestSnap = {
             point: midpoint,
             snapped: true,
-            snapType: 'midpoint',
+            snapType: "midpoint",
             snapTargetId: element.id,
           };
         }
@@ -117,7 +128,7 @@ export function snapPoint(
       bestSnap = {
         point: gridSnap,
         snapped: true,
-        snapType: 'grid',
+        snapType: "grid",
         snapTargetId: null,
       };
     }
@@ -144,7 +155,7 @@ export function snapToGrid(point: Point, gridSize: number): Point {
 function getElementEndpoints(element: Element): Point[] {
   const { x, y, width, height } = element;
 
-  if (element.type === 'wall') {
+  if (element.type === "wall") {
     const { start, end } = getWallEndpoints(x, y, width, height);
     return [start, end];
   }
@@ -185,23 +196,23 @@ function getWallMidpoints(element: Element): Point[] {
 export function getSnapIndicatorStyle(snapType: SnapType): {
   color: string;
   size: number;
-  shape: 'circle' | 'square' | 'diamond';
+  shape: "circle" | "square" | "diamond";
 } {
   switch (snapType) {
-    case 'endpoint':
-      return { color: '#22c55e', size: 8, shape: 'square' };
-    case 'midpoint':
-      return { color: '#3b82f6', size: 8, shape: 'diamond' };
-    case 'center':
-      return { color: '#a855f7', size: 8, shape: 'circle' };
-    case 'grid':
-      return { color: '#6b7280', size: 6, shape: 'circle' };
-    case 'edge':
-      return { color: '#f59e0b', size: 6, shape: 'square' };
-    case 'intersection':
-      return { color: '#ef4444', size: 10, shape: 'circle' };
+    case "endpoint":
+      return { color: "#22c55e", size: 8, shape: "square" };
+    case "midpoint":
+      return { color: "#3b82f6", size: 8, shape: "diamond" };
+    case "center":
+      return { color: "#a855f7", size: 8, shape: "circle" };
+    case "grid":
+      return { color: "#6b7280", size: 6, shape: "circle" };
+    case "edge":
+      return { color: "#f59e0b", size: 6, shape: "square" };
+    case "intersection":
+      return { color: "#ef4444", size: 10, shape: "circle" };
     default:
-      return { color: '#6b7280', size: 6, shape: 'circle' };
+      return { color: "#6b7280", size: 6, shape: "circle" };
   }
 }
 
@@ -212,13 +223,13 @@ export function getSnapIndicatorStyle(snapType: SnapType): {
 export function findAlignmentGuides(
   point: Point,
   elements: Element[],
-  tolerance: number = 5
+  tolerance: number = 5,
 ): { horizontal: number | null; vertical: number | null } {
   let horizontal: number | null = null;
   let vertical: number | null = null;
 
   for (const element of elements) {
-    if (element.type === 'room') continue;
+    if (element.type === "room") continue;
 
     const center = getElementCenter(element);
     const bounds: Bounds = {

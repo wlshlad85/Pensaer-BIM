@@ -4,10 +4,10 @@
  * Renders a room as a semi-transparent fill with label.
  */
 
-import { memo } from 'react';
-import type { Element } from '../../../types';
-import { useSelectionStore } from '../../../stores';
-import clsx from 'clsx';
+import { memo } from "react";
+import type { Element } from "../../../types";
+import { useSelectionStore } from "../../../stores";
+import clsx from "clsx";
 
 interface RoomElementProps {
   element: Element;
@@ -30,21 +30,21 @@ export const RoomElement = memo(function RoomElement({
   const isHovered = useSelectionStore((s) => s.isHovered(element.id));
   const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
 
-  const area = element.properties.area as string || '';
+  const area = (element.properties.area as string) || "";
 
   return (
     <g
       className={clsx(
-        'model-element',
-        isSelected && 'selected',
-        isHighlighted && 'highlighted'
+        "model-element",
+        isSelected && "selected",
+        isHighlighted && "highlighted",
       )}
       onClick={(e) => onClick?.(e, element)}
       onMouseDown={(e) => onMouseDown?.(e, element)}
       onContextMenu={(e) => onContextMenu?.(e, element)}
       onMouseEnter={() => onMouseEnter?.(element)}
       onMouseLeave={() => onMouseLeave?.()}
-      style={{ pointerEvents: 'all', cursor: 'pointer' }}
+      style={{ pointerEvents: "all", cursor: "pointer" }}
     >
       {/* Room fill */}
       <rect
@@ -54,14 +54,14 @@ export const RoomElement = memo(function RoomElement({
         height={element.height}
         fill={
           isSelected
-            ? 'rgba(59, 130, 246, 0.25)'
+            ? "rgba(59, 130, 246, 0.25)"
             : isHovered
-              ? 'rgba(59, 130, 246, 0.2)'
-              : 'rgba(59, 130, 246, 0.1)'
+              ? "rgba(59, 130, 246, 0.2)"
+              : "rgba(59, 130, 246, 0.1)"
         }
-        stroke={isSelected ? '#3b82f6' : 'none'}
+        stroke={isSelected ? "#3b82f6" : "none"}
         strokeWidth={isSelected ? 1 : 0}
-        strokeDasharray={isSelected ? '4 2' : 'none'}
+        strokeDasharray={isSelected ? "4 2" : "none"}
       />
 
       {/* Room label background */}
@@ -72,7 +72,7 @@ export const RoomElement = memo(function RoomElement({
         height={40}
         fill="rgba(15, 23, 42, 0.8)"
         rx={4}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       />
 
       {/* Room name */}
@@ -83,7 +83,7 @@ export const RoomElement = memo(function RoomElement({
         fill="#e2e8f0"
         fontSize={12}
         fontWeight={500}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       >
         {element.name}
       </text>
@@ -95,7 +95,7 @@ export const RoomElement = memo(function RoomElement({
         textAnchor="middle"
         fill="#94a3b8"
         fontSize={10}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: "none" }}
       >
         {area}
       </text>

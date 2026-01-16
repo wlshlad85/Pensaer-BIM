@@ -4,7 +4,7 @@
  * Renders the box selection rectangle when dragging to select multiple elements.
  */
 
-import { memo } from 'react';
+import { memo } from "react";
 
 interface SelectionBoxProps {
   startX: number;
@@ -37,7 +37,7 @@ export const SelectionBox = memo(function SelectionBox({
       stroke="#3b82f6"
       strokeWidth={1}
       strokeDasharray="4 2"
-      style={{ pointerEvents: 'none' }}
+      style={{ pointerEvents: "none" }}
     />
   );
 });

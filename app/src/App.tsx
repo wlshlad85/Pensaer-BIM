@@ -5,12 +5,23 @@
  * Layout matches the prototype exactly with header, toolbar, canvas, and properties panel.
  */
 
-import { useEffect } from 'react';
-import { useUIStore, useModelStore, useSelectionStore, initializeHistory, useHistoryStore } from './stores';
-import { useKeyboardShortcuts, usePersistence } from './hooks';
-import { Canvas2D, Canvas3D } from './components/canvas';
-import { Header, Toolbar, PropertiesPanel, CommandPalette } from './components/layout';
-import clsx from 'clsx';
+import { useEffect } from "react";
+import {
+  useUIStore,
+  useModelStore,
+  useSelectionStore,
+  initializeHistory,
+  useHistoryStore,
+} from "./stores";
+import { useKeyboardShortcuts, usePersistence } from "./hooks";
+import { Canvas2D, Canvas3D } from "./components/canvas";
+import {
+  Header,
+  Toolbar,
+  PropertiesPanel,
+  CommandPalette,
+} from "./components/layout";
+import clsx from "clsx";
 
 function App() {
   // Initialize history on first render
@@ -22,7 +33,12 @@ function App() {
   useKeyboardShortcuts();
 
   // Initialize persistence (auto-save to IndexedDB)
-  const { isLoading, isSaving, lastSaved, isAvailable: dbAvailable } = usePersistence();
+  const {
+    isLoading,
+    isSaving,
+    lastSaved,
+    isAvailable: dbAvailable,
+  } = usePersistence();
 
   // Get history count for status bar
   const historyCount = useHistoryStore((s) => s.entries.length);
@@ -53,10 +69,10 @@ function App() {
 
         {/* Canvas Area */}
         <div className="flex-1 relative">
-          {viewMode === '3d' ? <Canvas3D /> : <Canvas2D />}
+          {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
 
           {/* Zoom indicator (2D only) */}
-          {viewMode === '2d' && (
+          {viewMode === "2d" && (
             <div className="absolute bottom-4 left-4 px-2 py-1 rounded bg-gray-900/80 text-xs text-gray-400">
               {Math.round(zoom * 100)}%
             </div>
@@ -88,7 +104,14 @@ function App() {
           ) : isSaving ? (
             <span className="text-blue-400">● Saving...</span>
           ) : dbAvailable ? (
-            <span className="text-green-400" title={lastSaved ? `Last saved: ${lastSaved.toLocaleTimeString()}` : 'Auto-save enabled'}>
+            <span
+              className="text-green-400"
+              title={
+                lastSaved
+                  ? `Last saved: ${lastSaved.toLocaleTimeString()}`
+                  : "Auto-save enabled"
+              }
+            >
               ● Saved
             </span>
           ) : (
@@ -98,9 +121,7 @@ function App() {
       </footer>
 
       {/* Command Palette Modal */}
-      {showCommandPalette && (
-        <CommandPalette onClose={closeCommandPalette} />
-      )}
+      {showCommandPalette && <CommandPalette onClose={closeCommandPalette} />}
 
       {/* Toast Container */}
       <div className="fixed top-16 right-4 z-50 flex flex-col gap-2">
@@ -108,20 +129,20 @@ function App() {
           <div
             key={toast.id}
             className={clsx(
-              'animate-toast-in px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[250px]',
-              toast.type === 'success' && 'bg-green-500/90',
-              toast.type === 'error' && 'bg-red-500/90',
-              toast.type === 'warning' && 'bg-yellow-500/90',
-              toast.type === 'info' && 'bg-blue-500/90'
+              "animate-toast-in px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[250px]",
+              toast.type === "success" && "bg-green-500/90",
+              toast.type === "error" && "bg-red-500/90",
+              toast.type === "warning" && "bg-yellow-500/90",
+              toast.type === "info" && "bg-blue-500/90",
             )}
           >
             <i
               className={clsx(
-                'fa-solid',
-                toast.type === 'success' && 'fa-check-circle',
-                toast.type === 'error' && 'fa-exclamation-circle',
-                toast.type === 'warning' && 'fa-exclamation-triangle',
-                toast.type === 'info' && 'fa-info-circle'
+                "fa-solid",
+                toast.type === "success" && "fa-check-circle",
+                toast.type === "error" && "fa-exclamation-circle",
+                toast.type === "warning" && "fa-exclamation-triangle",
+                toast.type === "info" && "fa-info-circle",
               )}
             ></i>
             <span className="flex-1">{toast.message}</span>

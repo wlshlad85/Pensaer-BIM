@@ -4,7 +4,7 @@
  * Renders the background grid pattern for the 2D canvas.
  */
 
-import { memo, type ReactElement } from 'react';
+import { memo, type ReactElement } from "react";
 
 interface GridProps {
   width: number;
@@ -32,7 +32,7 @@ export const Grid = memo(function Grid({
         y1={0}
         x2={x}
         y2={height}
-        stroke={isMajor ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'}
+        stroke={isMajor ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)"}
         strokeWidth={isMajor ? 1 : 0.5}
       />
     );
@@ -53,7 +53,7 @@ export const Grid = memo(function Grid({
         y1={y}
         x2={width}
         y2={y}
-        stroke={isMajor ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'}
+        stroke={isMajor ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)"}
         strokeWidth={isMajor ? 1 : 0.5}
       />
     );
@@ -65,7 +65,7 @@ export const Grid = memo(function Grid({
   }
 
   return (
-    <g className="grid-lines" style={{ pointerEvents: 'none' }}>
+    <g className="grid-lines" style={{ pointerEvents: "none" }}>
       {minorLines}
       {majorLines}
     </g>

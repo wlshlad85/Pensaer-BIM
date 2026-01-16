@@ -22,7 +22,7 @@ export interface SearchMatch {
  */
 function fuzzyMatch(
   query: string,
-  text: string
+  text: string,
 ): { score: number; indices: [number, number][] } | null {
   const queryLower = query.toLowerCase();
   const textLower = text.toLowerCase();
@@ -64,7 +64,7 @@ function fuzzyMatch(
       score += 1 + consecutiveMatches * 0.5;
 
       // Bonus for matching at word boundaries
-      if (i === 0 || text[i - 1] === ' ' || text[i - 1] === '-') {
+      if (i === 0 || text[i - 1] === " " || text[i - 1] === "-") {
         score += 2;
       }
     } else {
@@ -103,7 +103,9 @@ function fuzzyMatch(
 export function fuzzySearch<T>(
   items: T[],
   query: string,
-  getSearchFields: (item: T) => { field: string; value: string; weight?: number }[]
+  getSearchFields: (
+    item: T,
+  ) => { field: string; value: string; weight?: number }[],
 ): SearchResult<T>[] {
   if (!query.trim()) {
     // No query - return all items with neutral score
@@ -143,18 +145,21 @@ export function fuzzySearch<T>(
  * Simple search helper for command palette.
  * Searches label, description, and keywords.
  */
-export function searchCommands<T extends { label: string; description: string; keywords?: string[] }>(
-  commands: T[],
-  query: string
-): T[] {
+export function searchCommands<
+  T extends { label: string; description: string; keywords?: string[] },
+>(commands: T[], query: string): T[] {
   if (!query.trim()) {
     return commands;
   }
 
   const results = fuzzySearch(commands, query, (cmd) => [
-    { field: 'label', value: cmd.label, weight: 1.5 },
-    { field: 'description', value: cmd.description, weight: 1 },
-    ...(cmd.keywords || []).map((kw) => ({ field: 'keyword', value: kw, weight: 0.8 })),
+    { field: "label", value: cmd.label, weight: 1.5 },
+    { field: "description", value: cmd.description, weight: 1 },
+    ...(cmd.keywords || []).map((kw) => ({
+      field: "keyword",
+      value: kw,
+      weight: 0.8,
+    })),
   ]);
 
   return results.map((r) => r.item);

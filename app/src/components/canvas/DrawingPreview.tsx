@@ -4,8 +4,8 @@
  * Shows preview of element being drawn before placement.
  */
 
-import { memo } from 'react';
-import type { ToolType } from '../../types';
+import { memo } from "react";
+import type { ToolType } from "../../types";
 
 interface DrawingPreviewProps {
   tool: ToolType;
@@ -27,7 +27,7 @@ export const DrawingPreview = memo(function DrawingPreview({
   const x = Math.min(startX, endX);
   const y = Math.min(startY, endY);
 
-  if (tool === 'wall') {
+  if (tool === "wall") {
     // Determine if wall is more horizontal or vertical
     const isHorizontal = width > height;
     const thickness = 12; // Default wall thickness in canvas units
@@ -55,7 +55,7 @@ export const DrawingPreview = memo(function DrawingPreview({
     }
   }
 
-  if (tool === 'room') {
+  if (tool === "room") {
     return (
       <rect
         x={x}

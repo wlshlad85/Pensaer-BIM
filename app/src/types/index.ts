@@ -10,15 +10,15 @@
 // ============================================
 
 export type ElementType =
-  | 'wall'
-  | 'door'
-  | 'window'
-  | 'room'
-  | 'floor'
-  | 'roof'
-  | 'column'
-  | 'beam'
-  | 'stair';
+  | "wall"
+  | "door"
+  | "window"
+  | "room"
+  | "floor"
+  | "roof"
+  | "column"
+  | "beam"
+  | "stair";
 
 // ============================================
 // BASE ELEMENT INTERFACE
@@ -90,8 +90,8 @@ export interface Relationships {
 // ISSUES & SUGGESTIONS
 // ============================================
 
-export type IssueType = 'error' | 'warning' | 'info';
-export type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type IssueType = "error" | "warning" | "info";
+export type IssueSeverity = "critical" | "high" | "medium" | "low";
 
 export interface Issue {
   id?: string;
@@ -102,7 +102,7 @@ export interface Issue {
   fixable?: boolean;
 }
 
-export type SuggestionPriority = 'high' | 'medium' | 'low' | 'info';
+export type SuggestionPriority = "high" | "medium" | "low" | "info";
 
 export interface Suggestion {
   id?: string;
@@ -127,16 +127,16 @@ export interface SelectionState {
 // ============================================
 
 export type ToolType =
-  | 'select'
-  | 'wall'
-  | 'door'
-  | 'window'
-  | 'room'
-  | 'floor'
-  | 'roof'
-  | 'column'
-  | 'measure'
-  | 'pan';
+  | "select"
+  | "wall"
+  | "door"
+  | "window"
+  | "room"
+  | "floor"
+  | "roof"
+  | "column"
+  | "measure"
+  | "pan";
 
 export interface ToolState {
   activeTool: ToolType;
@@ -149,7 +149,7 @@ export interface ToolState {
 // VIEW STATE
 // ============================================
 
-export type ViewMode = '2d' | '3d';
+export type ViewMode = "2d" | "3d";
 
 export interface ViewState {
   mode: ViewMode;
@@ -175,16 +175,16 @@ export interface HistoryEntry {
 // ============================================
 
 export type CommandCategory =
-  | 'Modeling'
-  | 'Selection'
-  | 'Views'
-  | 'Tools'
-  | 'Analysis'
-  | 'Documentation'
-  | 'Edit'
-  | 'System'
-  | 'Spaces'
-  | 'Structure';
+  | "Modeling"
+  | "Selection"
+  | "Views"
+  | "Tools"
+  | "Analysis"
+  | "Documentation"
+  | "Edit"
+  | "System"
+  | "Spaces"
+  | "Structure";
 
 export interface Command {
   id: string;
@@ -207,7 +207,7 @@ export interface ContextMenuItem {
   label?: string;
   shortcut?: string;
   danger?: boolean;
-  type?: 'divider';
+  type?: "divider";
   action?: () => void;
 }
 
@@ -215,7 +215,7 @@ export interface ContextMenuItem {
 // TOAST NOTIFICATIONS
 // ============================================
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = "success" | "error" | "warning" | "info";
 
 export interface Toast {
   id: string;
@@ -247,7 +247,7 @@ export interface Level {
 }
 
 export interface ProjectSettings {
-  units: 'metric' | 'imperial';
+  units: "metric" | "imperial";
   gridSize: number;
   snapEnabled: boolean;
   snapTolerance: number;

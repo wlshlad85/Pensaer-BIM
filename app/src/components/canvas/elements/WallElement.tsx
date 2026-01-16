@@ -4,10 +4,10 @@
  * Renders a wall as an SVG rectangle with proper styling.
  */
 
-import { memo } from 'react';
-import type { Element } from '../../../types';
-import { useSelectionStore } from '../../../stores';
-import clsx from 'clsx';
+import { memo } from "react";
+import type { Element } from "../../../types";
+import { useSelectionStore } from "../../../stores";
+import clsx from "clsx";
 
 interface WallElementProps {
   element: Element;
@@ -31,16 +31,16 @@ export const WallElement = memo(function WallElement({
   const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
 
   const hasIssues = element.issues.length > 0;
-  const hasErrors = element.issues.some((i) => i.type === 'error');
+  const hasErrors = element.issues.some((i) => i.type === "error");
 
   return (
     <g
       className={clsx(
-        'model-element',
-        isSelected && 'selected',
-        isHighlighted && 'highlighted'
+        "model-element",
+        isSelected && "selected",
+        isHighlighted && "highlighted",
       )}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: "pointer" }}
       onClick={(e) => onClick?.(e, element)}
       onMouseDown={(e) => onMouseDown?.(e, element)}
       onContextMenu={(e) => onContextMenu?.(e, element)}
@@ -53,15 +53,15 @@ export const WallElement = memo(function WallElement({
         y={element.y}
         width={element.width}
         height={element.height}
-        fill={isSelected ? '#64748b' : '#94a3b8'}
+        fill={isSelected ? "#64748b" : "#94a3b8"}
         stroke={
           hasErrors
-            ? '#ef4444'
+            ? "#ef4444"
             : hasIssues
-              ? '#f59e0b'
+              ? "#f59e0b"
               : isHovered
-                ? '#60a5fa'
-                : '#475569'
+                ? "#60a5fa"
+                : "#475569"
         }
         strokeWidth={isSelected ? 2 : 1}
         rx={1}
@@ -78,7 +78,7 @@ export const WallElement = memo(function WallElement({
           strokeWidth={1}
           strokeDasharray="4 2"
           style={{
-            display: element.height > element.width ? 'block' : 'none',
+            display: element.height > element.width ? "block" : "none",
           }}
         />
       )}
@@ -100,7 +100,7 @@ export const WallElement = memo(function WallElement({
           cx={element.x + element.width - 6}
           cy={element.y + 6}
           r={5}
-          fill={hasErrors ? '#ef4444' : '#f59e0b'}
+          fill={hasErrors ? "#ef4444" : "#f59e0b"}
           stroke="#1e293b"
           strokeWidth={1}
         />

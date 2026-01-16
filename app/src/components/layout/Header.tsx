@@ -5,14 +5,14 @@
  * Includes undo/redo functionality via historyStore.
  */
 
-import { useUIStore, useModelStore, useHistoryStore } from '../../stores';
+import { useUIStore, useModelStore, useHistoryStore } from "../../stores";
 
 interface HeaderProps {
   onOpenPalette: () => void;
 }
 
 export function Header({ onOpenPalette }: HeaderProps) {
-  const is3DView = useUIStore((s) => s.viewMode === '3d');
+  const is3DView = useUIStore((s) => s.viewMode === "3d");
   const setViewMode = useUIStore((s) => s.setViewMode);
   const elements = useModelStore((s) => s.elements);
 
@@ -25,7 +25,10 @@ export function Header({ onOpenPalette }: HeaderProps) {
   const redoDesc = useHistoryStore((s) => s.getRedoDescription());
 
   // Count issues (safely handle elements without issues array)
-  const issueCount = elements.reduce((acc, el) => acc + (el.issues?.length || 0), 0);
+  const issueCount = elements.reduce(
+    (acc, el) => acc + (el.issues?.length || 0),
+    0,
+  );
 
   return (
     <header className="h-12 bg-gray-900/80 backdrop-blur-xl border-b border-gray-700/50 flex items-center px-4">
@@ -52,10 +55,10 @@ export function Header({ onOpenPalette }: HeaderProps) {
           disabled={!canUndo}
           className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
             canUndo
-              ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-              : 'text-gray-600 cursor-not-allowed'
+              ? "text-gray-400 hover:text-white hover:bg-gray-800"
+              : "text-gray-600 cursor-not-allowed"
           }`}
-          title={undoDesc ? `Undo: ${undoDesc} (⌘Z)` : 'Undo (⌘Z)'}
+          title={undoDesc ? `Undo: ${undoDesc} (⌘Z)` : "Undo (⌘Z)"}
         >
           <i className="fa-solid fa-undo"></i>
         </button>
@@ -64,10 +67,10 @@ export function Header({ onOpenPalette }: HeaderProps) {
           disabled={!canRedo}
           className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
             canRedo
-              ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-              : 'text-gray-600 cursor-not-allowed'
+              ? "text-gray-400 hover:text-white hover:bg-gray-800"
+              : "text-gray-600 cursor-not-allowed"
           }`}
-          title={redoDesc ? `Redo: ${redoDesc} (⌘⇧Z)` : 'Redo (⌘⇧Z)'}
+          title={redoDesc ? `Redo: ${redoDesc} (⌘⇧Z)` : "Redo (⌘⇧Z)"}
         >
           <i className="fa-solid fa-redo"></i>
         </button>
@@ -80,8 +83,12 @@ export function Header({ onOpenPalette }: HeaderProps) {
           className="flex items-center gap-3 px-4 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors"
         >
           <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
-          <span className="text-gray-400 text-sm">Type command or ask AI...</span>
-          <kbd className="px-2 py-0.5 bg-gray-700 text-gray-400 text-xs rounded">⌘K</kbd>
+          <span className="text-gray-400 text-sm">
+            Type command or ask AI...
+          </span>
+          <kbd className="px-2 py-0.5 bg-gray-700 text-gray-400 text-xs rounded">
+            ⌘K
+          </kbd>
         </button>
       </div>
 
@@ -90,14 +97,14 @@ export function Header({ onOpenPalette }: HeaderProps) {
         <button
           className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm transition-colors ${
             is3DView
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:text-white hover:bg-gray-800"
           }`}
-          onClick={() => setViewMode(is3DView ? '2d' : '3d')}
+          onClick={() => setViewMode(is3DView ? "2d" : "3d")}
           title="Toggle 3D View (3)"
         >
           <i className="fa-solid fa-cube"></i>
-          <span>{is3DView ? '3D' : '2D'}</span>
+          <span>{is3DView ? "3D" : "2D"}</span>
         </button>
 
         <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg">

@@ -5,10 +5,10 @@
  * Captures snapshots of element state and allows navigation through history.
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import type { Element, HistoryEntry } from '../types';
-import { useModelStore } from './modelStore';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import type { Element, HistoryEntry } from "../types";
+import { useModelStore } from "./modelStore";
 
 // ============================================
 // CONFIGURATION
@@ -195,7 +195,7 @@ export const useHistoryStore = create<HistoryStore>()(
     getHistoryCount: () => {
       return get().entries.length;
     },
-  }))
+  })),
 );
 
 // ============================================
@@ -215,7 +215,7 @@ export const initializeHistory = (): void => {
       {
         id: generateId(),
         timestamp: Date.now(),
-        description: 'Initial state',
+        description: "Initial state",
         elements: snapshot,
       },
     ],
@@ -236,7 +236,7 @@ export const handleUndoRedo = (event: KeyboardEvent): boolean => {
   const { key, ctrlKey, metaKey, shiftKey } = event;
   const modifier = ctrlKey || metaKey;
 
-  if (modifier && key.toLowerCase() === 'z') {
+  if (modifier && key.toLowerCase() === "z") {
     if (shiftKey) {
       // Ctrl+Shift+Z = Redo
       useHistoryStore.getState().redo();
@@ -247,7 +247,7 @@ export const handleUndoRedo = (event: KeyboardEvent): boolean => {
     return true;
   }
 
-  if (modifier && key.toLowerCase() === 'y') {
+  if (modifier && key.toLowerCase() === "y") {
     // Ctrl+Y = Redo (Windows convention)
     useHistoryStore.getState().redo();
     return true;

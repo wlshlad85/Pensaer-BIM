@@ -5,31 +5,36 @@
  * Now with inline property editing support.
  */
 
-import { useState, useCallback } from 'react';
-import { useModelStore, useSelectionStore, useUIStore, useHistoryStore } from '../../stores';
-import type { Element } from '../../types';
-import { validateModel, getValidationSummary } from '../../utils/validation';
+import { useState, useCallback } from "react";
+import {
+  useModelStore,
+  useSelectionStore,
+  useUIStore,
+  useHistoryStore,
+} from "../../stores";
+import type { Element } from "../../types";
+import { validateModel, getValidationSummary } from "../../utils/validation";
 
 // Icon mapping for element types
 const TYPE_ICONS: Record<string, string> = {
-  wall: 'fa-square',
-  door: 'fa-door-open',
-  window: 'fa-window-maximize',
-  room: 'fa-vector-square',
-  roof: 'fa-home',
-  floor: 'fa-layer-group',
-  column: 'fa-grip-lines-vertical',
+  wall: "fa-square",
+  door: "fa-door-open",
+  window: "fa-window-maximize",
+  room: "fa-vector-square",
+  roof: "fa-home",
+  floor: "fa-layer-group",
+  column: "fa-grip-lines-vertical",
 };
 
 // Color mapping for element types
 const TYPE_COLORS: Record<string, string> = {
-  wall: 'bg-slate-500/30 text-slate-300',
-  door: 'bg-blue-500/30 text-blue-300',
-  window: 'bg-cyan-500/30 text-cyan-300',
-  room: 'bg-purple-500/30 text-purple-300',
-  roof: 'bg-orange-500/30 text-orange-300',
-  floor: 'bg-green-500/30 text-green-300',
-  column: 'bg-gray-500/30 text-gray-300',
+  wall: "bg-slate-500/30 text-slate-300",
+  door: "bg-blue-500/30 text-blue-300",
+  window: "bg-cyan-500/30 text-cyan-300",
+  room: "bg-purple-500/30 text-purple-300",
+  roof: "bg-orange-500/30 text-orange-300",
+  floor: "bg-green-500/30 text-green-300",
+  column: "bg-gray-500/30 text-gray-300",
 };
 
 export function PropertiesPanel() {
@@ -47,11 +52,11 @@ export function PropertiesPanel() {
   const handleAddRoof = useCallback(() => {
     // Get selected walls
     const selectedWalls = elements.filter(
-      (el) => selectedIds.includes(el.id) && el.type === 'wall'
+      (el) => selectedIds.includes(el.id) && el.type === "wall",
     );
 
     if (selectedWalls.length < 2) {
-      addToast('info', 'Select at least 2 walls to create a roof');
+      addToast("info", "Select at least 2 walls to create a roof");
       return;
     }
 
@@ -66,17 +71,17 @@ export function PropertiesPanel() {
     const roofName = `Roof-${Date.now().toString(36).slice(-4).toUpperCase()}`;
     const newRoof: Element = {
       id: roofId,
-      type: 'roof',
+      type: "roof",
       name: roofName,
       x: minX - 10, // Slight overhang
       y: minY - 10,
       width: maxX - minX + 20,
       height: maxY - minY + 20,
       properties: {
-        material: 'Metal Standing Seam',
-        slope: '4:12',
-        insulation: 'R-30',
-        level: 'Level 1',
+        material: "Metal Standing Seam",
+        slope: "4:12",
+        insulation: "R-30",
+        level: "Level 1",
       },
       relationships: {
         supportedBy: selectedWalls.map((w) => w.id),
@@ -90,8 +95,19 @@ export function PropertiesPanel() {
     recordAction(`Create ${roofName}`);
     clearSelection();
     setSelected(roofId);
-    addToast('success', `Created ${roofName} from ${selectedWalls.length} walls`);
-  }, [elements, selectedIds, addElement, recordAction, clearSelection, setSelected, addToast]);
+    addToast(
+      "success",
+      `Created ${roofName} from ${selectedWalls.length} walls`,
+    );
+  }, [
+    elements,
+    selectedIds,
+    addElement,
+    recordAction,
+    clearSelection,
+    setSelected,
+    addToast,
+  ]);
 
   // Handler for Check/Validate button
   const handleValidate = useCallback(() => {
@@ -100,7 +116,10 @@ export function PropertiesPanel() {
     // Update all elements with their validation issues
     updatedElements.forEach((el) => {
       const original = elements.find((e) => e.id === el.id);
-      if (original && JSON.stringify(original.issues) !== JSON.stringify(el.issues)) {
+      if (
+        original &&
+        JSON.stringify(original.issues) !== JSON.stringify(el.issues)
+      ) {
         // Only update if issues changed
         useModelStore.getState().updateElement(el.id, { issues: el.issues });
       }
@@ -109,32 +128,45 @@ export function PropertiesPanel() {
     // Show summary toast
     const summary = getValidationSummary(result);
     if (result.totalIssues === 0) {
-      addToast('success', summary);
+      addToast("success", summary);
     } else if (result.criticalCount > 0) {
-      addToast('error', summary);
+      addToast("error", summary);
     } else if (result.warningCount > 0) {
-      addToast('warning', summary);
+      addToast("warning", summary);
     } else {
-      addToast('info', summary);
+      addToast("info", summary);
     }
 
-    recordAction('Run validation check');
+    recordAction("Run validation check");
   }, [elements, addToast, recordAction]);
 
-  const selectedElement = selectedIds.length === 1
-    ? elements.find((el) => el.id === selectedIds[0])
-    : null;
+  const selectedElement =
+    selectedIds.length === 1
+      ? elements.find((el) => el.id === selectedIds[0])
+      : null;
 
   const issueElements = elements.filter((e) => e.issues.length > 0);
 
   return (
     <div className="w-72 bg-gray-900/50 border-l border-gray-700/50 flex flex-col overflow-hidden">
       {selectedElement ? (
-        <SelectedElementView element={selectedElement} elements={elements} setSelected={setSelected} />
+        <SelectedElementView
+          element={selectedElement}
+          elements={elements}
+          setSelected={setSelected}
+        />
       ) : selectedIds.length > 1 ? (
-        <MultiSelectView count={selectedIds.length} elements={elements} selectedIds={selectedIds} />
+        <MultiSelectView
+          count={selectedIds.length}
+          elements={elements}
+          selectedIds={selectedIds}
+        />
       ) : (
-        <NoSelectionView elements={elements} issueElements={issueElements} setSelected={setSelected} />
+        <NoSelectionView
+          elements={elements}
+          issueElements={issueElements}
+          setSelected={setSelected}
+        />
       )}
 
       {/* Quick Actions */}
@@ -148,11 +180,13 @@ export function PropertiesPanel() {
             <span className="text-[10px]">Check</span>
           </button>
           <button
-            onClick={() => setViewMode(viewMode === '3d' ? '2d' : '3d')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:text-white hover:bg-gray-800 ${viewMode === '3d' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400'}`}
+            onClick={() => setViewMode(viewMode === "3d" ? "2d" : "3d")}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:text-white hover:bg-gray-800 ${viewMode === "3d" ? "text-blue-400 bg-blue-500/20" : "text-gray-400"}`}
           >
             <i className="fa-solid fa-cube text-sm"></i>
-            <span className="text-[10px]">{viewMode === '3d' ? '2D View' : '3D View'}</span>
+            <span className="text-[10px]">
+              {viewMode === "3d" ? "2D View" : "3D View"}
+            </span>
           </button>
           <button
             onClick={handleAddRoof}
@@ -170,7 +204,7 @@ export function PropertiesPanel() {
 function SelectedElementView({
   element,
   elements,
-  setSelected
+  setSelected,
 }: {
   element: Element;
   elements: Element[];
@@ -178,61 +212,86 @@ function SelectedElementView({
 }) {
   // Per-property inline editing state
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
+  const [editValue, setEditValue] = useState<string>("");
   const updateProperties = useModelStore((s) => s.updateProperties);
   const recordAction = useHistoryStore((s) => s.recordAction);
   const addToast = useUIStore((s) => s.addToast);
 
   // Double-click to start editing a single property
-  const handleDoubleClick = useCallback((key: string, value: string | number | boolean) => {
-    setEditingKey(key);
-    setEditValue(String(value));
-  }, []);
+  const handleDoubleClick = useCallback(
+    (key: string, value: string | number | boolean) => {
+      setEditingKey(key);
+      setEditValue(String(value));
+    },
+    [],
+  );
 
   // Save single property on blur or Enter
-  const handleSaveProperty = useCallback((key: string) => {
-    const originalValue = element.properties[key];
-    const newValue = typeof originalValue === 'boolean'
-      ? editValue.toLowerCase() === 'true' || editValue === 'yes'
-      : typeof originalValue === 'number'
-        ? parseFloat(editValue) || 0
-        : editValue;
+  const handleSaveProperty = useCallback(
+    (key: string) => {
+      const originalValue = element.properties[key];
+      const newValue =
+        typeof originalValue === "boolean"
+          ? editValue.toLowerCase() === "true" || editValue === "yes"
+          : typeof originalValue === "number"
+            ? parseFloat(editValue) || 0
+            : editValue;
 
-    if (String(newValue) !== String(originalValue)) {
-      updateProperties(element.id, { [key]: newValue });
-      recordAction(`Edit ${element.name}.${key}`);
-      addToast('success', `Updated ${key}`);
-    }
+      if (String(newValue) !== String(originalValue)) {
+        updateProperties(element.id, { [key]: newValue });
+        recordAction(`Edit ${element.name}.${key}`);
+        addToast("success", `Updated ${key}`);
+      }
 
-    setEditingKey(null);
-    setEditValue('');
-  }, [element.id, element.name, element.properties, editValue, updateProperties, recordAction, addToast]);
+      setEditingKey(null);
+      setEditValue("");
+    },
+    [
+      element.id,
+      element.name,
+      element.properties,
+      editValue,
+      updateProperties,
+      recordAction,
+      addToast,
+    ],
+  );
 
   // Cancel editing on Escape
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, key: string) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSaveProperty(key);
-    } else if (e.key === 'Escape') {
-      setEditingKey(null);
-      setEditValue('');
-    }
-  }, [handleSaveProperty]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, key: string) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSaveProperty(key);
+      } else if (e.key === "Escape") {
+        setEditingKey(null);
+        setEditValue("");
+      }
+    },
+    [handleSaveProperty],
+  );
 
   // Toggle boolean property with single click
-  const handleBooleanToggle = useCallback((key: string, currentValue: boolean) => {
-    const newValue = !currentValue;
-    updateProperties(element.id, { [key]: newValue });
-    recordAction(`Toggle ${element.name}.${key}`);
-  }, [element.id, element.name, updateProperties, recordAction]);
+  const handleBooleanToggle = useCallback(
+    (key: string, currentValue: boolean) => {
+      const newValue = !currentValue;
+      updateProperties(element.id, { [key]: newValue });
+      recordAction(`Toggle ${element.name}.${key}`);
+    },
+    [element.id, element.name, updateProperties, recordAction],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Header */}
       <div className="p-4 border-b border-gray-700/50">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${TYPE_COLORS[element.type] || 'bg-gray-500/30 text-gray-300'}`}>
-            <i className={`fa-solid ${TYPE_ICONS[element.type] || 'fa-cube'}`}></i>
+          <div
+            className={`w-10 h-10 rounded-lg flex items-center justify-center ${TYPE_COLORS[element.type] || "bg-gray-500/30 text-gray-300"}`}
+          >
+            <i
+              className={`fa-solid ${TYPE_ICONS[element.type] || "fa-cube"}`}
+            ></i>
           </div>
           <div>
             <div className="font-medium text-white">{element.name}</div>
@@ -250,7 +309,9 @@ function SelectedElementView({
             <i className="fa-solid fa-exclamation-triangle"></i>Issues
           </h3>
           {element.issues.map((issue, i) => (
-            <div key={i} className="text-xs text-red-300 mb-1">{issue.message}</div>
+            <div key={i} className="text-xs text-red-300 mb-1">
+              {issue.message}
+            </div>
           ))}
         </div>
       )}
@@ -258,27 +319,31 @@ function SelectedElementView({
       {/* Properties */}
       <div className="p-4 border-b border-gray-700/50">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase">Properties</h3>
-          <span className="text-[10px] text-gray-600">Double-click to edit</span>
+          <h3 className="text-xs font-medium text-gray-500 uppercase">
+            Properties
+          </h3>
+          <span className="text-[10px] text-gray-600">
+            Double-click to edit
+          </span>
         </div>
         <div className="space-y-2 text-sm">
           {Object.entries(element.properties).map(([key, value]) => (
             <div key={key} className="flex justify-between items-center group">
               <span className="text-gray-500 capitalize">
-                {key.replace(/([A-Z])/g, ' $1').trim()}
+                {key.replace(/([A-Z])/g, " $1").trim()}
               </span>
-              {typeof value === 'boolean' ? (
+              {typeof value === "boolean" ? (
                 // Boolean: Single click toggle
                 <button
                   onClick={() => handleBooleanToggle(key, value)}
                   className={`px-2 py-0.5 rounded text-xs transition-colors ${
                     value
-                      ? 'bg-green-600 hover:bg-green-500 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600 text-gray-400'
+                      ? "bg-green-600 hover:bg-green-500 text-white"
+                      : "bg-gray-700 hover:bg-gray-600 text-gray-400"
                   }`}
                   title="Click to toggle"
                 >
-                  {value ? 'Yes' : 'No'}
+                  {value ? "Yes" : "No"}
                 </button>
               ) : editingKey === key ? (
                 // Inline editing mode
@@ -307,37 +372,41 @@ function SelectedElementView({
       </div>
 
       {/* Relationships */}
-      {element.relationships && Object.keys(element.relationships).length > 0 && (
-        <div className="p-4 border-b border-gray-700/50">
-          <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Relationships</h3>
-          <div className="space-y-2 text-sm">
-            {Object.entries(element.relationships).map(([key, value]) => {
-              if (!value || (Array.isArray(value) && value.length === 0)) return null;
-              return (
-                <div key={key}>
-                  <span className="text-gray-500 capitalize text-xs">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                  </span>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {(Array.isArray(value) ? value : [value]).map((id, i) => {
-                      const rel = elements.find((e) => e.id === id);
-                      return (
-                        <button
-                          key={i}
-                          className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded"
-                          onClick={() => setSelected(id)}
-                        >
-                          {rel?.name || id}
-                        </button>
-                      );
-                    })}
+      {element.relationships &&
+        Object.keys(element.relationships).length > 0 && (
+          <div className="p-4 border-b border-gray-700/50">
+            <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">
+              Relationships
+            </h3>
+            <div className="space-y-2 text-sm">
+              {Object.entries(element.relationships).map(([key, value]) => {
+                if (!value || (Array.isArray(value) && value.length === 0))
+                  return null;
+                return (
+                  <div key={key}>
+                    <span className="text-gray-500 capitalize text-xs">
+                      {key.replace(/([A-Z])/g, " $1").trim()}
+                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(Array.isArray(value) ? value : [value]).map((id, i) => {
+                        const rel = elements.find((e) => e.id === id);
+                        return (
+                          <button
+                            key={i}
+                            className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded"
+                            onClick={() => setSelected(id)}
+                          >
+                            {rel?.name || id}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* AI Suggestions */}
       {element.aiSuggestions.length > 0 && (
@@ -350,11 +419,11 @@ function SelectedElementView({
               <button
                 key={i}
                 className={`w-full text-left p-2 rounded-lg text-xs ${
-                  sug.priority === 'high'
-                    ? 'bg-orange-900/30 hover:bg-orange-900/50 text-orange-300'
-                    : sug.priority === 'medium'
-                      ? 'bg-purple-900/30 hover:bg-purple-900/50 text-purple-300'
-                      : 'bg-gray-800 hover:bg-gray-700 text-gray-400'
+                  sug.priority === "high"
+                    ? "bg-orange-900/30 hover:bg-orange-900/50 text-orange-300"
+                    : sug.priority === "medium"
+                      ? "bg-purple-900/30 hover:bg-purple-900/50 text-purple-300"
+                      : "bg-gray-800 hover:bg-gray-700 text-gray-400"
                 }`}
               >
                 <i className={`fa-solid ${sug.icon} mr-2`}></i>
@@ -371,17 +440,20 @@ function SelectedElementView({
 function MultiSelectView({
   count,
   elements,
-  selectedIds
+  selectedIds,
 }: {
   count: number;
   elements: Element[];
   selectedIds: string[];
 }) {
   const selectedElements = elements.filter((el) => selectedIds.includes(el.id));
-  const typeCounts = selectedElements.reduce((acc, el) => {
-    acc[el.type] = (acc[el.type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const typeCounts = selectedElements.reduce(
+    (acc, el) => {
+      acc[el.type] = (acc[el.type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
@@ -392,8 +464,8 @@ function MultiSelectView({
         <div className="font-medium text-white">{count} elements selected</div>
         <div className="text-xs text-gray-400 mt-1">
           {Object.entries(typeCounts)
-            .map(([type, c]) => `${c} ${type}${c > 1 ? 's' : ''}`)
-            .join(', ')}
+            .map(([type, c]) => `${c} ${type}${c > 1 ? "s" : ""}`)
+            .join(", ")}
         </div>
       </div>
       <div className="space-y-2 mt-4">
@@ -414,7 +486,7 @@ function MultiSelectView({
 function NoSelectionView({
   elements,
   issueElements,
-  setSelected
+  setSelected,
 }: {
   elements: Element[];
   issueElements: Element[];
@@ -428,12 +500,16 @@ function NoSelectionView({
         <p className="text-xs mt-1">Right-click for quick actions</p>
       </div>
 
-      <h3 className="text-xs font-medium text-gray-500 uppercase mt-4 mb-3">Model Summary</h3>
+      <h3 className="text-xs font-medium text-gray-500 uppercase mt-4 mb-3">
+        Model Summary
+      </h3>
       <div className="space-y-2 text-sm">
-        {['wall', 'door', 'window', 'room', 'roof'].map((type) => (
+        {["wall", "door", "window", "room", "roof"].map((type) => (
           <div key={type} className="flex justify-between">
             <span className="text-gray-500 capitalize">{type}s</span>
-            <span className="text-white">{elements.filter((e) => e.type === type).length}</span>
+            <span className="text-white">
+              {elements.filter((e) => e.type === type).length}
+            </span>
           </div>
         ))}
       </div>
@@ -441,7 +517,8 @@ function NoSelectionView({
       {issueElements.length > 0 && (
         <>
           <h3 className="text-xs font-medium text-gray-500 uppercase mt-6 mb-3">
-            Issues ({issueElements.reduce((acc, e) => acc + e.issues.length, 0)})
+            Issues ({issueElements.reduce((acc, e) => acc + e.issues.length, 0)}
+            )
           </h3>
           <div className="space-y-2">
             {issueElements.map((el) =>
@@ -454,7 +531,7 @@ function NoSelectionView({
                   <div className="font-medium">{el.name}</div>
                   <div className="text-red-400/80 mt-0.5">{issue.message}</div>
                 </button>
-              ))
+              )),
             )}
           </div>
         </>

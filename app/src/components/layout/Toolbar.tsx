@@ -4,16 +4,16 @@
  * Vertical toolbar on the left side matching prototype exactly.
  */
 
-import { useUIStore } from '../../stores';
-import type { ToolType } from '../../types';
+import { useUIStore } from "../../stores";
+import type { ToolType } from "../../types";
 
 const TOOLS: { id: ToolType; icon: string; label: string }[] = [
-  { id: 'select', icon: 'fa-arrow-pointer', label: 'Select (V)' },
-  { id: 'wall', icon: 'fa-square', label: 'Wall (W)' },
-  { id: 'door', icon: 'fa-door-open', label: 'Door (D)' },
-  { id: 'window', icon: 'fa-window-maximize', label: 'Window (N)' },
-  { id: 'room', icon: 'fa-vector-square', label: 'Room (M)' },
-  { id: 'column', icon: 'fa-grip-lines-vertical', label: 'Column (C)' },
+  { id: "select", icon: "fa-arrow-pointer", label: "Select (V)" },
+  { id: "wall", icon: "fa-square", label: "Wall (W)" },
+  { id: "door", icon: "fa-door-open", label: "Door (D)" },
+  { id: "window", icon: "fa-window-maximize", label: "Window (N)" },
+  { id: "room", icon: "fa-vector-square", label: "Room (M)" },
+  { id: "column", icon: "fa-grip-lines-vertical", label: "Column (C)" },
 ];
 
 export function Toolbar() {
@@ -28,8 +28,8 @@ export function Toolbar() {
           key={tool.id}
           className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
             activeTool === tool.id
-              ? 'bg-blue-500/20 text-blue-400'
-              : 'text-gray-500 hover:text-white hover:bg-gray-800'
+              ? "bg-blue-500/20 text-blue-400"
+              : "text-gray-500 hover:text-white hover:bg-gray-800"
           }`}
           title={tool.label}
           onClick={() => setTool(tool.id)}

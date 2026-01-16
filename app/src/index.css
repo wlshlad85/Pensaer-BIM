@@ -6,8 +6,8 @@
    ============================================ */
 
 @theme {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Pensaer Brand Colors */
   --color-pensaer-primary: #3b82f6;
@@ -35,7 +35,8 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-code, .mono {
+code,
+.mono {
   font-family: var(--font-mono);
 }
 
@@ -55,40 +56,85 @@ body {
    ============================================ */
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes contextPop {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes highlightPulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes bounce {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-4px); }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
 }
 
-.animate-slide-up { animation: slideUp 0.15s ease-out; }
-.animate-context-pop { animation: contextPop 0.12s ease-out; }
-.animate-toast-in { animation: toastIn 0.2s ease-out; }
-.animate-modal-in { animation: modalIn 0.2s ease-out; }
-.animate-highlight-pulse { animation: highlightPulse 1s ease-in-out infinite; }
+.animate-slide-up {
+  animation: slideUp 0.15s ease-out;
+}
+.animate-context-pop {
+  animation: contextPop 0.12s ease-out;
+}
+.animate-toast-in {
+  animation: toastIn 0.2s ease-out;
+}
+.animate-modal-in {
+  animation: modalIn 0.2s ease-out;
+}
+.animate-highlight-pulse {
+  animation: highlightPulse 1s ease-in-out infinite;
+}
 
 /* ============================================
    CANVAS STYLES
@@ -97,14 +143,22 @@ body {
 .canvas-bg {
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(147, 51, 234, 0.08) 0%, transparent 50%);
+    radial-gradient(
+      circle at 20% 50%,
+      rgba(59, 130, 246, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 50%,
+      rgba(147, 51, 234, 0.08) 0%,
+      transparent 50%
+    );
 }
 
 .grid-overlay {
   background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
 }
 
@@ -175,10 +229,16 @@ body {
   animation: bounce 1.4s ease-in-out infinite;
 }
 
-.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
 }
 

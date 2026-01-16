@@ -4,9 +4,9 @@
  * Manages UI state: tools, views, panels, modals, and toasts.
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import type { ToolType, ViewMode, Toast, ToastType } from '../types';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import type { ToolType, ViewMode, Toast, ToastType } from "../types";
 
 interface UIState {
   // Tool State
@@ -78,16 +78,16 @@ type UIStore = UIState & UIActions;
 export const useUIStore = create<UIStore>()(
   immer((set) => ({
     // Initial State
-    activeTool: 'select',
+    activeTool: "select",
     isDrawing: false,
     drawStart: null,
     drawEnd: null,
 
-    viewMode: '2d',
+    viewMode: "2d",
     zoom: 1,
     panX: 0,
     panY: 0,
-    activeLevel: 'Level 1',
+    activeLevel: "Level 1",
 
     showCommandPalette: false,
     showPropertiesPanel: true,
@@ -230,7 +230,8 @@ export const useUIStore = create<UIStore>()(
       // - success/info: 4 seconds
       // - warning: 6 seconds
       // - error: no auto-dismiss (user must close)
-      const duration = type === 'error' ? null : type === 'warning' ? 6000 : 4000;
+      const duration =
+        type === "error" ? null : type === "warning" ? 6000 : 4000;
       if (duration) {
         setTimeout(() => {
           useUIStore.getState().removeToast(id);
@@ -247,5 +248,5 @@ export const useUIStore = create<UIStore>()(
       set((state) => {
         state.toasts = [];
       }),
-  }))
+  })),
 );

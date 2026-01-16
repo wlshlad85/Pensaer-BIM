@@ -6,9 +6,9 @@
  * mutations to be undoable.
  */
 
-import { useCallback } from 'react';
-import { useModelStore, useHistoryStore } from '../stores';
-import type { Element } from '../types';
+import { useCallback } from "react";
+import { useModelStore, useHistoryStore } from "../stores";
+import type { Element } from "../types";
 
 /**
  * Hook that provides model operations with automatic history recording.
@@ -24,7 +24,7 @@ export const useModelWithHistory = () => {
       modelStore.addElement(element);
       historyStore.recordAction(`Add ${element.type}: ${element.name}`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Update element with history recording
@@ -35,7 +35,7 @@ export const useModelWithHistory = () => {
       modelStore.updateElement(id, updates);
       historyStore.recordAction(description || `Update ${elementName}`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Delete element with history recording
@@ -46,7 +46,7 @@ export const useModelWithHistory = () => {
       modelStore.deleteElement(id);
       historyStore.recordAction(`Delete ${elementName}`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Delete multiple elements with history recording
@@ -55,7 +55,7 @@ export const useModelWithHistory = () => {
       modelStore.deleteElements(ids);
       historyStore.recordAction(`Delete ${ids.length} elements`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Update properties with history recording
@@ -63,11 +63,11 @@ export const useModelWithHistory = () => {
     (id: string, properties: Record<string, string | number | boolean>) => {
       const element = modelStore.getElementById(id);
       const elementName = element?.name || id;
-      const propNames = Object.keys(properties).join(', ');
+      const propNames = Object.keys(properties).join(", ");
       modelStore.updateProperties(id, properties);
       historyStore.recordAction(`Edit ${elementName} (${propNames})`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Move element (update x, y) with history recording
@@ -78,7 +78,7 @@ export const useModelWithHistory = () => {
       modelStore.updateElement(id, { x, y });
       historyStore.recordAction(`Move ${elementName}`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Resize element with history recording
@@ -89,18 +89,21 @@ export const useModelWithHistory = () => {
       modelStore.updateElement(id, { width, height });
       historyStore.recordAction(`Resize ${elementName}`);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   // Batch operation with single history entry
   const batchUpdate = useCallback(
-    (updates: Array<{ id: string; changes: Partial<Element> }>, description: string) => {
+    (
+      updates: Array<{ id: string; changes: Partial<Element> }>,
+      description: string,
+    ) => {
       updates.forEach(({ id, changes }) => {
         modelStore.updateElement(id, changes);
       });
       historyStore.recordAction(description);
     },
-    [modelStore, historyStore]
+    [modelStore, historyStore],
   );
 
   return {

@@ -155,7 +155,8 @@ export function nearestPointOnLine(point: Point, line: Line): Point {
 
   if (lenSq === 0) return line.start;
 
-  let t = ((point.x - line.start.x) * dx + (point.y - line.start.y) * dy) / lenSq;
+  let t =
+    ((point.x - line.start.x) * dx + (point.y - line.start.y) * dy) / lenSq;
   t = Math.max(0, Math.min(1, t));
 
   return {
@@ -187,7 +188,7 @@ export function getWallEndpoints(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
 ): { start: Point; end: Point } {
   // For horizontal walls (width > height), endpoints are left/right
   // For vertical walls (height > width), endpoints are top/bottom
@@ -215,7 +216,7 @@ export function isHorizontalWall(width: number, height: number): boolean {
 export function screenToCanvas(
   screenPoint: Point,
   pan: Point,
-  zoom: number
+  zoom: number,
 ): Point {
   return {
     x: (screenPoint.x - pan.x) / zoom,
@@ -226,7 +227,7 @@ export function screenToCanvas(
 export function canvasToScreen(
   canvasPoint: Point,
   pan: Point,
-  zoom: number
+  zoom: number,
 ): Point {
   return {
     x: canvasPoint.x * zoom + pan.x,

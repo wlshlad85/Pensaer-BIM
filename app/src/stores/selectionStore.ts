@@ -4,8 +4,8 @@
  * Manages element selection state, hover state, and highlights.
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 
 interface SelectionState {
   selectedIds: string[];
@@ -109,5 +109,5 @@ export const useSelectionStore = create<SelectionStore>()(
     isSelected: (id) => get().selectedIds.includes(id),
     isHovered: (id) => get().hoveredId === id,
     isHighlighted: (id) => get().highlightedIds.includes(id),
-  }))
+  })),
 );

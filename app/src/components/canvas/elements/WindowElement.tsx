@@ -4,10 +4,10 @@
  * Renders a window with glazing pattern.
  */
 
-import { memo } from 'react';
-import type { Element } from '../../../types';
-import { useSelectionStore } from '../../../stores';
-import clsx from 'clsx';
+import { memo } from "react";
+import type { Element } from "../../../types";
+import { useSelectionStore } from "../../../stores";
+import clsx from "clsx";
 
 interface WindowElementProps {
   element: Element;
@@ -35,11 +35,11 @@ export const WindowElement = memo(function WindowElement({
   return (
     <g
       className={clsx(
-        'model-element',
-        isSelected && 'selected',
-        isHighlighted && 'highlighted'
+        "model-element",
+        isSelected && "selected",
+        isHighlighted && "highlighted",
       )}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: "pointer" }}
       onClick={(e) => onClick?.(e, element)}
       onMouseDown={(e) => onMouseDown?.(e, element)}
       onContextMenu={(e) => onContextMenu?.(e, element)}
@@ -63,7 +63,7 @@ export const WindowElement = memo(function WindowElement({
         width={element.width - 2}
         height={element.height - 2}
         fill="none"
-        stroke={isHovered ? '#60a5fa' : '#0ea5e9'}
+        stroke={isHovered ? "#60a5fa" : "#0ea5e9"}
         strokeWidth={2}
       />
 
@@ -73,7 +73,9 @@ export const WindowElement = memo(function WindowElement({
         y={element.y + 3}
         width={element.width - 6}
         height={element.height - 6}
-        fill={isSelected ? 'rgba(56, 189, 248, 0.4)' : 'rgba(56, 189, 248, 0.2)'}
+        fill={
+          isSelected ? "rgba(56, 189, 248, 0.4)" : "rgba(56, 189, 248, 0.2)"
+        }
         stroke="none"
       />
 

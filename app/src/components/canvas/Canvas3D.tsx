@@ -5,14 +5,17 @@
  * Features: Auto-rotation, view controls, building visualization.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'three';
-import { useModelStore, useSelectionStore } from '../../stores';
+import { useEffect, useRef, useState, useCallback } from "react";
+import * as THREE from "three";
+import { useModelStore, useSelectionStore } from "../../stores";
 
-type ViewType = 'perspective' | 'top' | 'front' | 'side';
+type ViewType = "perspective" | "top" | "front" | "side";
 
 // Camera presets matching prototype
-const CAMERA_PRESETS: Record<ViewType, { position: [number, number, number]; lookAt: [number, number, number] }> = {
+const CAMERA_PRESETS: Record<
+  ViewType,
+  { position: [number, number, number]; lookAt: [number, number, number] }
+> = {
   perspective: { position: [8, 6, 8], lookAt: [0, 1, 0] },
   top: { position: [0, 12, 0], lookAt: [0, 0, 0] },
   front: { position: [0, 3, 12], lookAt: [0, 1, 0] },
@@ -28,7 +31,7 @@ export function Canvas3D() {
   const meshesRef = useRef<THREE.Mesh[]>([]);
 
   const [isRotating, setIsRotating] = useState(true);
-  const [currentView, setCurrentView] = useState<ViewType>('perspective');
+  const [currentView, setCurrentView] = useState<ViewType>("perspective");
   const rotationRef = useRef(0);
 
   const elements = useModelStore((s) => s.elements);
@@ -109,10 +112,10 @@ export function Canvas3D() {
       renderer.setSize(newWidth, newHeight);
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -140,7 +143,7 @@ export function Canvas3D() {
 
     // Create building group
     const buildingGroup = new THREE.Group();
-    buildingGroup.name = 'building';
+    buildingGroup.name = "building";
 
     // Color palette
     const colors = {
@@ -166,7 +169,7 @@ export function Canvas3D() {
 
     // Build walls
     elements
-      .filter((el) => el.type === 'wall')
+      .filter((el) => el.type === "wall")
       .forEach((wall) => {
         const isSelected = selectedIds.includes(wall.id);
         const width = wall.width * scale;
@@ -176,7 +179,7 @@ export function Canvas3D() {
         const geometry = new THREE.BoxGeometry(
           Math.max(width, 0.15),
           height,
-          Math.max(depth, 0.15)
+          Math.max(depth, 0.15),
         );
         const material = new THREE.MeshStandardMaterial({
           color: isSelected ? colors.wallSelected : colors.wall,
@@ -189,7 +192,7 @@ export function Canvas3D() {
         mesh.position.set(
           wall.x * scale + width / 2 + offsetX,
           height / 2,
-          wall.y * scale + depth / 2 + offsetZ
+          wall.y * scale + depth / 2 + offsetZ,
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -199,7 +202,7 @@ export function Canvas3D() {
 
     // Build doors
     elements
-      .filter((el) => el.type === 'door')
+      .filter((el) => el.type === "door")
       .forEach((door) => {
         const isSelected = selectedIds.includes(door.id);
         const width = door.width * scale;
@@ -208,7 +211,7 @@ export function Canvas3D() {
         const geometry = new THREE.BoxGeometry(
           Math.max(width, 0.5),
           height,
-          0.1
+          0.1,
         );
         const material = new THREE.MeshStandardMaterial({
           color: isSelected ? colors.doorSelected : colors.door,
@@ -221,7 +224,7 @@ export function Canvas3D() {
         mesh.position.set(
           door.x * scale + width / 2 + offsetX,
           height / 2,
-          door.y * scale + offsetZ
+          door.y * scale + offsetZ,
         );
         mesh.castShadow = true;
         buildingGroup.add(mesh);
@@ -230,7 +233,7 @@ export function Canvas3D() {
 
     // Build windows
     elements
-      .filter((el) => el.type === 'window')
+      .filter((el) => el.type === "window")
       .forEach((window) => {
         const isSelected = selectedIds.includes(window.id);
         const width = window.width * scale;
@@ -251,7 +254,7 @@ export function Canvas3D() {
         mesh.position.set(
           window.x * scale + width / 2 + offsetX,
           1.5,
-          window.y * scale + offsetZ
+          window.y * scale + offsetZ,
         );
         mesh.castShadow = true;
         buildingGroup.add(mesh);
@@ -260,7 +263,7 @@ export function Canvas3D() {
 
     // Build room floors (transparent)
     elements
-      .filter((el) => el.type === 'room')
+      .filter((el) => el.type === "room")
       .forEach((room) => {
         const width = room.width * scale;
         const depth = room.height * scale;
@@ -279,7 +282,7 @@ export function Canvas3D() {
         mesh.position.set(
           room.x * scale + width / 2 + offsetX,
           0.05,
-          room.y * scale + depth / 2 + offsetZ
+          room.y * scale + depth / 2 + offsetZ,
         );
         buildingGroup.add(mesh);
         meshesRef.current.push(mesh);
@@ -287,7 +290,7 @@ export function Canvas3D() {
 
     // Build roof
     elements
-      .filter((el) => el.type === 'roof')
+      .filter((el) => el.type === "roof")
       .forEach((roof) => {
         const isSelected = selectedIds.includes(roof.id);
         // In 2D: width is span across building, height is depth of building
@@ -328,7 +331,7 @@ export function Canvas3D() {
         mesh.position.set(
           roof.x * scale + minDepth / 2 + offsetX,
           wallHeight,
-          roof.y * scale + minSpan / 2 + offsetZ
+          roof.y * scale + minSpan / 2 + offsetZ,
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -337,7 +340,7 @@ export function Canvas3D() {
       });
 
     // Add default roof if none exists
-    if (!elements.some((el) => el.type === 'roof')) {
+    if (!elements.some((el) => el.type === "roof")) {
       const roofGeometry = new THREE.ConeGeometry(3, 1.5, 4);
       const roofMaterial = new THREE.MeshStandardMaterial({
         color: colors.roof,
@@ -362,7 +365,7 @@ export function Canvas3D() {
 
       if (sceneRef.current && cameraRef.current && rendererRef.current) {
         // Auto-rotate in perspective view
-        if (isRotating && currentView === 'perspective') {
+        if (isRotating && currentView === "perspective") {
           rotationRef.current += 0.005;
           const radius = 11;
           cameraRef.current.position.x = Math.sin(rotationRef.current) * radius;
@@ -396,12 +399,13 @@ export function Canvas3D() {
   // Handle click for selection
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!containerRef.current || !cameraRef.current || !sceneRef.current) return;
+      if (!containerRef.current || !cameraRef.current || !sceneRef.current)
+        return;
 
       const rect = containerRef.current.getBoundingClientRect();
       const mouse = new THREE.Vector2(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
       );
 
       const raycaster = new THREE.Raycaster();
@@ -415,7 +419,7 @@ export function Canvas3D() {
         }
       }
     },
-    [select]
+    [select],
   );
 
   return (
@@ -424,14 +428,14 @@ export function Canvas3D() {
 
       {/* View Controls Panel - Matching Prototype */}
       <div className="absolute top-4 left-4 bg-gray-900/80 backdrop-blur-xl rounded-xl p-1 flex flex-col gap-1">
-        {(['perspective', 'top', 'front', 'side'] as ViewType[]).map((view) => (
+        {(["perspective", "top", "front", "side"] as ViewType[]).map((view) => (
           <button
             key={view}
             onClick={() => changeView(view)}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               currentView === view
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                ? "bg-blue-600 text-white"
+                : "text-gray-400 hover:text-white hover:bg-gray-800"
             }`}
           >
             {view.charAt(0).toUpperCase() + view.slice(1)}
@@ -445,12 +449,14 @@ export function Canvas3D() {
           onClick={() => setIsRotating(!isRotating)}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             isRotating
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-900/80 text-gray-400 hover:text-white'
+              ? "bg-blue-600 text-white"
+              : "bg-gray-900/80 text-gray-400 hover:text-white"
           }`}
         >
-          <i className={`fa-solid ${isRotating ? 'fa-pause' : 'fa-play'} mr-2`}></i>
-          {isRotating ? 'Pause' : 'Rotate'}
+          <i
+            className={`fa-solid ${isRotating ? "fa-pause" : "fa-play"} mr-2`}
+          ></i>
+          {isRotating ? "Pause" : "Rotate"}
         </button>
       </div>
 
