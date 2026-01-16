@@ -347,6 +347,12 @@ export function Terminal({
           "  \x1b[32manalyze\x1b[0m           - Analyze wall topology",
         );
         terminal.writeln(
+          "  \x1b[32mclash\x1b[0m             - Detect clashes: clash [--clearance 0.1] [--ids id1,id2]",
+        );
+        terminal.writeln(
+          "  \x1b[32mclash-between\x1b[0m     - Clash between sets: clash-between --a id1,id2 --b id3,id4",
+        );
+        terminal.writeln(
           "  \x1b[32mdelete\x1b[0m            - Delete elements: delete <id1> <id2> ...",
         );
         break;
@@ -552,6 +558,73 @@ export function Terminal({
           arguments: {},
         });
         formatMcpResult(terminal, result, "analyze_wall_topology");
+        break;
+      }
+
+      case "clash": {
+        const parsed = parseArgs(args);
+        const tolerance = (parsed.tolerance as number) || 0.001;
+        const clearance = (parsed.clearance as number) || 0;
+        const elementIds = parsed.ids
+          ? String(parsed.ids).split(",")
+          : undefined;
+        const ignoreSameType = parsed.ignore_same_type === true;
+
+        terminal.writeln("\x1b[33mDetecting clashes...\x1b[0m");
+        if (clearance > 0) {
+          terminal.writeln(
+            `  Clearance check: ${(clearance * 1000).toFixed(0)}mm`,
+          );
+        }
+        if (elementIds) {
+          terminal.writeln(`  Checking ${elementIds.length} elements`);
+        }
+
+        const result = await mcpClient.callTool({
+          tool: "detect_clashes",
+          arguments: {
+            element_ids: elementIds,
+            tolerance,
+            clearance,
+            ignore_same_type: ignoreSameType,
+          },
+        });
+        formatMcpResult(terminal, result, "detect_clashes");
+        break;
+      }
+
+      case "clash-between": {
+        const parsed = parseArgs(args);
+        if (!parsed.a || !parsed.b) {
+          terminal.writeln(
+            "\x1b[31mUsage: clash-between --a id1,id2,... --b id3,id4,...\x1b[0m",
+          );
+          terminal.writeln(
+            "  Example: clash-between --a wall-1,wall-2 --b door-1,door-2",
+          );
+          terminal.writeln("  Options: --tolerance 0.001 --clearance 0.1");
+          break;
+        }
+
+        const setAIds = String(parsed.a).split(",");
+        const setBIds = String(parsed.b).split(",");
+        const tolerance = (parsed.tolerance as number) || 0.001;
+        const clearance = (parsed.clearance as number) || 0;
+
+        terminal.writeln("\x1b[33mDetecting clashes between sets...\x1b[0m");
+        terminal.writeln(`  Set A: ${setAIds.length} elements`);
+        terminal.writeln(`  Set B: ${setBIds.length} elements`);
+
+        const result = await mcpClient.callTool({
+          tool: "detect_clashes_between_sets",
+          arguments: {
+            set_a_ids: setAIds,
+            set_b_ids: setBIds,
+            tolerance,
+            clearance,
+          },
+        });
+        formatMcpResult(terminal, result, "detect_clashes_between_sets");
         break;
       }
 
