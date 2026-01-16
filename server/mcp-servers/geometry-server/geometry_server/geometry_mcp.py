@@ -69,6 +69,9 @@ from .schemas import (
     GetGroupParams,
     ListGroupsParams,
     SelectGroupParams,
+    # Room detection schemas
+    DetectRoomsParams,
+    AnalyzeTopologyParams,
     ErrorCodes,
 )
 from .state import get_state, GeometryState
@@ -902,6 +905,49 @@ TOOLS = [
             "required": ["operation", "target_id", "tool_id"],
         },
     ),
+    # Room Detection Tools
+    Tool(
+        name="detect_rooms",
+        description="Detect enclosed rooms from walls using topology graph analysis. "
+        "Identifies closed wall loops and computes room properties (area, centroid, boundary).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "wall_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of walls to analyze. If not provided, uses all walls in model.",
+                },
+                "tolerance": {
+                    "type": "number",
+                    "default": 0.0005,
+                    "description": "Distance tolerance for node merging in meters (default 0.5mm)",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+        },
+    ),
+    Tool(
+        name="analyze_wall_topology",
+        description="Analyze the topology of a wall network. Returns node count, edge count, "
+        "room count, connectivity status, and detailed room information.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "wall_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of walls to analyze. If not provided, uses all walls in model.",
+                },
+                "tolerance": {
+                    "type": "number",
+                    "default": 0.0005,
+                    "description": "Distance tolerance for node merging in meters (default 0.5mm)",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+        },
+    ),
     # State Tools
     Tool(
         name="get_state_summary",
@@ -1050,6 +1096,12 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
     # Boolean Operation
     elif name == "boolean_operation":
         return await _boolean_operation(state, args, reasoning)
+
+    # Room Detection Tools
+    elif name == "detect_rooms":
+        return await _detect_rooms(state, args, reasoning)
+    elif name == "analyze_wall_topology":
+        return await _analyze_wall_topology(state, args, reasoning)
 
     # State Tools
     elif name == "get_state_summary":
@@ -2262,6 +2314,136 @@ async def _select_group(
         },
         reasoning=reasoning,
     )
+
+
+# =============================================================================
+# Room Detection Tool Handlers
+# =============================================================================
+
+
+async def _detect_rooms(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Detect enclosed rooms from walls using topology graph analysis."""
+    params = DetectRoomsParams(**args)
+
+    # Get walls to analyze
+    if params.wall_ids:
+        # Use specified walls
+        walls = []
+        for wall_id in params.wall_ids:
+            record = state.get_element(wall_id)
+            if record and record.element_type == "wall":
+                walls.append(record.element)
+            else:
+                return make_error(
+                    ErrorCodes.ELEMENT_NOT_FOUND, f"Wall not found: {wall_id}"
+                )
+    else:
+        # Use all walls in model
+        wall_records = state.list_elements(category="wall")
+        walls = [r["element"] for r in wall_records]
+
+    if not walls:
+        return make_response(
+            {
+                "rooms": [],
+                "count": 0,
+                "message": "No walls found to analyze",
+            },
+            reasoning=reasoning,
+        )
+
+    # Call Rust room detection via PyO3 binding
+    try:
+        rooms = pg.detect_rooms(walls, tolerance=params.tolerance)
+
+        # Convert Python list of dicts to response format
+        room_data = []
+        for room in rooms:
+            room_data.append({
+                "id": room["id"],
+                "area": room["area"],
+                "centroid": room["centroid"],
+                "boundary_count": room["boundary_count"],
+                "is_exterior": room["is_exterior"],
+            })
+
+        return make_response(
+            {
+                "rooms": room_data,
+                "count": len(room_data),
+                "walls_analyzed": len(walls),
+                "tolerance": params.tolerance,
+            },
+            reasoning=reasoning,
+        )
+    except Exception as e:
+        return make_error(
+            ErrorCodes.INTERNAL_ERROR,
+            f"Room detection failed: {str(e)}",
+        )
+
+
+async def _analyze_wall_topology(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Analyze wall network topology and return graph information."""
+    params = AnalyzeTopologyParams(**args)
+
+    # Get walls to analyze
+    if params.wall_ids:
+        # Use specified walls
+        walls = []
+        for wall_id in params.wall_ids:
+            record = state.get_element(wall_id)
+            if record and record.element_type == "wall":
+                walls.append(record.element)
+            else:
+                return make_error(
+                    ErrorCodes.ELEMENT_NOT_FOUND, f"Wall not found: {wall_id}"
+                )
+    else:
+        # Use all walls in model
+        wall_records = state.list_elements(category="wall")
+        walls = [r["element"] for r in wall_records]
+
+    if not walls:
+        return make_response(
+            {
+                "node_count": 0,
+                "edge_count": 0,
+                "room_count": 0,
+                "interior_room_count": 0,
+                "is_connected": True,
+                "rooms": [],
+                "message": "No walls found to analyze",
+            },
+            reasoning=reasoning,
+        )
+
+    # Call Rust topology analysis via PyO3 binding
+    try:
+        analysis = pg.analyze_wall_topology(walls, tolerance=params.tolerance)
+
+        return make_response(
+            {
+                "node_count": analysis["node_count"],
+                "edge_count": analysis["edge_count"],
+                "room_count": analysis["room_count"],
+                "interior_room_count": analysis["interior_room_count"],
+                "is_connected": analysis["is_connected"],
+                "rooms": analysis["rooms"],
+                "walls_analyzed": len(walls),
+                "tolerance": params.tolerance,
+            },
+            reasoning=reasoning,
+        )
+    except Exception as e:
+        return make_error(
+            ErrorCodes.INTERNAL_ERROR,
+            f"Topology analysis failed: {str(e)}",
+        )
 
 
 # =============================================================================

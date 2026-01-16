@@ -528,6 +528,43 @@ class SelectGroupParams(BaseModel):
 
 
 # =============================================================================
+# Room Detection Tool Schemas
+# =============================================================================
+
+
+class DetectRoomsParams(BaseModel):
+    """Parameters for detecting rooms from walls using topology analysis."""
+
+    wall_ids: list[str] | None = Field(
+        None,
+        description="UUIDs of walls to analyze. If None, uses all walls in model.",
+    )
+    tolerance: float = Field(
+        0.0005,
+        description="Distance tolerance for node merging (meters). Default 0.5mm.",
+        ge=0.0001,
+        le=0.01,
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class AnalyzeTopologyParams(BaseModel):
+    """Parameters for analyzing wall network topology."""
+
+    wall_ids: list[str] | None = Field(
+        None,
+        description="UUIDs of walls to analyze. If None, uses all walls in model.",
+    )
+    tolerance: float = Field(
+        0.0005,
+        description="Distance tolerance for node merging (meters). Default 0.5mm.",
+        ge=0.0001,
+        le=0.01,
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+# =============================================================================
 # Response Schemas
 # =============================================================================
 
