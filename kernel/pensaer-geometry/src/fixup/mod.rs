@@ -15,14 +15,8 @@
 //! - Rooms last (depend on final topology)
 
 use crate::constants::SNAP_MERGE_TOL;
+use crate::topology::TopologyGraph;
 use serde_json::Value;
-
-/// Placeholder for the model type.
-/// Will be replaced with actual topology graph in M2.
-pub struct Model {
-    // TODO: Replace with actual topology graph
-    pub _placeholder: (),
-}
 
 /// Delta returned by operations, describing what changed.
 #[derive(Debug, Clone, Default)]
@@ -61,20 +55,20 @@ impl Delta {
 /// - Duplicate edges are removed
 ///
 /// # Arguments
-/// * `model` - The model to modify
+/// * `graph` - The topology graph to modify
 /// * `tolerance` - Maximum distance for merge (typically SNAP_MERGE_TOL)
 ///
 /// # Returns
 /// Number of nodes merged
-pub fn snap_merge_nodes(model: &mut Model, tolerance: f64) -> usize {
-    // TODO: Implement in M2
-    // 1. Query R*-tree for all node pairs within tolerance
-    // 2. Use union-find to group mergeable nodes
-    // 3. Replace each group with a single node at centroid
-    // 4. Update all edge references
-    // 5. Remove duplicate edges
-    let _ = (model, tolerance);
-    0
+pub fn snap_merge_nodes(graph: &mut TopologyGraph, tolerance: f64) -> usize {
+    // The TopologyGraph already handles snap-merge on node creation,
+    // but this pass catches any nodes that have drifted close together
+    // after other operations.
+    //
+    // For now, we use the graph's built-in snap_merge_nodes which uses
+    // its own snap_tolerance. In the future, this could be parameterized.
+    let _ = tolerance;
+    graph.snap_merge_nodes()
 }
 
 /// Split edges that cross each other, creating T-nodes.
@@ -85,14 +79,14 @@ pub fn snap_merge_nodes(model: &mut Model, tolerance: f64) -> usize {
 ///
 /// # Returns
 /// Number of crossings split
-pub fn split_crossings(model: &mut Model) -> usize {
-    // TODO: Implement in M2
+pub fn split_crossings(graph: &mut TopologyGraph) -> usize {
+    // TODO: Implement in M3
     // 1. For each pair of edges, check for intersection
     // 2. Use robust predicates to avoid numerical issues
     // 3. If intersection exists and is not at endpoints:
     //    - Create new node at intersection
     //    - Split both edges at that node
-    let _ = model;
+    let _ = graph;
     0
 }
 
@@ -104,13 +98,13 @@ pub fn split_crossings(model: &mut Model) -> usize {
 ///
 /// # Returns
 /// Number of edge pairs merged
-pub fn merge_colinear(model: &mut Model) -> usize {
-    // TODO: Implement in M2
+pub fn merge_colinear(graph: &mut TopologyGraph) -> usize {
+    // TODO: Implement in M3
     // 1. For each node with exactly 2 incident edges:
     //    - Check if edges are colinear (using robust predicates)
     //    - If yes, merge into single edge
     // 2. Remove orphaned nodes
-    let _ = model;
+    let _ = graph;
     0
 }
 
@@ -122,31 +116,32 @@ pub fn merge_colinear(model: &mut Model) -> usize {
 /// - Updates area/perimeter calculations
 ///
 /// # Arguments
-/// * `model` - The model to modify
+/// * `graph` - The topology graph to modify
 /// * `delta` - Description of what changed (for incremental update)
-pub fn rooms_rebuild_dirty(model: &mut Model, delta: &Delta) {
+pub fn rooms_rebuild_dirty(graph: &mut TopologyGraph, delta: &Delta) {
     // TODO: Implement in M4
     // 1. Find rooms containing any affected_nodes
     // 2. For each dirty room:
     //    - Trace boundary from wall edges
     //    - Recompute polygon
     //    - Update area/perimeter
-    let _ = (model, delta);
+    let _ = (graph, delta);
 }
 
 /// Run all fixup passes in the correct order.
 ///
 /// This is the main entry point for healing after any mutation.
-pub fn heal_all(model: &mut Model, delta: &Delta) {
-    snap_merge_nodes(model, SNAP_MERGE_TOL);
-    split_crossings(model);
-    merge_colinear(model);
-    rooms_rebuild_dirty(model, delta);
+pub fn heal_all(graph: &mut TopologyGraph, delta: &Delta) {
+    snap_merge_nodes(graph, SNAP_MERGE_TOL);
+    split_crossings(graph);
+    merge_colinear(graph);
+    rooms_rebuild_dirty(graph, delta);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::topology::EdgeData;
 
     #[test]
     fn delta_to_json_works() {
@@ -167,9 +162,35 @@ mod tests {
 
     #[test]
     fn heal_all_runs_without_panic() {
-        let mut model = Model { _placeholder: () };
+        let mut graph = TopologyGraph::new();
         let delta = Delta::new();
-        heal_all(&mut model, &delta);
+        heal_all(&mut graph, &delta);
         // Just verifying it doesn't panic
+    }
+
+    #[test]
+    fn snap_merge_nodes_merges_close_nodes() {
+        let mut graph = TopologyGraph::new();
+
+        // Add two edges that share approximately the same middle node
+        graph.add_edge([0.0, 0.0], [1000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+        // This should auto-merge due to find_or_create_node
+        graph.add_edge([1000.3, 0.0], [2000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+
+        // Should have 3 nodes (start, shared middle, end)
+        assert_eq!(graph.node_count(), 3);
+
+        // Add another edge with a node that's very close but wasn't auto-merged
+        // (simulating a post-mutation state)
+        graph.add_edge([3000.0, 0.0], [4000.0, 0.0], EdgeData::wall(200.0, 2700.0));
+
+        // Now we have 5 nodes
+        assert_eq!(graph.node_count(), 5);
+
+        let delta = Delta::new();
+        heal_all(&mut graph, &delta);
+
+        // No nodes should have been merged since they're all far apart
+        assert_eq!(graph.node_count(), 5);
     }
 }

@@ -25,14 +25,15 @@
 //! // result contains the healed delta
 //! ```
 
-use crate::fixup::{self, Delta, Model};
+use crate::fixup::{self, Delta};
 use crate::io::{prepare_input, prepare_output};
+use crate::topology::TopologyGraph;
 use serde_json::Value;
 
 /// Execution context containing the model and metadata.
 pub struct Context {
-    /// The geometry model
-    pub model: Model,
+    /// The topology graph (wall network)
+    pub graph: TopologyGraph,
     /// Session ID for audit logging
     pub session_id: Option<String>,
     /// User ID for audit logging
@@ -43,7 +44,7 @@ impl Context {
     /// Create a new empty context.
     pub fn new() -> Self {
         Self {
-            model: Model { _placeholder: () },
+            graph: TopologyGraph::new(),
             session_id: None,
             user_id: None,
         }
@@ -52,7 +53,7 @@ impl Context {
     /// Create context with audit metadata.
     pub fn with_audit(session_id: String, user_id: String) -> Self {
         Self {
-            model: Model { _placeholder: () },
+            graph: TopologyGraph::new(),
             session_id: Some(session_id),
             user_id: Some(user_id),
         }
@@ -141,7 +142,7 @@ pub fn exec_and_heal(method: &str, params: &Value, ctx: &mut Context) -> ExecRes
     match result {
         Ok((delta, data)) => {
             // 3. Run healing passes
-            fixup::heal_all(&mut ctx.model, &delta);
+            fixup::heal_all(&mut ctx.graph, &delta);
 
             // 4. Return healed result
             ExecResult::ok(delta, data)

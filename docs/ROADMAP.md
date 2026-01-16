@@ -1,398 +1,547 @@
 # Pensaer Development Roadmap
 
-**Document Version:** 2.0 (Consolidated)
+**Document Version:** 3.0 (Complete Rewrite)
 **Initiated:** January 13, 2026
-**Updated:** January 15, 2026
-**Status:** Phase 1 Complete ✅ | Phase 2 In Progress
+**Updated:** January 16, 2026
+**Status:** Phase 1 Foundation 90% ✅ | Phase 2 Imminent
 
 ---
 
-## Overview
+## Executive Summary
 
-This roadmap contains two timelines:
-1. **Original 16-week plan** (v1.0) - MVP prototype focused on web client
-2. **Extended 48-week plan** (v2.0) - Full platform with server, kernel, and AI agents
+Pensaer is a **developer-first BIM platform** targeting computational designers frustrated with Revit's click-heavy workflows. We're building a keyboard-driven, Git-native, AI-powered alternative with real-time collaboration.
 
-See [PRD.md](./PRD.md) for detailed requirements and acceptance criteria.
+**Current Position:** End of Phase 1 Foundation
+- ✅ Rust geometry kernel operational (90%)
+- ✅ React client feature-complete for Phase 1 (95%)
+- ⏳ MCP tool servers partially implemented (40%)
+- ⏹️ Terminal/DSL integration pending
+- ⏹️ IFC pipeline pending
 
----
-
-## Timeline Comparison
-
-| Milestone | 16-Week Plan | 48-Week Plan |
-|-----------|--------------|--------------|
-| Core Engine | Week 4 | Week 12 |
-| Developer Experience | Week 8 | — |
-| Collaboration | Week 16 | Week 24 |
-| Agentic AI | — | Week 36 |
-| Production | — | Week 48 |
+**Velocity:** AI-first development with Claude Opus 4.5 + parallel sessions
+**Team Size:** 1 developer + AI assistance
 
 ---
 
-# Part I: Original 16-Week Plan (MVP Prototype)
-
-This section outlines the original 16-week initial development plan for Pensaer, taking us from prototype to a functional alpha release.
+## Strategic Timeline
 
 ```
-╔════════════════════════════════════════════════════════════════════════════╗
-║                         PENSAER DEVELOPMENT TIMELINE                        ║
-╠════════════════════════════════════════════════════════════════════════════╣
-║                                                                              ║
-║   Week  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16      ║
-║         ├───────────────┼───────────────┼───────────────┼──────────────┤   ║
-║         │   PHASE 1     │   PHASE 2     │   PHASE 3     │   PHASE 4    │   ║
-║         │ Core Engine   │ Developer     │ BIM           │ Collab       │   ║
-║         │               │ Experience    │ Compliance    │              │   ║
-║         └───────────────┴───────────────┴───────────────┴──────────────┘   ║
-║                                                                              ║
-║   Milestones:                                                               ║
-║   ● Week 4:  v0.1.0-alpha (Core working)                                    ║
-║   ● Week 8:  v0.2.0-alpha (Terminal + DSL)                                  ║
-║   ● Week 12: v0.3.0-alpha (IFC support)                                     ║
-║   ● Week 16: v0.4.0-beta  (Collaboration)                                   ║
-║                                                                              ║
-╚════════════════════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════════════════════╗
+║                           PENSAER 48-WEEK MASTER TIMELINE                                 ║
+╠══════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                            ║
+║   2026    Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    Sep    Oct    Nov  Dec  ║
+║           ├──────┴──────┼──────┴──────┼──────┴──────┼──────┴──────┼──────┴──────┴─────┤  ║
+║   Week    1─────────12  13────────24  25────────36  37────────48  49────────52           ║
+║           │             │             │             │             │                       ║
+║           │  PHASE 1    │  PHASE 2    │  PHASE 3    │  PHASE 4    │  GTM                 ║
+║           │  Foundation │  Collab     │  Agentic    │  Production │  Launch              ║
+║           │             │             │  AI         │  Hardening  │                       ║
+║           │    ███████░ │             │             │             │                       ║
+║           │     90%     │     0%      │     0%      │     0%      │    0%                ║
+║           └─────────────┴─────────────┴─────────────┴─────────────┴─────────────         ║
+║                                                                                            ║
+║   Legend: ███ Complete  ░░░ In Progress  ─── Planned                                      ║
+║                                                                                            ║
+╚══════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## Phase 1: Core Engine (Weeks 1-4)
+## Phase 1: Foundation (Weeks 1-12) — 90% Complete
 
-**Goal:** Establish the foundational architecture and basic BIM functionality.
+**Goal:** Establish model kernel, regeneration loop, and baseline MCP tools.
 
-### Week 1: Project Setup
-- [x] Initialize Vite + React + TypeScript project
-- [x] Configure Tailwind CSS
-- [x] Set up ESLint, Prettier, Husky
-- [x] Create component folder structure
-- [x] Migrate prototype components to proper React structure
+### Current Status Summary
 
-### Week 2: Data Model & State
-- [x] Implement Element, Relationship TypeScript interfaces
-- [x] Set up Zustand stores (model, selection, ui, history)
-- [x] Implement basic CRUD operations for elements
-- [x] Create element factory functions
-
-### Week 3: Canvas & Interaction
-- [x] Build 2D SVG canvas component
-- [x] Implement element rendering (wall, door, window, room)
-- [x] Add selection system (click, shift-click, box select)
-- [x] Implement drag-to-move functionality
-- [x] Add snap system (grid, element, endpoint)
-
-### Week 4: Transactions & Persistence
-- [x] Build transaction manager for undo/redo
-- [x] Implement operation recording
-- [x] Add IndexedDB persistence layer
-- [x] Create auto-save functionality
-- [x] **Release: v0.1.0-alpha** ✅
-
-**Deliverables:** ✅ ALL COMPLETE
-- Working 2D canvas with element creation/editing
-- Undo/redo system
-- Local persistence
-- Basic element types (wall, door, window, room)
-- *Bonus: Rust kernel with geometry + MCP geometry server*
+| Component | Status | Completion |
+|-----------|--------|------------|
+| Rust Geometry Kernel | ✅ Operational | 90% |
+| React Client (2D) | ✅ Feature Complete | 95% |
+| React Client (3D) | ⏳ Basic Only | 60% |
+| Command Palette | ✅ Complete | 100% |
+| MCP Geometry Server | ⏳ Partial | 40% |
+| MCP Spatial Server | ⏹️ Skeleton | 10% |
+| MCP Validation Server | ⏹️ Skeleton | 10% |
+| MCP Documentation Server | ⏹️ Skeleton | 10% |
+| Terminal (xterm.js) | ⏹️ Not Started | 0% |
+| DSL Parser | ⏹️ Not Started | 0% |
+| IFC Pipeline | ⏹️ Not Started | 0% |
 
 ---
 
-## Phase 2: Developer Experience (Weeks 5-8)
+### Week-by-Week Detail
 
-**Goal:** Add terminal, command palette, and keyboard-first workflows.
+#### Weeks 1-4: Core Engine ✅ COMPLETE
 
-### Week 5: Command Palette
-- [x] Build command palette component
-- [x] Implement fuzzy search algorithm
-- [x] Add command registration system
-- [x] Create keyboard shortcut manager
-- [x] Implement ⌘K trigger
+| Week | Deliverable | Status |
+|------|-------------|--------|
+| 1 | Project setup (Vite + React + TypeScript + Tailwind) | ✅ |
+| 1 | Component folder structure | ✅ |
+| 2 | Element/Relationship TypeScript interfaces | ✅ |
+| 2 | Zustand stores (model, selection, ui, history) | ✅ |
+| 3 | 2D SVG canvas with element rendering | ✅ |
+| 3 | Selection system (click, shift, box select) | ✅ |
+| 3 | Snap system (grid, element, endpoint) | ✅ |
+| 4 | Transaction manager with undo/redo | ✅ |
+| 4 | IndexedDB persistence + auto-save | ✅ |
 
-### Week 6: Terminal Panel
-- [ ] Integrate xterm.js
-- [ ] Create terminal UI panel (resizable)
-- [ ] Build basic command parser
-- [ ] Implement history and autocomplete
-- [ ] Add output formatting
-
-### Week 7: DSL Implementation
-- [ ] Design DSL grammar (BNF specification)
-- [ ] Build lexer for tokenization
-- [ ] Implement parser for command trees
-- [ ] Create command executor
-- [ ] Add error handling and suggestions
-
-### Week 8: Natural Language Integration
-- [ ] Add NL pattern matching for commands
-- [ ] Implement "AI understands" preview system
-- [ ] Create suggestion/completion system
-- [ ] Build macro recording (record, playback)
-- [ ] **Release: v0.2.0-alpha**
-
-**Deliverables:**
-- Fully functional command palette with fuzzy search
-- Integrated terminal with Pensaer DSL
-- Natural language command parsing
-- Keyboard shortcut system
-- Macro recording
+**Milestone:** v0.1.0-alpha ✅ Achieved
 
 ---
 
-## Phase 3: BIM Compliance (Weeks 9-12)
+#### Weeks 5-8: Developer Experience — 60% Complete
 
-**Goal:** Add IFC support and professional BIM features.
+| Week | Deliverable | Status |
+|------|-------------|--------|
+| 5 | Command palette component | ✅ |
+| 5 | Fuzzy search algorithm | ✅ |
+| 5 | Keyboard shortcut manager (⌘K trigger) | ✅ |
+| 6 | xterm.js integration | ⏹️ TODO |
+| 6 | Terminal UI panel (resizable) | ⏹️ TODO |
+| 6 | Command history + autocomplete | ⏹️ TODO |
+| 7 | DSL grammar specification (BNF) | ⏹️ TODO |
+| 7 | Lexer + Parser implementation | ⏹️ TODO |
+| 7 | Command executor | ⏹️ TODO |
+| 8 | Natural language pattern matching | ⏹️ TODO |
+| 8 | Macro recording/playback | ⏹️ TODO |
 
-### Week 9: 3D Visualization
-- [ ] Upgrade Three.js integration
-- [ ] Implement proper wall/door/window 3D geometry
-- [ ] Add floor and roof 3D rendering
-- [ ] Create orbit controls and viewcube
-- [ ] Implement section cuts
-
-### Week 10: IFC Integration
-- [ ] Integrate web-ifc library
-- [ ] Build IFC import pipeline
-- [ ] Implement element mapping (IFC → Pensaer)
-- [ ] Add IFC export functionality
-- [ ] Handle IFC property sets
-
-### Week 11: Multi-Level Support
-- [ ] Add Level entity type
-- [ ] Implement level switching
-- [ ] Build level browser panel
-- [ ] Add copy-to-levels functionality
-- [ ] Implement floor-to-floor relationships
-
-### Week 12: Compliance Checking
-- [ ] Build rule engine for compliance
-- [ ] Implement fire rating checks
-- [ ] Add accessibility compliance rules
-- [ ] Create clash detection system
-- [ ] Build issue visualization
-- [ ] **Release: v0.3.0-alpha**
-
-**Deliverables:**
-- IFC import/export
-- Full 3D visualization
-- Multi-level support
-- Automated compliance checking
-- Clash detection
+**Milestone:** v0.2.0-alpha ⏹️ Pending (Target: Week 8)
 
 ---
 
-## Phase 4: Collaboration (Weeks 13-16)
+#### Weeks 9-12: BIM Compliance — 20% Complete
 
-**Goal:** Enable real-time multi-user editing.
+| Week | Deliverable | Status |
+|------|-------------|--------|
+| 9 | Three.js proper wall/door/window 3D | ⏳ Basic done |
+| 9 | Floor + roof 3D rendering | ⏹️ TODO |
+| 9 | Orbit controls + viewcube | ⏹️ TODO |
+| 9 | Section cuts | ⏹️ TODO |
+| 10 | IFC import pipeline (web-ifc) | ⏹️ TODO |
+| 10 | Element mapping (IFC → Pensaer) | ⏹️ TODO |
+| 10 | IFC export functionality | ⏹️ TODO |
+| 11 | Level entity type | ⏹️ TODO |
+| 11 | Level switching + browser panel | ⏹️ TODO |
+| 12 | Rule engine for compliance | ⏹️ TODO |
+| 12 | Clash detection system | ⏹️ TODO |
 
-### Week 13: Cloud Infrastructure
-- [ ] Set up Supabase project
-- [ ] Implement authentication (email, Google)
-- [ ] Create project/document storage
-- [ ] Build API for project management
-- [ ] Add project sharing/permissions
-
-### Week 14: Real-Time Sync
-- [ ] Integrate Yjs for CRDT
-- [ ] Implement WebSocket provider
-- [ ] Build conflict resolution logic
-- [ ] Add presence indicators
-- [ ] Create cursor sharing
-
-### Week 15: Collaboration Features
-- [ ] Build comments/markup system
-- [ ] Implement design option branching
-- [ ] Add change tracking/history
-- [ ] Create merge functionality
-- [ ] Build notification system
-
-### Week 16: Polish & Beta Release
-- [ ] Performance optimization
-- [ ] Bug fixing and stabilization
-- [ ] Documentation completion
-- [ ] Demo project creation
-- [ ] **Release: v0.4.0-beta**
-
-**Deliverables:**
-- Real-time multi-user editing
-- Cloud storage and authentication
-- Comments and markup
-- Design branching/merging
-- Production-ready beta
+**Milestone:** v0.3.0-alpha ⏹️ Pending (Target: Week 12)
 
 ---
 
-## Post-Beta Roadmap (Months 5-12)
-
-### Q2 2026: Enterprise Features
-- Single Sign-On (SSO) support
-- Audit logging
-- Role-based permissions
-- On-premise deployment option
-
-### Q3 2026: Advanced BIM
-- MEP (Mechanical, Electrical, Plumbing) support
-- Structural analysis integration
-- Energy analysis
-- Cost estimation
-
-### Q4 2026: Ecosystem
-- Plugin marketplace
-- Public API
-- Zapier/Integromat integrations
-- Mobile companion app
-
----
-
-## Success Metrics by Phase
-
-| Phase | KPI | Target |
-|-------|-----|--------|
-| Phase 1 | Prototype feature parity | 100% |
-| Phase 2 | Commands executable via terminal | 50+ |
-| Phase 3 | IFC import success rate | > 95% |
-| Phase 4 | Concurrent user editing | 10+ users |
-
----
-
-## Resource Requirements
-
-### Development Team
-- **Phase 1-2:** 1 full-stack developer
-- **Phase 3-4:** 2-3 developers recommended
-
-### Infrastructure
-- **Development:** Local + GitHub
-- **Phase 3+:** Supabase (free tier → pro)
-- **Beta:** CDN for static assets
-
-### Budget Estimate
-- Supabase Pro: $25/month
-- Domain + hosting: $20/month
-- Development tools: $50/month
-- **Total Phase 1-4:** ~$400
-
----
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| Scope creep | Strict phase gates, feature freeze per phase |
-| web-ifc complexity | Start integration early, have fallback plan |
-| Performance issues | Profile early, set budgets, lazy loading |
-| Yjs learning curve | Dedicate full week, use examples |
-
----
-
-# Part II: Extended 48-Week Plan (Full Platform)
-
-> *This section defines the extended timeline following the architectural pivot to a CLI-first, agentic, AI-native platform with Rust kernel and Python server.*
+### Phase 1 Remaining Work (Priority Order)
 
 ```
-╔═════════════════════════════════════════════════════════════════════════════════════╗
-║                      PENSAER EXTENDED DEVELOPMENT TIMELINE                           ║
-╠═════════════════════════════════════════════════════════════════════════════════════╣
-║                                                                                       ║
-║   Week  1────12   13────24   25────36   37────48   49────52                          ║
-║         ├─────────┼─────────┼─────────┼─────────┼─────────┤                          ║
-║         │ PHASE 1 │ PHASE 2 │ PHASE 3 │ PHASE 4 │  GTM    │                          ║
-║         │ Found-  │ Collab- │ Agentic │ Prod-   │ Go-To-  │                          ║
-║         │ ation   │ oration │   AI    │ uction  │ Market  │                          ║
-║         └─────────┴─────────┴─────────┴─────────┴─────────┘                          ║
-║                                                                                       ║
-╚═════════════════════════════════════════════════════════════════════════════════════╝
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 1 COMPLETION PRIORITIES                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  CRITICAL PATH (Must complete before Phase 2)                        │
+│  ═══════════════════════════════════════════                         │
+│                                                                       │
+│  1. [Kernel] Commit topology module         ████░░░░░░  Est: 2 days  │
+│     └─ graph.rs, node.rs, edge.rs ready                              │
+│     └─ Needs: tests + CI approval                                    │
+│                                                                       │
+│  2. [Server] Complete geometry-server       ████████░░  Est: 5 days  │
+│     └─ create_wall, create_opening tools                             │
+│     └─ mesh generation endpoints                                     │
+│     └─ boolean operations                                            │
+│                                                                       │
+│  3. [App] Terminal integration              ░░░░░░░░░░  Est: 5 days  │
+│     └─ xterm.js setup                                                │
+│     └─ DSL parser (basic subset)                                     │
+│     └─ Command execution                                             │
+│                                                                       │
+│  IMPORTANT (Complete during Phase 2 overlap)                         │
+│  ═══════════════════════════════════════════                         │
+│                                                                       │
+│  4. [App] 3D visualization improvements     ████░░░░░░  Est: 4 days  │
+│     └─ Proper wall thickness                                         │
+│     └─ Floor/roof geometry                                           │
+│     └─ Section cuts                                                  │
+│                                                                       │
+│  5. [Server] Spatial + Validation servers   ██░░░░░░░░  Est: 6 days  │
+│     └─ Room analysis tools                                           │
+│     └─ Clash detection                                               │
+│                                                                       │
+│  6. [Kernel] IFC pipeline                   ░░░░░░░░░░  Est: 8 days  │
+│     └─ web-ifc integration                                           │
+│     └─ Import/export mapping                                         │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 1: Foundation (Weeks 1-12)
+## Phase 2: Collaboration (Weeks 13-24) — Not Started
 
-**Goal:** Establish the model kernel and regeneration loop.
+**Goal:** Enable real-time multi-user editing with CRDT synchronization.
 
-### Deliverables
-- Kernel MVP: create wall, compute geometry, store event
-- Regeneration loop: move wall updates joins, room areas, and schedules
-- Minimal MCP tools: `create_wall`, `create_opening`, `create_room`
-- IFC import/export via IfcOpenShell for core elements
+### Architecture Overview
 
-### Technologies
-- Rust kernel with PyO3 bindings
-- PostgreSQL 16 + PostGIS for event store
-- FastAPI for Python application layer
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    COLLABORATION ARCHITECTURE                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────┐     WebSocket      ┌──────────────┐                   │
+│  │ Client A │ ◄───────────────► │              │                    │
+│  └──────────┘                    │   Loro CRDT  │                    │
+│                                  │    Server    │                    │
+│  ┌──────────┐     WebSocket      │              │                    │
+│  │ Client B │ ◄───────────────► │              │                    │
+│  └──────────┘                    └──────┬───────┘                    │
+│                                         │                            │
+│                                         ▼                            │
+│                              ┌──────────────────┐                    │
+│                              │   PostgreSQL     │                    │
+│                              │   Event Store    │                    │
+│                              │   + Snapshots    │                    │
+│                              └──────────────────┘                    │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Week-by-Week Plan
+
+#### Weeks 13-14: Cloud Infrastructure
+
+| Deliverable | Details |
+|-------------|---------|
+| Supabase project setup | Auth, database, storage |
+| Authentication | Email + Google OAuth |
+| Project/document storage | PostgreSQL schema |
+| Sharing + permissions API | Role-based access |
+
+#### Weeks 15-16: Event Store
+
+| Deliverable | Details |
+|-------------|---------|
+| PostgreSQL event log | Append-only table |
+| Snapshot materialization | Every 1000 events or 1hr |
+| Event replay mechanism | For client sync |
+| Versioning system | Branch/tag support |
+
+#### Weeks 17-18: CRDT Integration
+
+| Deliverable | Details |
+|-------------|---------|
+| Loro CRDT integration | Movable Tree CRDT |
+| WebSocket provider | Real-time transport |
+| Conflict resolution | Automatic merge |
+| Offline support | Local-first sync |
+
+#### Weeks 19-20: Real-time Features
+
+| Deliverable | Details |
+|-------------|---------|
+| Presence indicators | Who's editing what |
+| Cursor sharing | See collaborator cursors |
+| Selection broadcasting | Shared selection state |
+| Change attribution | Who made what change |
+
+#### Weeks 21-22: Collaboration UX
+
+| Deliverable | Details |
+|-------------|---------|
+| Comments/markup system | Threaded discussions |
+| Design option branching | Create alternatives |
+| Change tracking/history | Visual diff |
+| Merge functionality | Combine branches |
+
+#### Weeks 23-24: Thin Client Viewer
+
+| Deliverable | Details |
+|-------------|---------|
+| Read-only viewer | Share with stakeholders |
+| Mobile-responsive | Works on tablets |
+| Embed support | Iframe embedding |
+| Link sharing | Public/private links |
+
+### Phase 2 Success Criteria
+
+| Metric | Target |
+|--------|--------|
+| CRDT sync latency | <100ms |
+| Concurrent users | 10+ |
+| Offline tolerance | 24+ hours |
+| Conflict resolution | Automatic |
 
 ---
 
-## Phase 2: Collaboration (Weeks 13-24)
+## Phase 3: Agentic AI (Weeks 25-36) — Planned
 
-**Goal:** Enable real-time multi-user editing with CRDT sync.
+**Goal:** Expand MCP tool surface and enable autonomous AI workflows.
 
-### Deliverables
-- Model server spine: event log, snapshots, basic branching
-- Two clients edit simultaneously with CRDT merge
-- Thin client viewer for mesh and plan view
-- WebGL viewer baseline with WebGPU migration plan
+### MCP Tool Surface (33+ Tools)
 
-### Technologies
-- Loro CRDT for collaboration
-- WebSocket + SSE for real-time transport
-- Three.js/WebGL for rendering
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MCP TOOL MATRIX                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  GEOMETRY SERVER (12 tools)                                          │
+│  ┌────────────────┬────────────────┬────────────────┐               │
+│  │ create_wall    │ create_floor   │ create_roof    │               │
+│  │ create_door    │ create_window  │ create_column  │               │
+│  │ create_beam    │ create_stair   │ create_opening │               │
+│  │ boolean_op     │ join_elements  │ modify_param   │               │
+│  └────────────────┴────────────────┴────────────────┘               │
+│                                                                       │
+│  SPATIAL SERVER (8 tools)                                            │
+│  ┌────────────────┬────────────────┬────────────────┐               │
+│  │ create_room    │ room_analysis  │ adjacency      │               │
+│  │ circulation    │ path_finding   │ space_program  │               │
+│  │ area_schedule  │ net_gross      │                │               │
+│  └────────────────┴────────────────┴────────────────┘               │
+│                                                                       │
+│  VALIDATION SERVER (7 tools)                                         │
+│  ┌────────────────┬────────────────┬────────────────┐               │
+│  │ clash_detect   │ code_comply    │ accessibility  │               │
+│  │ fire_rating    │ egress_check   │ clearance      │               │
+│  │ structural     │                │                │               │
+│  └────────────────┴────────────────┴────────────────┘               │
+│                                                                       │
+│  DOCUMENTATION SERVER (6 tools)                                      │
+│  ┌────────────────┬────────────────┬────────────────┐               │
+│  │ door_schedule  │ window_sched   │ room_schedule  │               │
+│  │ export_ifc     │ export_bcf     │ export_report  │               │
+│  └────────────────┴────────────────┴────────────────┘               │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Week-by-Week Plan
+
+#### Weeks 25-28: Tool Surface Completion
+
+| Week | Focus | Tools |
+|------|-------|-------|
+| 25 | Geometry tools | boolean_op, join_elements |
+| 26 | Geometry tools | modify_param, compute_mesh |
+| 27 | Spatial tools | room_analysis, adjacency |
+| 28 | Spatial tools | circulation, path_finding |
+
+#### Weeks 29-32: Validation & Docs
+
+| Week | Focus | Tools |
+|------|-------|-------|
+| 29 | Validation | clash_detect, clearance |
+| 30 | Validation | code_comply, accessibility |
+| 31 | Documentation | schedules (door/window/room) |
+| 32 | Documentation | export_ifc, export_bcf |
+
+#### Weeks 33-36: Governance Layer
+
+| Week | Focus | Deliverable |
+|------|-------|-------------|
+| 33 | Approval gates | Human-in-loop for destructive ops |
+| 34 | Audit logging | Complete action history |
+| 35 | Evaluation harness | Deterministic replay |
+| 36 | LangGraph examples | Multi-step workflows |
+
+### Phase 3 Success Criteria
+
+| Metric | Target |
+|--------|--------|
+| Tool coverage | 33+ tools |
+| Agent task completion | >90% |
+| Audit trail completeness | 100% |
+| Governance compliance | Zero bypass |
 
 ---
 
-## Phase 3: Agentic AI (Weeks 25-36)
-
-**Goal:** Expand MCP tool surface and add governance layer.
-
-### Deliverables
-- MCP tool surface expanded across geometry, spatial, validation, docs
-- Governance layer with approval gates and audit logs
-- Evaluation harness with deterministic replay and golden paths
-
-### Technologies
-- LangGraph for agent orchestration
-- Claude API for LLM backbone
-- MCP (JSON-RPC 2.0) for tool exposure
-
----
-
-## Phase 4: Production Hardening (Weeks 37-48)
+## Phase 4: Production Hardening (Weeks 37-48) — Planned
 
 **Goal:** Scale, secure, and prepare for production deployment.
 
-### Deliverables
-- Performance: 1M element models, <1s regen for typical changes
-- Security: OAuth2, encryption at rest and transit, audit compliance
-- Scalability: horizontal scaling with K8s and GitOps
-- Interoperability: IFC 4.3 import/export and BCF 3.0 support
+### Performance Targets
 
-### Technologies
-- Docker + Kubernetes + ArgoCD
-- OpenTelemetry + Grafana for observability
-- wgpu-rs for WebGPU migration
+| Metric | Current | Target |
+|--------|---------|--------|
+| Model capacity | ~10K elements | 1M elements |
+| Regen time (typical) | ~50ms | <100ms |
+| Regen time (worst) | N/A | <1s |
+| 3D render FPS | 30 | 60 |
+| Initial load | ~2s | <1s |
+
+### Week-by-Week Plan
+
+#### Weeks 37-40: Performance
+
+| Week | Focus | Work |
+|------|-------|------|
+| 37 | Profiling | Identify bottlenecks |
+| 38 | Kernel optimization | Parallel mesh gen |
+| 39 | Client optimization | Virtualized rendering |
+| 40 | Database optimization | Index tuning, query opt |
+
+#### Weeks 41-44: Security & Compliance
+
+| Week | Focus | Work |
+|------|-------|------|
+| 41 | OAuth2 implementation | Full provider support |
+| 42 | Encryption | At rest + in transit |
+| 43 | Audit compliance | SOC2 prep |
+| 44 | Penetration testing | External audit |
+
+#### Weeks 45-48: Scalability
+
+| Week | Focus | Work |
+|------|-------|------|
+| 45 | Kubernetes setup | Helm charts |
+| 46 | ArgoCD GitOps | Automated deployments |
+| 47 | Observability | OpenTelemetry + Grafana |
+| 48 | Load testing | Validate 1M elements |
+
+### Phase 4 Success Criteria
+
+| Metric | Target |
+|--------|--------|
+| Uptime SLA | 99.9% |
+| Security audit | Pass |
+| Load test | 1M elements, 100 users |
+| Recovery time | <15 min |
 
 ---
 
 ## Go-To-Market (Weeks 49-52)
 
-**Goal:** Documentation, community, and launch.
+### Week 49-50: Documentation
 
-### Deliverables
-- Complete documentation site
-- Community Discord/forum setup
-- Launch announcement and demo videos
-- Early adopter program
+- [ ] Complete API reference
+- [ ] Tutorial series (video + text)
+- [ ] Architecture deep-dives
+- [ ] Migration guides (from Revit)
+
+### Week 51: Community
+
+- [ ] Discord server launch
+- [ ] GitHub Discussions enable
+- [ ] Early adopter program (50 users)
+- [ ] Feedback collection system
+
+### Week 52: Launch
+
+- [ ] Public announcement
+- [ ] Product Hunt launch
+- [ ] Hacker News post
+- [ ] Architecture firm outreach
 
 ---
 
-## Extended Success Metrics
+## Technology Stack (Canonical)
 
-| Phase | KPI | Target |
-|-------|-----|--------|
-| Phase 1 | Kernel regen <100ms | ✓ |
-| Phase 2 | CRDT sync latency <100ms | ✓ |
-| Phase 3 | Agent task completion >90% | ✓ |
-| Phase 4 | 1M element capacity | ✓ |
+### Layer A: Kernel (Rust)
+
+| Component | Technology | Status |
+|-----------|------------|--------|
+| Math primitives | Custom (Point3, Vector3) | ✅ |
+| Boolean operations | Clipper2 | ✅ |
+| Triangulation | earcutr | ✅ |
+| Spatial indexing | rstar (R*-tree) | ✅ |
+| Topology | Custom (halfedge) | ⏳ |
+| CRDT | Loro | ⏹️ |
+| Python FFI | PyO3 | ✅ |
+| IFC | IfcOpenShell | ⏹️ |
+
+### Layer B: Server (Python)
+
+| Component | Technology | Status |
+|-----------|------------|--------|
+| Framework | FastAPI 0.109+ | ✅ |
+| MCP | Official Python SDK | ✅ |
+| Validation | Pydantic v2 | ✅ |
+| Database | PostgreSQL 16 | ⏹️ |
+| Cache | Redis 7 | ⏹️ |
+| LLM | Claude API | ⏹️ |
+| Orchestration | LangGraph | ⏹️ |
+
+### Layer C: Client (TypeScript)
+
+| Component | Technology | Status |
+|-----------|------------|--------|
+| Framework | React 19.2 | ✅ |
+| State | Zustand 5 + Immer | ✅ |
+| Build | Vite 7.2 | ✅ |
+| Styling | Tailwind CSS 4.1 | ✅ |
+| 3D | Three.js r182 | ✅ |
+| Terminal | xterm.js | ⏹️ |
 
 ---
 
-*Document consolidated: January 15, 2026*
-*Pensaer Roadmap: v2.0*
+## Risk Register
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| IFC complexity exceeds estimates | Medium | High | Start Week 10; have fallback (basic subset) |
+| Loro CRDT learning curve | Low | Medium | Dedicated spike week; use examples |
+| Performance at 1M elements | Low | High | Profile early; lazy loading; WebGPU |
+| Topology edge cases | Medium | Medium | Comprehensive test suite; self-healing |
+| Scope creep | Medium | High | Strict phase gates; feature freeze |
+| Team burnout | Medium | High | Sustainable pace; parallel AI sessions |
+
+---
+
+## Decision Log
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| Jan 13, 2026 | Rust kernel over pure TS | Performance + safety for geometry |
+| Jan 14, 2026 | Loro over Yjs | Better tree CRDT; Rust bindings |
+| Jan 14, 2026 | 4 MCP servers | Separation of concerns |
+| Jan 15, 2026 | PostgreSQL over SQLite | Collaboration requires server DB |
+| Jan 16, 2026 | Topology module priority | Enables wall joins, room detection |
+
+---
+
+## Appendix: Detailed Task Breakdown
+
+### Immediate Next Actions (This Week)
+
+1. **PR: Topology Module** (2 days)
+   - Write unit tests for graph.rs, node.rs, edge.rs
+   - Add integration tests
+   - CI approval
+   - Merge to main
+
+2. **Geometry Server Tools** (5 days)
+   - Implement `create_wall` with full parameters
+   - Implement `create_opening` (door/window cut)
+   - Add `compute_mesh` endpoint
+   - Unit tests + integration tests
+
+3. **Terminal Integration** (5 days)
+   - npm install xterm + xterm-addon-fit
+   - Create TerminalPanel component
+   - Basic DSL parser (wall, door, window commands)
+   - Wire to model store
+
+### Uncommitted Work Tracking
+
+```
+Location: kernel/pensaer-geometry/src/topology/
+Files:
+  - mod.rs      (module exports)
+  - graph.rs    (topology graph data structure)
+  - node.rs     (vertex/node abstractions)
+  - edge.rs     (edge/halfedge connectivity)
+Status: Code written, awaiting tests
+```
+
+---
+
+## Version History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | Jan 13, 2026 | AI | Initial 16-week plan |
+| 2.0 | Jan 15, 2026 | AI | Extended 48-week plan |
+| 3.0 | Jan 16, 2026 | AI | Complete rewrite with accurate status |
+
+---
+
+*Last updated: January 16, 2026*
+*Pensaer Roadmap v3.0*
