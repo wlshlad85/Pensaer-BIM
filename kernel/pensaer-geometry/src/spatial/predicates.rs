@@ -76,6 +76,7 @@ pub fn orient2d_robust(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> Orientation {
 ///
 /// Uses orientation tests to determine if segments (a1, a2) and (b1, b2) intersect.
 /// Returns true if they intersect (including endpoint touching).
+#[allow(dead_code)]
 pub fn segments_intersect(a1: [f64; 2], a2: [f64; 2], b1: [f64; 2], b2: [f64; 2]) -> bool {
     let o1 = orient2d_robust(a1, a2, b1);
     let o2 = orient2d_robust(a1, a2, b2);
@@ -106,6 +107,7 @@ pub fn segments_intersect(a1: [f64; 2], a2: [f64; 2], b1: [f64; 2], b2: [f64; 2]
 
 /// Check if point q lies on segment (p, r) given that they are collinear.
 #[inline]
+#[allow(dead_code)]
 fn on_segment(p: [f64; 2], q: [f64; 2], r: [f64; 2]) -> bool {
     q[0] >= p[0].min(r[0])
         && q[0] <= p[0].max(r[0])
@@ -117,6 +119,7 @@ fn on_segment(p: [f64; 2], q: [f64; 2], r: [f64; 2]) -> bool {
 ///
 /// Returns positive if counter-clockwise, negative if clockwise, zero if collinear.
 #[inline]
+#[allow(dead_code)]
 pub fn signed_area_2(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
     (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 }
@@ -124,6 +127,7 @@ pub fn signed_area_2(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
 /// Compute the intersection point of two line segments if they intersect.
 ///
 /// Returns None if segments don't intersect or are collinear.
+#[allow(dead_code)]
 pub fn segment_intersection(
     a1: [f64; 2],
     a2: [f64; 2],

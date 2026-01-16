@@ -93,9 +93,9 @@ mod tests {
 
     #[test]
     fn tolerance_hierarchy_is_correct() {
-        // Verify the tolerance hierarchy makes sense
-        assert!(QUANTIZE_PRECISION < SNAP_MERGE_TOL);
-        assert!(SNAP_MERGE_TOL < GEOM_TOL);
-        assert!(GEOM_TOL < UI_SNAP_DIST);
+        // Verify the tolerance hierarchy makes sense (using const blocks for compile-time checks)
+        const { assert!(QUANTIZE_PRECISION < SNAP_MERGE_TOL) };
+        const { assert!(SNAP_MERGE_TOL < GEOM_TOL) };
+        const { assert!(GEOM_TOL < UI_SNAP_DIST) };
     }
 }
