@@ -126,7 +126,7 @@ jobs:
 
   # MSRV check (Minimum Supported Rust Version)
   msrv:
-    name: MSRV (1.75.0)
+    name: MSRV (1.78.0)
     needs: lint
     runs-on: ubuntu-latest
     defaults:
@@ -135,8 +135,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@1.75.0
+      - name: Install Rust 1.78.0
+        uses: dtolnay/rust-toolchain@1.78.0
 
       - name: Check compilation
         run: cargo check --all-targets
