@@ -1,0 +1,304 @@
+; =============================================================================
+; Pensaer DSL Grammar Specification (BNF)
+; =============================================================================
+; Version: 1.0.0
+; Date: 2026-01-16
+; Author: Session D (MUL-15)
+;
+; This BNF grammar defines the syntax for Pensaer terminal commands.
+; All dimensions default to meters. Use unit suffixes for conversion.
+; =============================================================================
+
+; =============================================================================
+; LEXICAL ELEMENTS
+; =============================================================================
+
+<digit>          ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<letter>         ::= "a" | ... | "z" | "A" | ... | "Z"
+<underscore>     ::= "_"
+<hyphen>         ::= "-"
+
+<integer>        ::= <digit> { <digit> }
+<decimal>        ::= <integer> "." <integer>
+<number>         ::= <integer> | <decimal> | "-" <integer> | "-" <decimal>
+
+<uuid>           ::= <hex8> "-" <hex4> "-" <hex4> "-" <hex4> "-" <hex12>
+<hex4>           ::= <hexchar> <hexchar> <hexchar> <hexchar>
+<hex8>           ::= <hex4> <hex4>
+<hex12>          ::= <hex8> <hex4>
+<hexchar>        ::= <digit> | "a" | "b" | "c" | "d" | "e" | "f"
+
+<identifier>     ::= <letter> { <letter> | <digit> | <underscore> | <hyphen> }
+<string>         ::= '"' { <any-char> } '"' | "'" { <any-char> } "'"
+
+<unit-suffix>    ::= "m" | "mm" | "cm" | "ft" | "in"
+<dimension>      ::= <number> [ <unit-suffix> ]
+
+<whitespace>     ::= " " | "\t"
+<ws>             ::= { <whitespace> }
+
+; =============================================================================
+; COORDINATE TYPES
+; =============================================================================
+
+<point2d>        ::= "(" <ws> <dimension> <ws> "," <ws> <dimension> <ws> ")"
+                   | <dimension> <ws> "," <ws> <dimension>
+                   | <dimension> <ws> <dimension>
+
+<point3d>        ::= "(" <ws> <dimension> <ws> "," <ws> <dimension> <ws> "," <ws> <dimension> <ws> ")"
+                   | <dimension> <ws> "," <ws> <dimension> <ws> "," <ws> <dimension>
+
+; =============================================================================
+; COMMAND STRUCTURE
+; =============================================================================
+
+<command>        ::= <wall-command>
+                   | <door-command>
+                   | <window-command>
+                   | <opening-command>
+                   | <help-command>
+
+<help-command>   ::= "help" [ <command-name> ]
+<command-name>   ::= "wall" | "door" | "window" | "opening"
+
+; =============================================================================
+; WALL COMMANDS
+; =============================================================================
+
+<wall-command>   ::= <create-wall>
+                   | <create-rect-walls>
+                   | <modify-wall>
+
+; -----------------------------------------------------------------------------
+; CREATE WALL
+; -----------------------------------------------------------------------------
+; Creates a single wall segment from start to end point.
+;
+; Required: start point, end point
+; Optional: height (default: 3.0m), thickness (default: 0.2m), type, level
+; -----------------------------------------------------------------------------
+
+<create-wall>    ::= "wall" <ws> <wall-start> <ws> <wall-end> [ <wall-options> ]
+                   | "wall" <ws> "from" <ws> <point2d> <ws> "to" <ws> <point2d> [ <wall-options> ]
+                   | "create" <ws> "wall" <ws> <wall-start> <ws> <wall-end> [ <wall-options> ]
+
+<wall-start>     ::= <point2d>
+                   | "from" <ws> <point2d>
+                   | "start" <ws> <point2d>
+
+<wall-end>       ::= <point2d>
+                   | "to" <ws> <point2d>
+                   | "end" <ws> <point2d>
+
+<wall-options>   ::= { <ws> <wall-option> }
+
+<wall-option>    ::= <height-opt>
+                   | <thickness-opt>
+                   | <wall-type-opt>
+                   | <level-opt>
+
+<height-opt>     ::= "height" <ws> <dimension>
+                   | "h" <ws> <dimension>
+                   | "-h" <ws> <dimension>
+                   | "--height" <ws> <dimension>
+                   | "--height=" <dimension>
+
+<thickness-opt>  ::= "thickness" <ws> <dimension>
+                   | "thick" <ws> <dimension>
+                   | "t" <ws> <dimension>
+                   | "-t" <ws> <dimension>
+                   | "--thickness" <ws> <dimension>
+                   | "--thickness=" <dimension>
+
+<wall-type-opt>  ::= "type" <ws> <wall-type>
+                   | "--type" <ws> <wall-type>
+                   | "--type=" <wall-type>
+
+<wall-type>      ::= "basic" | "structural" | "curtain" | "retaining"
+
+<level-opt>      ::= "level" <ws> <uuid>
+                   | "on" <ws> "level" <ws> <uuid>
+                   | "--level" <ws> <uuid>
+                   | "--level=" <uuid>
+
+; -----------------------------------------------------------------------------
+; CREATE RECTANGULAR WALLS
+; -----------------------------------------------------------------------------
+; Creates 4 walls forming a rectangle from two corner points.
+;
+; Required: min corner, max corner
+; Optional: height (default: 3.0m), thickness (default: 0.2m)
+; -----------------------------------------------------------------------------
+
+<create-rect-walls> ::= "walls" <ws> "rect" <ws> <point2d> <ws> <point2d> [ <wall-options> ]
+                      | "rect" <ws> "walls" <ws> <point2d> <ws> <point2d> [ <wall-options> ]
+                      | "walls" <ws> "rectangle" <ws> <point2d> <ws> <point2d> [ <wall-options> ]
+                      | "box" <ws> <point2d> <ws> <point2d> [ <wall-options> ]
+
+; -----------------------------------------------------------------------------
+; MODIFY WALL
+; -----------------------------------------------------------------------------
+; Modifies an existing wall's properties.
+; -----------------------------------------------------------------------------
+
+<modify-wall>    ::= "wall" <ws> <uuid> <ws> "set" <ws> <wall-property> <ws> <dimension>
+                   | "modify" <ws> "wall" <ws> <uuid> <ws> <wall-property> <ws> <dimension>
+
+<wall-property>  ::= "height" | "thickness" | "type"
+
+; =============================================================================
+; DOOR COMMANDS
+; =============================================================================
+
+<door-command>   ::= <place-door>
+                   | <modify-door>
+
+; -----------------------------------------------------------------------------
+; PLACE DOOR
+; -----------------------------------------------------------------------------
+; Places a door opening in an existing wall.
+;
+; Required: wall reference, offset from wall start
+; Optional: width (default: 0.9m), height (default: 2.1m), type, swing
+; -----------------------------------------------------------------------------
+
+<place-door>     ::= "door" <ws> <door-location> [ <door-options> ]
+                   | "place" <ws> "door" <ws> <door-location> [ <door-options> ]
+                   | "create" <ws> "door" <ws> <door-location> [ <door-options> ]
+                   | "add" <ws> "door" <ws> <door-location> [ <door-options> ]
+
+<door-location>  ::= "in" <ws> <wall-ref> <ws> "at" <ws> <dimension>
+                   | "in" <ws> <wall-ref> <ws> "offset" <ws> <dimension>
+                   | <wall-ref> <ws> <dimension>
+                   | <wall-ref> <ws> "at" <ws> <dimension>
+                   | <wall-ref> <ws> "@" <dimension>
+
+<wall-ref>       ::= <uuid>
+                   | "wall" <ws> <uuid>
+                   | "$wall"
+                   | "$selected"
+                   | "$last"
+
+<door-options>   ::= { <ws> <door-option> }
+
+<door-option>    ::= <door-width-opt>
+                   | <door-height-opt>
+                   | <door-type-opt>
+                   | <door-swing-opt>
+
+<door-width-opt> ::= "width" <ws> <dimension>
+                   | "w" <ws> <dimension>
+                   | "-w" <ws> <dimension>
+                   | "--width" <ws> <dimension>
+                   | "--width=" <dimension>
+
+<door-height-opt> ::= "height" <ws> <dimension>
+                    | "h" <ws> <dimension>
+                    | "-h" <ws> <dimension>
+                    | "--height" <ws> <dimension>
+                    | "--height=" <dimension>
+
+<door-type-opt>  ::= "type" <ws> <door-type>
+                   | "--type" <ws> <door-type>
+                   | "--type=" <door-type>
+
+<door-type>      ::= "single" | "double" | "sliding" | "folding" | "revolving" | "pocket"
+
+<door-swing-opt> ::= "swing" <ws> <swing-direction>
+                   | "--swing" <ws> <swing-direction>
+                   | "--swing=" <swing-direction>
+
+<swing-direction> ::= "left" | "right" | "both" | "none"
+
+; -----------------------------------------------------------------------------
+; MODIFY DOOR
+; -----------------------------------------------------------------------------
+
+<modify-door>    ::= "door" <ws> <uuid> <ws> "set" <ws> <door-property> <ws> <value>
+
+<door-property>  ::= "width" | "height" | "type" | "swing"
+<value>          ::= <dimension> | <door-type> | <swing-direction>
+
+; =============================================================================
+; WINDOW COMMANDS
+; =============================================================================
+
+<window-command> ::= <place-window>
+                   | <modify-window>
+
+; -----------------------------------------------------------------------------
+; PLACE WINDOW
+; -----------------------------------------------------------------------------
+; Places a window opening in an existing wall.
+;
+; Required: wall reference, offset from wall start
+; Optional: width (default: 1.2m), height (default: 1.0m),
+;           sill height (default: 0.9m), type
+; -----------------------------------------------------------------------------
+
+<place-window>   ::= "window" <ws> <window-location> [ <window-options> ]
+                   | "place" <ws> "window" <ws> <window-location> [ <window-options> ]
+                   | "create" <ws> "window" <ws> <window-location> [ <window-options> ]
+                   | "add" <ws> "window" <ws> <window-location> [ <window-options> ]
+
+<window-location> ::= "in" <ws> <wall-ref> <ws> "at" <ws> <dimension>
+                    | "in" <ws> <wall-ref> <ws> "offset" <ws> <dimension>
+                    | <wall-ref> <ws> <dimension>
+                    | <wall-ref> <ws> "at" <ws> <dimension>
+                    | <wall-ref> <ws> "@" <dimension>
+
+<window-options> ::= { <ws> <window-option> }
+
+<window-option>  ::= <window-width-opt>
+                   | <window-height-opt>
+                   | <window-sill-opt>
+                   | <window-type-opt>
+
+<window-width-opt> ::= "width" <ws> <dimension>
+                     | "w" <ws> <dimension>
+                     | "-w" <ws> <dimension>
+                     | "--width" <ws> <dimension>
+                     | "--width=" <dimension>
+
+<window-height-opt> ::= "height" <ws> <dimension>
+                      | "h" <ws> <dimension>
+                      | "-h" <ws> <dimension>
+                      | "--height" <ws> <dimension>
+                      | "--height=" <dimension>
+
+<window-sill-opt> ::= "sill" <ws> <dimension>
+                    | "sill-height" <ws> <dimension>
+                    | "--sill" <ws> <dimension>
+                    | "--sill=" <dimension>
+                    | "--sill-height" <ws> <dimension>
+                    | "--sill-height=" <dimension>
+
+<window-type-opt> ::= "type" <ws> <window-type>
+                    | "--type" <ws> <window-type>
+                    | "--type=" <window-type>
+
+<window-type>    ::= "fixed" | "casement" | "double_hung" | "sliding"
+                   | "awning" | "hopper" | "pivot"
+
+; -----------------------------------------------------------------------------
+; MODIFY WINDOW
+; -----------------------------------------------------------------------------
+
+<modify-window>  ::= "window" <ws> <uuid> <ws> "set" <ws> <window-property> <ws> <value>
+
+<window-property> ::= "width" | "height" | "sill" | "sill-height" | "type"
+
+; =============================================================================
+; GENERIC OPENING COMMAND
+; =============================================================================
+
+<opening-command> ::= "opening" <ws> <wall-ref> <ws> "at" <ws> <dimension> <ws> <opening-dims>
+                    | "create" <ws> "opening" <ws> <wall-ref> <ws> "at" <ws> <dimension> <ws> <opening-dims>
+
+<opening-dims>   ::= <dimension> <ws> "x" <ws> <dimension>
+                   | "width" <ws> <dimension> <ws> "height" <ws> <dimension>
+                   | <dimension> <ws> "by" <ws> <dimension>
+
+; =============================================================================
+; END OF GRAMMAR
+; =============================================================================
