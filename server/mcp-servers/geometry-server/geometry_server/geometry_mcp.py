@@ -56,6 +56,19 @@ from .schemas import (
     CreateSimpleBuildingParams,
     CreateRoofParams,
     AttachRoofToWallsParams,
+    # Selection schemas
+    SelectElementsParams,
+    GetSelectionParams,
+    ClearSelectionParams,
+    SelectByTypeParams,
+    # Group schemas
+    CreateGroupParams,
+    AddToGroupParams,
+    RemoveFromGroupParams,
+    DeleteGroupParams,
+    GetGroupParams,
+    ListGroupsParams,
+    SelectGroupParams,
     ErrorCodes,
 )
 from .state import get_state, GeometryState
@@ -588,6 +601,212 @@ TOOLS = [
             "required": ["roof_id", "wall_ids"],
         },
     ),
+    # Selection Tools
+    Tool(
+        name="select_elements",
+        description="Select one or more BIM elements. Supports multiple selection modes: replace (clear existing selection), add, remove, or toggle.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of elements to select",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["replace", "add", "remove", "toggle"],
+                    "default": "replace",
+                    "description": "Selection mode: replace, add, remove, toggle",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["element_ids"],
+        },
+    ),
+    Tool(
+        name="get_selection",
+        description="Get the current selection. Returns list of selected element IDs and optional full element details.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "include_details": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include full element properties in response",
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Filter by element type (wall, floor, door, etc.)",
+                },
+            },
+        },
+    ),
+    Tool(
+        name="clear_selection",
+        description="Clear all selected elements.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+        },
+    ),
+    Tool(
+        name="select_by_type",
+        description="Select all elements of a specific type (wall, floor, door, window, room, roof).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_type": {
+                    "type": "string",
+                    "description": "Element type to select",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["replace", "add", "toggle"],
+                    "default": "replace",
+                    "description": "Selection mode",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["element_type"],
+        },
+    ),
+    # Group Tools
+    Tool(
+        name="create_group",
+        description="Create a named group of elements for organizing and batch operations.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name for the group",
+                },
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of elements to include",
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Optional metadata for the group",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["name", "element_ids"],
+        },
+    ),
+    Tool(
+        name="add_to_group",
+        description="Add elements to an existing group.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string",
+                    "description": "UUID of the group",
+                },
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of elements to add",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["group_id", "element_ids"],
+        },
+    ),
+    Tool(
+        name="remove_from_group",
+        description="Remove elements from a group (elements remain in model).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string",
+                    "description": "UUID of the group",
+                },
+                "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "UUIDs of elements to remove",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["group_id", "element_ids"],
+        },
+    ),
+    Tool(
+        name="delete_group",
+        description="Delete a group (elements remain in model).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string",
+                    "description": "UUID of the group to delete",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["group_id"],
+        },
+    ),
+    Tool(
+        name="get_group",
+        description="Get a group by ID with its elements.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string",
+                    "description": "UUID of the group",
+                },
+                "include_details": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include full element properties",
+                },
+            },
+            "required": ["group_id"],
+        },
+    ),
+    Tool(
+        name="list_groups",
+        description="List all element groups.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "include_elements": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include element IDs in response",
+                },
+            },
+        },
+    ),
+    Tool(
+        name="select_group",
+        description="Select all elements in a group.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string",
+                    "description": "UUID of the group to select",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["replace", "add", "toggle"],
+                    "default": "replace",
+                    "description": "Selection mode",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["group_id"],
+        },
+    ),
     # State Tools
     Tool(
         name="get_state_summary",
@@ -702,6 +921,32 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _create_roof(state, args, reasoning)
     elif name == "attach_roof_to_walls":
         return await _attach_roof_to_walls(state, args, reasoning)
+
+    # Selection Tools
+    elif name == "select_elements":
+        return await _select_elements(state, args, reasoning)
+    elif name == "get_selection":
+        return await _get_selection(state, args)
+    elif name == "clear_selection":
+        return await _clear_selection(state, reasoning)
+    elif name == "select_by_type":
+        return await _select_by_type(state, args, reasoning)
+
+    # Group Tools
+    elif name == "create_group":
+        return await _create_group(state, args, reasoning)
+    elif name == "add_to_group":
+        return await _add_to_group(state, args, reasoning)
+    elif name == "remove_from_group":
+        return await _remove_from_group(state, args, reasoning)
+    elif name == "delete_group":
+        return await _delete_group(state, args, reasoning)
+    elif name == "get_group":
+        return await _get_group(state, args)
+    elif name == "list_groups":
+        return await _list_groups(state, args)
+    elif name == "select_group":
+        return await _select_group(state, args, reasoning)
 
     # State Tools
     elif name == "get_state_summary":
@@ -1344,6 +1589,345 @@ async def _get_self_healing_status() -> dict[str, Any]:
                 healer._get_expected_keys("create_wall")
             ),  # Sample
         }
+    )
+
+
+# =============================================================================
+# Selection Tool Handlers
+# =============================================================================
+
+
+async def _select_elements(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Select one or more elements."""
+    params = SelectElementsParams(**args)
+
+    result = state.select_elements(params.element_ids, mode=params.mode)
+
+    warnings = []
+    if result["invalid_ids"]:
+        warnings.append(f"Elements not found: {result['invalid_ids']}")
+
+    return make_response(
+        {
+            "selected_count": result["selected_count"],
+            "selected_ids": result["selected_ids"],
+            "mode": params.mode,
+            "valid_ids": result["valid_ids"],
+        },
+        warnings=warnings,
+        reasoning=reasoning,
+    )
+
+
+async def _get_selection(state: GeometryState, args: dict[str, Any]) -> dict[str, Any]:
+    """Get current selection."""
+    params = GetSelectionParams(**args)
+
+    summary = state.get_selection_summary()
+
+    if params.include_details:
+        # Get full element details
+        elements = []
+        for record in state.get_selected():
+            # Apply category filter if specified
+            if params.category and record.element_type != params.category:
+                continue
+
+            elem_data = {
+                "id": record.id,
+                "type": record.element_type,
+                "created_at": record.created_at.isoformat(),
+            }
+
+            # Add type-specific properties
+            element = record.element
+            if record.element_type == "wall":
+                elem_data["length"] = element.length()
+                elem_data["height"] = element.height
+            elif record.element_type == "floor":
+                elem_data["area"] = element.area()
+            elif record.element_type == "room":
+                elem_data["name"] = element.name
+                elem_data["area"] = element.area()
+            elif record.element_type == "roof":
+                elem_data["roof_type"] = element.roof_type
+                elem_data["surface_area"] = element.surface_area()
+
+            elements.append(elem_data)
+
+        return make_response(
+            {
+                "selected_count": len(elements),
+                "elements": elements,
+                "elements_by_type": summary["elements_by_type"],
+            }
+        )
+
+    # Filter by category if specified
+    if params.category:
+        filtered_ids = [
+            eid for eid in summary["selected_ids"]
+            if state.get_element(eid) and state.get_element(eid).element_type == params.category
+        ]
+        return make_response(
+            {
+                "selected_count": len(filtered_ids),
+                "selected_ids": filtered_ids,
+                "category_filter": params.category,
+            }
+        )
+
+    return make_response(summary)
+
+
+async def _clear_selection(
+    state: GeometryState, reasoning: str | None
+) -> dict[str, Any]:
+    """Clear all selections."""
+    count = state.clear_selection()
+
+    return make_response(
+        {"cleared_count": count, "selected_count": 0},
+        reasoning=reasoning,
+    )
+
+
+async def _select_by_type(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Select all elements of a specific type."""
+    params = SelectByTypeParams(**args)
+
+    # Get all elements of the specified type
+    records = state.list_elements(category=params.element_type, limit=10000)
+    element_ids = [r.id for r in records]
+
+    if not element_ids:
+        return make_response(
+            {
+                "selected_count": 0,
+                "selected_ids": [],
+                "element_type": params.element_type,
+                "message": f"No elements of type '{params.element_type}' found",
+            },
+            reasoning=reasoning,
+        )
+
+    result = state.select_elements(element_ids, mode=params.mode)
+
+    return make_response(
+        {
+            "selected_count": result["selected_count"],
+            "selected_ids": result["selected_ids"],
+            "element_type": params.element_type,
+            "mode": params.mode,
+            "matched_count": len(element_ids),
+        },
+        reasoning=reasoning,
+    )
+
+
+# =============================================================================
+# Group Tool Handlers
+# =============================================================================
+
+
+async def _create_group(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Create a named group of elements."""
+    params = CreateGroupParams(**args)
+
+    group_id = state.create_group(
+        params.name,
+        params.element_ids,
+        metadata=params.metadata,
+    )
+
+    group = state.get_group(group_id)
+
+    return make_response(
+        {
+            "group_id": group_id,
+            "name": params.name,
+            "element_count": len(group["element_ids"]) if group else 0,
+            "element_ids": group["element_ids"] if group else [],
+        },
+        reasoning=reasoning,
+    )
+
+
+async def _add_to_group(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Add elements to a group."""
+    params = AddToGroupParams(**args)
+
+    success = state.add_to_group(params.group_id, params.element_ids)
+
+    if not success:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Group not found: {params.group_id}"
+        )
+
+    group = state.get_group(params.group_id)
+
+    return make_response(
+        {
+            "group_id": params.group_id,
+            "added_count": len(params.element_ids),
+            "total_elements": len(group["element_ids"]) if group else 0,
+        },
+        reasoning=reasoning,
+    )
+
+
+async def _remove_from_group(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Remove elements from a group."""
+    params = RemoveFromGroupParams(**args)
+
+    success = state.remove_from_group(params.group_id, params.element_ids)
+
+    if not success:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Group not found: {params.group_id}"
+        )
+
+    group = state.get_group(params.group_id)
+
+    return make_response(
+        {
+            "group_id": params.group_id,
+            "removed_count": len(params.element_ids),
+            "remaining_elements": len(group["element_ids"]) if group else 0,
+        },
+        reasoning=reasoning,
+    )
+
+
+async def _delete_group(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Delete a group (elements remain)."""
+    params = DeleteGroupParams(**args)
+
+    success = state.delete_group(params.group_id)
+
+    if not success:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Group not found: {params.group_id}"
+        )
+
+    return make_response(
+        {"group_id": params.group_id, "deleted": True},
+        reasoning=reasoning,
+    )
+
+
+async def _get_group(state: GeometryState, args: dict[str, Any]) -> dict[str, Any]:
+    """Get a group by ID."""
+    params = GetGroupParams(**args)
+
+    group = state.get_group(params.group_id)
+
+    if not group:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Group not found: {params.group_id}"
+        )
+
+    if params.include_details:
+        # Get full element details
+        elements = []
+        for eid in group["element_ids"]:
+            record = state.get_element(eid)
+            if record:
+                elements.append(
+                    {
+                        "id": record.id,
+                        "type": record.element_type,
+                        "created_at": record.created_at.isoformat(),
+                    }
+                )
+
+        return make_response(
+            {
+                "group_id": group["id"],
+                "name": group["name"],
+                "element_count": len(elements),
+                "elements": elements,
+                "created_at": group["created_at"],
+                "metadata": group["metadata"],
+            }
+        )
+
+    return make_response(
+        {
+            "group_id": group["id"],
+            "name": group["name"],
+            "element_count": len(group["element_ids"]),
+            "element_ids": group["element_ids"],
+            "created_at": group["created_at"],
+            "metadata": group["metadata"],
+        }
+    )
+
+
+async def _list_groups(state: GeometryState, args: dict[str, Any]) -> dict[str, Any]:
+    """List all groups."""
+    params = ListGroupsParams(**args)
+
+    groups = state.list_groups()
+
+    if not params.include_elements:
+        # Return simplified list
+        result = [
+            {
+                "group_id": g["id"],
+                "name": g["name"],
+                "element_count": g["element_count"],
+            }
+            for g in groups
+        ]
+    else:
+        result = [
+            {
+                "group_id": g["id"],
+                "name": g["name"],
+                "element_count": g["element_count"],
+                "element_ids": g["element_ids"],
+            }
+            for g in groups
+        ]
+
+    return make_response({"groups": result, "count": len(groups)})
+
+
+async def _select_group(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Select all elements in a group."""
+    params = SelectGroupParams(**args)
+
+    result = state.select_group(params.group_id, mode=params.mode)
+
+    if "error" in result:
+        return make_error(ErrorCodes.ELEMENT_NOT_FOUND, result["error"])
+
+    group = state.get_group(params.group_id)
+
+    return make_response(
+        {
+            "group_id": params.group_id,
+            "group_name": group["name"] if group else None,
+            "selected_count": result["selected_count"],
+            "selected_ids": result["selected_ids"],
+            "mode": params.mode,
+        },
+        reasoning=reasoning,
     )
 
 

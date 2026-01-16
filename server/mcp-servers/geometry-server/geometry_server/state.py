@@ -35,6 +35,8 @@ class GeometryState:
         self._elements: dict[str, ElementRecord] = {}
         self._joins: dict[str, Any] = {}
         self._events: list[dict[str, Any]] = []
+        self._selected: set[str] = set()  # Current selection
+        self._groups: dict[str, dict[str, Any]] = {}  # Named element groups
 
     # =========================================================================
     # Element Storage
@@ -152,6 +154,235 @@ class GeometryState:
         return list(self._joins.values())
 
     # =========================================================================
+    # Selection Management
+    # =========================================================================
+
+    def select_elements(
+        self,
+        element_ids: list[str],
+        mode: str = "replace",
+    ) -> dict[str, Any]:
+        """Select elements with specified mode.
+
+        Args:
+            element_ids: List of element UUIDs to select
+            mode: Selection mode - replace, add, remove, toggle
+
+        Returns:
+            Dict with selection results including valid/invalid IDs
+        """
+        # Validate element IDs exist
+        valid_ids = [eid for eid in element_ids if eid in self._elements]
+        invalid_ids = [eid for eid in element_ids if eid not in self._elements]
+
+        if mode == "replace":
+            self._selected = set(valid_ids)
+        elif mode == "add":
+            self._selected.update(valid_ids)
+        elif mode == "remove":
+            self._selected.difference_update(valid_ids)
+        elif mode == "toggle":
+            for eid in valid_ids:
+                if eid in self._selected:
+                    self._selected.discard(eid)
+                else:
+                    self._selected.add(eid)
+
+        self._record_event(
+            "selection_changed",
+            {
+                "mode": mode,
+                "requested_ids": element_ids,
+                "valid_ids": valid_ids,
+                "selected_count": len(self._selected),
+            },
+        )
+
+        return {
+            "selected_ids": list(self._selected),
+            "selected_count": len(self._selected),
+            "valid_ids": valid_ids,
+            "invalid_ids": invalid_ids,
+        }
+
+    def deselect_elements(self, element_ids: list[str]) -> dict[str, Any]:
+        """Remove elements from selection."""
+        return self.select_elements(element_ids, mode="remove")
+
+    def clear_selection(self) -> int:
+        """Clear all selections.
+
+        Returns:
+            Count of elements that were deselected
+        """
+        count = len(self._selected)
+        self._selected.clear()
+        self._record_event("selection_cleared", {"cleared_count": count})
+        return count
+
+    def get_selected(self) -> list[ElementRecord]:
+        """Get all selected element records."""
+        return [
+            self._elements[eid]
+            for eid in self._selected
+            if eid in self._elements
+        ]
+
+    def get_selected_ids(self) -> list[str]:
+        """Get list of selected element IDs."""
+        return list(self._selected)
+
+    def is_selected(self, element_id: str) -> bool:
+        """Check if an element is selected."""
+        return element_id in self._selected
+
+    def get_selection_summary(self) -> dict[str, Any]:
+        """Get summary of current selection."""
+        type_counts: dict[str, int] = {}
+        for eid in self._selected:
+            if eid in self._elements:
+                etype = self._elements[eid].element_type
+                type_counts[etype] = type_counts.get(etype, 0) + 1
+
+        return {
+            "selected_count": len(self._selected),
+            "selected_ids": list(self._selected),
+            "elements_by_type": type_counts,
+        }
+
+    # =========================================================================
+    # Group Management
+    # =========================================================================
+
+    def create_group(
+        self,
+        name: str,
+        element_ids: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Create a named group of elements.
+
+        Args:
+            name: Group name
+            element_ids: Elements to include in group
+            metadata: Optional group metadata
+
+        Returns:
+            Group ID (UUID)
+        """
+        group_id = str(uuid4())
+        valid_ids = [eid for eid in element_ids if eid in self._elements]
+
+        self._groups[group_id] = {
+            "id": group_id,
+            "name": name,
+            "element_ids": set(valid_ids),
+            "created_at": datetime.utcnow().isoformat(),
+            "metadata": metadata or {},
+        }
+
+        self._record_event(
+            "group_created",
+            {"group_id": group_id, "name": name, "element_count": len(valid_ids)},
+        )
+
+        return group_id
+
+    def add_to_group(self, group_id: str, element_ids: list[str]) -> bool:
+        """Add elements to an existing group.
+
+        Returns:
+            True if group exists and elements were added
+        """
+        if group_id not in self._groups:
+            return False
+
+        valid_ids = [eid for eid in element_ids if eid in self._elements]
+        self._groups[group_id]["element_ids"].update(valid_ids)
+
+        self._record_event(
+            "group_modified",
+            {"group_id": group_id, "added_count": len(valid_ids)},
+        )
+
+        return True
+
+    def remove_from_group(self, group_id: str, element_ids: list[str]) -> bool:
+        """Remove elements from a group.
+
+        Returns:
+            True if group exists and elements were removed
+        """
+        if group_id not in self._groups:
+            return False
+
+        self._groups[group_id]["element_ids"].difference_update(element_ids)
+
+        self._record_event(
+            "group_modified",
+            {"group_id": group_id, "removed_count": len(element_ids)},
+        )
+
+        return True
+
+    def delete_group(self, group_id: str) -> bool:
+        """Delete a group (elements remain).
+
+        Returns:
+            True if group was deleted
+        """
+        if group_id not in self._groups:
+            return False
+
+        del self._groups[group_id]
+        self._record_event("group_deleted", {"group_id": group_id})
+        return True
+
+    def get_group(self, group_id: str) -> dict[str, Any] | None:
+        """Get a group by ID."""
+        group = self._groups.get(group_id)
+        if group:
+            # Return copy with element_ids as list for JSON serialization
+            return {
+                **group,
+                "element_ids": list(group["element_ids"]),
+            }
+        return None
+
+    def list_groups(self) -> list[dict[str, Any]]:
+        """List all groups."""
+        return [
+            {
+                **group,
+                "element_ids": list(group["element_ids"]),
+                "element_count": len(group["element_ids"]),
+            }
+            for group in self._groups.values()
+        ]
+
+    def select_group(self, group_id: str, mode: str = "replace") -> dict[str, Any]:
+        """Select all elements in a group.
+
+        Args:
+            group_id: The group to select
+            mode: Selection mode (replace, add, toggle)
+
+        Returns:
+            Selection result dict
+        """
+        if group_id not in self._groups:
+            return {
+                "selected_ids": list(self._selected),
+                "selected_count": len(self._selected),
+                "valid_ids": [],
+                "invalid_ids": [],
+                "error": f"Group {group_id} not found",
+            }
+
+        element_ids = list(self._groups[group_id]["element_ids"])
+        return self.select_elements(element_ids, mode=mode)
+
+    # =========================================================================
     # Event Logging
     # =========================================================================
 
@@ -187,6 +418,8 @@ class GeometryState:
             "total_elements": len(self._elements),
             "total_joins": len(self._joins),
             "total_events": len(self._events),
+            "total_selected": len(self._selected),
+            "total_groups": len(self._groups),
             "elements_by_type": type_counts,
         }
 
@@ -195,6 +428,8 @@ class GeometryState:
         self._elements.clear()
         self._joins.clear()
         self._events.clear()
+        self._selected.clear()
+        self._groups.clear()
 
 
 # Global state instance

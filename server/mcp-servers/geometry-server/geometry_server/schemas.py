@@ -400,6 +400,129 @@ class AttachRoofToWallsParams(BaseModel):
 
 
 # =============================================================================
+# Selection Tool Schemas
+# =============================================================================
+
+
+class SelectElementsParams(BaseModel):
+    """Parameters for selecting elements."""
+
+    element_ids: list[str] = Field(..., description="UUIDs of elements to select")
+    mode: str = Field(
+        "replace",
+        description="Selection mode: replace (clear and select), add (add to selection), "
+        "remove (remove from selection), toggle (toggle selection state)",
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        valid_modes = {"replace", "add", "remove", "toggle"}
+        if v.lower() not in valid_modes:
+            raise ValueError(f"mode must be one of: {valid_modes}")
+        return v.lower()
+
+
+class GetSelectionParams(BaseModel):
+    """Parameters for getting the current selection."""
+
+    include_details: bool = Field(
+        False, description="Include full element properties in response"
+    )
+    category: str | None = Field(
+        None, description="Filter selection by element type (wall, floor, door, etc.)"
+    )
+
+
+class ClearSelectionParams(BaseModel):
+    """Parameters for clearing the selection."""
+
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class SelectByTypeParams(BaseModel):
+    """Parameters for selecting elements by type."""
+
+    element_type: str = Field(
+        ..., description="Element type to select (wall, floor, door, window, room, roof)"
+    )
+    mode: str = Field("replace", description="Selection mode: replace, add, toggle")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class SelectByAreaParams(BaseModel):
+    """Parameters for selecting elements within an area."""
+
+    min_point: Point2D = Field(..., description="Minimum corner of selection area (x, y)")
+    max_point: Point2D = Field(..., description="Maximum corner of selection area (x, y)")
+    mode: str = Field("replace", description="Selection mode: replace, add, toggle")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+# =============================================================================
+# Group Tool Schemas
+# =============================================================================
+
+
+class CreateGroupParams(BaseModel):
+    """Parameters for creating an element group."""
+
+    name: str = Field(..., description="Name for the group")
+    element_ids: list[str] = Field(..., description="UUIDs of elements to include")
+    metadata: dict[str, Any] | None = Field(
+        None, description="Optional metadata for the group"
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class AddToGroupParams(BaseModel):
+    """Parameters for adding elements to a group."""
+
+    group_id: str = Field(..., description="UUID of the group")
+    element_ids: list[str] = Field(..., description="UUIDs of elements to add")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class RemoveFromGroupParams(BaseModel):
+    """Parameters for removing elements from a group."""
+
+    group_id: str = Field(..., description="UUID of the group")
+    element_ids: list[str] = Field(..., description="UUIDs of elements to remove")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class DeleteGroupParams(BaseModel):
+    """Parameters for deleting a group."""
+
+    group_id: str = Field(..., description="UUID of the group to delete")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class GetGroupParams(BaseModel):
+    """Parameters for getting a group."""
+
+    group_id: str = Field(..., description="UUID of the group")
+    include_details: bool = Field(
+        False, description="Include full element properties in response"
+    )
+
+
+class ListGroupsParams(BaseModel):
+    """Parameters for listing groups."""
+
+    include_elements: bool = Field(False, description="Include element IDs in response")
+
+
+class SelectGroupParams(BaseModel):
+    """Parameters for selecting all elements in a group."""
+
+    group_id: str = Field(..., description="UUID of the group to select")
+    mode: str = Field("replace", description="Selection mode: replace, add, toggle")
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+# =============================================================================
 # Response Schemas
 # =============================================================================
 
