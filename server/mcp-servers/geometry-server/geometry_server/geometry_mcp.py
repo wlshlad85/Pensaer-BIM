@@ -59,7 +59,6 @@ from .schemas import (
     # Selection schemas
     SelectElementsParams,
     GetSelectionParams,
-    ClearSelectionParams,
     SelectByTypeParams,
     # Group schemas
     CreateGroupParams,
@@ -1668,8 +1667,10 @@ async def _get_selection(state: GeometryState, args: dict[str, Any]) -> dict[str
     # Filter by category if specified
     if params.category:
         filtered_ids = [
-            eid for eid in summary["selected_ids"]
-            if state.get_element(eid) and state.get_element(eid).element_type == params.category
+            eid
+            for eid in summary["selected_ids"]
+            if state.get_element(eid)
+            and state.get_element(eid).element_type == params.category
         ]
         return make_response(
             {

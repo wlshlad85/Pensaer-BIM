@@ -222,11 +222,7 @@ class GeometryState:
 
     def get_selected(self) -> list[ElementRecord]:
         """Get all selected element records."""
-        return [
-            self._elements[eid]
-            for eid in self._selected
-            if eid in self._elements
-        ]
+        return [self._elements[eid] for eid in self._selected if eid in self._elements]
 
     def get_selected_ids(self) -> list[str]:
         """Get list of selected element IDs."""

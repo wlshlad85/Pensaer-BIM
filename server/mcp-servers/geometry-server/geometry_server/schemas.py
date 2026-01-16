@@ -445,7 +445,8 @@ class SelectByTypeParams(BaseModel):
     """Parameters for selecting elements by type."""
 
     element_type: str = Field(
-        ..., description="Element type to select (wall, floor, door, window, room, roof)"
+        ...,
+        description="Element type to select (wall, floor, door, window, room, roof)",
     )
     mode: str = Field("replace", description="Selection mode: replace, add, toggle")
     reasoning: str | None = Field(None, description="AI agent reasoning")
@@ -454,8 +455,12 @@ class SelectByTypeParams(BaseModel):
 class SelectByAreaParams(BaseModel):
     """Parameters for selecting elements within an area."""
 
-    min_point: Point2D = Field(..., description="Minimum corner of selection area (x, y)")
-    max_point: Point2D = Field(..., description="Maximum corner of selection area (x, y)")
+    min_point: Point2D = Field(
+        ..., description="Minimum corner of selection area (x, y)"
+    )
+    max_point: Point2D = Field(
+        ..., description="Maximum corner of selection area (x, y)"
+    )
     mode: str = Field("replace", description="Selection mode: replace, add, toggle")
     reasoning: str | None = Field(None, description="AI agent reasoning")
 

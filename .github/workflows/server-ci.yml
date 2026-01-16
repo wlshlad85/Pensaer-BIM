@@ -66,13 +66,13 @@ jobs:
           python -c "from geometry_server.schemas import CreateWallParams; print('Schemas OK')"
 
       - name: Verify spatial-server syntax
-        run: python -m py_compile server/mcp-servers/spatial-server/spatial_mcp.py
+        run: python -m py_compile server/mcp-servers/spatial-server/spatial_server/server.py
 
       - name: Verify validation-server syntax
-        run: python -m py_compile server/mcp-servers/validation-server/validation_mcp.py
+        run: python -m py_compile server/mcp-servers/validation-server/validation_server/server.py
 
       - name: Verify documentation-server syntax
-        run: python -m py_compile server/mcp-servers/documentation-server/documentation_mcp.py
+        run: python -m py_compile server/mcp-servers/documentation-server/documentation_server/server.py
 
   test-common:
     name: Test Common Utilities
