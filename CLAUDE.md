@@ -107,8 +107,39 @@ Every change goes through the event log. Views are derived, never stored.
 - Don't add new dependencies without checking `TECH_STACK.md`
 - Don't modify `kernel/` without Rust expertise
 
+## AI Code Automation System
+
+**Read `docs/CODE_AUTOMATION_SYSTEM.md` for the complete system.**
+
+### Quick Reference
+
+**Task Sizing:**
+- ATOMIC: 1-2 files, <100 lines, 15-30 min
+- MOLECULAR: 2-4 files, 100-300 lines, 30-60 min
+- COMPOUND: 4-8 files, 300-800 lines, 1-2 hours
+- EPIC: **DECOMPOSE FIRST** - never assign directly
+
+**Before Every Commit:**
+```bash
+./scripts/verify.sh        # Full verification
+./scripts/verify.sh --quick  # Fast mode (skip slow tests)
+```
+
+**Branch Naming:**
+```
+ai/kernel-[feature]   # Kernel work
+ai/app-[feature]      # App work
+ai/server-[feature]   # Server work
+```
+
+**Parallel Session Rules:**
+- One session per component (kernel, app, server)
+- No two sessions editing the same file
+- Rebase from main before starting
+
 ## Related CLAUDE.md Files
 
 - `kernel/CLAUDE.md` - Rust-specific guidance
 - `server/CLAUDE.md` - Python/MCP guidance
 - `app/CLAUDE.md` - React/TypeScript guidance
+- `docs/CODE_AUTOMATION_SYSTEM.md` - Full automation guide
