@@ -44,7 +44,7 @@ export const RoomElement = memo(function RoomElement({
       onContextMenu={(e) => onContextMenu?.(e, element)}
       onMouseEnter={() => onMouseEnter?.(element)}
       onMouseLeave={() => onMouseLeave?.()}
-      style={{ pointerEvents: 'all', cursor: 'move' }}
+      style={{ pointerEvents: 'all', cursor: 'pointer' }}
     >
       {/* Room fill */}
       <rect

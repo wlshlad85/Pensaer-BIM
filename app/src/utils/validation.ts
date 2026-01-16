@@ -490,3 +490,187 @@ export function getValidationSummary(result: ValidationResult): string {
 
   return `${result.totalIssues} issue${result.totalIssues > 1 ? 's' : ''} found: ${parts.join(', ')}`;
 }
+
+// ============================================
+// SELF-CORRECTING GEOMETRY VALIDATION
+// ============================================
+
+/**
+ * Minimum dimension thresholds (in 2D canvas units)
+ */
+const MIN_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  wall: { width: 10, height: 10 },
+  door: { width: 40, height: 20 },
+  window: { width: 40, height: 20 },
+  room: { width: 50, height: 50 },
+  roof: { width: 100, height: 100 },
+  floor: { width: 50, height: 50 },
+  column: { width: 10, height: 10 },
+  beam: { width: 10, height: 10 },
+  stair: { width: 50, height: 50 },
+};
+
+export interface GeometryValidationResult {
+  valid: boolean;
+  corrected: boolean;
+  corrections: string[];
+  element: Element;
+}
+
+/**
+ * Validate and auto-correct element geometry.
+ * Implements self-correcting code pattern.
+ */
+export function validateAndCorrectGeometry(element: Element): GeometryValidationResult {
+  const corrections: string[] = [];
+  let corrected = false;
+  const fixed = { ...element };
+
+  const minDims = MIN_DIMENSIONS[element.type] || { width: 10, height: 10 };
+
+  // Fix negative dimensions
+  if (element.width < 0) {
+    corrections.push(`Negative width (${element.width}) → positive`);
+    fixed.width = Math.abs(element.width);
+    fixed.x = element.x + element.width;
+    corrected = true;
+  }
+
+  if (element.height < 0) {
+    corrections.push(`Negative height (${element.height}) → positive`);
+    fixed.height = Math.abs(element.height);
+    fixed.y = element.y + element.height;
+    corrected = true;
+  }
+
+  // Fix too-small dimensions
+  if (fixed.width < minDims.width) {
+    corrections.push(`Width ${fixed.width} → ${minDims.width} (minimum)`);
+    fixed.width = minDims.width;
+    corrected = true;
+  }
+
+  if (fixed.height < minDims.height) {
+    corrections.push(`Height ${fixed.height} → ${minDims.height} (minimum)`);
+    fixed.height = minDims.height;
+    corrected = true;
+  }
+
+  // Fix NaN/Infinity
+  if (!isFinite(element.x) || !isFinite(element.y)) {
+    corrections.push('Invalid position → origin');
+    fixed.x = isFinite(element.x) ? element.x : 0;
+    fixed.y = isFinite(element.y) ? element.y : 0;
+    corrected = true;
+  }
+
+  if (!isFinite(element.width) || !isFinite(element.height)) {
+    corrections.push('Invalid dimensions → minimum');
+    fixed.width = isFinite(element.width) ? element.width : minDims.width;
+    fixed.height = isFinite(element.height) ? element.height : minDims.height;
+    corrected = true;
+  }
+
+  if (corrected) {
+    console.warn(`[Pensaer Self-Correct] ${element.type} ${element.id}:`, corrections);
+  }
+
+  return { valid: !corrected, corrected, corrections, element: fixed };
+}
+
+/**
+ * Validate hosted element (door/window) placement on wall.
+ */
+export function validateHostedPlacement(
+  hosted: Element,
+  wall: Element | undefined
+): GeometryValidationResult {
+  const corrections: string[] = [];
+  let corrected = false;
+  const fixed = { ...hosted };
+
+  if (!wall) {
+    return { valid: false, corrected: false, corrections: ['Host wall not found'], element: hosted };
+  }
+
+  const isHorizontalWall = wall.width > wall.height;
+
+  if (isHorizontalWall) {
+    // Align to wall's Y center
+    const wallCenterY = wall.y + wall.height / 2;
+    const expectedY = wallCenterY - hosted.height / 2;
+    if (Math.abs(hosted.y - expectedY) > 5) {
+      corrections.push(`Y aligned to wall center`);
+      fixed.y = expectedY;
+      corrected = true;
+    }
+
+    // Clamp X within wall bounds
+    if (fixed.x < wall.x) {
+      corrections.push(`X clamped to wall start`);
+      fixed.x = wall.x;
+      corrected = true;
+    }
+    if (fixed.x + fixed.width > wall.x + wall.width) {
+      corrections.push(`X clamped to wall end`);
+      fixed.x = wall.x + wall.width - fixed.width;
+      corrected = true;
+    }
+  } else {
+    // Vertical wall - align to X center
+    const wallCenterX = wall.x + wall.width / 2;
+    const expectedX = wallCenterX - hosted.width / 2;
+    if (Math.abs(hosted.x - expectedX) > 5) {
+      corrections.push(`X aligned to wall center`);
+      fixed.x = expectedX;
+      corrected = true;
+    }
+
+    // Clamp Y within wall bounds
+    if (fixed.y < wall.y) {
+      corrections.push(`Y clamped to wall start`);
+      fixed.y = wall.y;
+      corrected = true;
+    }
+    if (fixed.y + fixed.height > wall.y + wall.height) {
+      corrections.push(`Y clamped to wall end`);
+      fixed.y = wall.y + wall.height - fixed.height;
+      corrected = true;
+    }
+  }
+
+  if (corrected) {
+    console.warn(`[Pensaer Self-Correct] ${hosted.type} ${hosted.id} on ${wall.id}:`, corrections);
+  }
+
+  return { valid: !corrected, corrected, corrections, element: fixed };
+}
+
+/**
+ * Validate 3D geometry parameters.
+ */
+export function validate3DParams(params: {
+  width: number;
+  height: number;
+  depth: number;
+  type: string;
+}): { width: number; height: number; depth: number; corrections: string[] } {
+  const corrections: string[] = [];
+  const MIN = 0.1;
+  const MAX = 100;
+
+  let { width, height, depth } = params;
+
+  if (width < MIN) { corrections.push(`3D width → ${MIN}`); width = MIN; }
+  if (height < MIN) { corrections.push(`3D height → ${MIN}`); height = MIN; }
+  if (depth < MIN) { corrections.push(`3D depth → ${MIN}`); depth = MIN; }
+  if (width > MAX) { corrections.push(`3D width clamped to ${MAX}`); width = MAX; }
+  if (height > MAX) { corrections.push(`3D height clamped to ${MAX}`); height = MAX; }
+  if (depth > MAX) { corrections.push(`3D depth clamped to ${MAX}`); depth = MAX; }
+
+  if (corrections.length > 0) {
+    console.warn(`[Pensaer 3D Self-Correct] ${params.type}:`, corrections);
+  }
+
+  return { width, height, depth, corrections };
+}

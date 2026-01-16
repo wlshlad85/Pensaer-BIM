@@ -290,18 +290,25 @@ export function Canvas3D() {
       .filter((el) => el.type === 'roof')
       .forEach((roof) => {
         const isSelected = selectedIds.includes(roof.id);
-        const width = roof.width * scale;
-        const depth = roof.height * scale;
+        // In 2D: width is span across building, height is depth of building
+        const roofSpan = Math.max(roof.width, roof.height) * scale;
+        const roofDepth = Math.min(roof.width, roof.height) * scale;
 
-        // Gable roof shape
+        // Ensure minimum dimensions for visibility
+        const minSpan = Math.max(roofSpan, 2);
+        const minDepth = Math.max(roofDepth, 2);
+
+        // Gable roof shape (triangle cross-section)
+        // Peak height proportional to span
+        const peakHeight = minSpan * 0.4;
         const shape = new THREE.Shape();
-        shape.moveTo(-width / 2, 0);
-        shape.lineTo(width / 2, 0);
-        shape.lineTo(0, 1.5);
-        shape.lineTo(-width / 2, 0);
+        shape.moveTo(-minSpan / 2, 0);
+        shape.lineTo(minSpan / 2, 0);
+        shape.lineTo(0, peakHeight);
+        shape.lineTo(-minSpan / 2, 0);
 
         const extrudeSettings = {
-          depth: depth,
+          depth: minDepth,
           bevelEnabled: false,
         };
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -313,11 +320,15 @@ export function Canvas3D() {
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = roof.id;
         mesh.userData = { element: roof };
+
+        // Position: account for rotation.y = -PI/2
+        // After rotation: original X→-Z, original Z→X
+        // Geometry origin is at start of extrusion, so offset by depth/2 in X and span/2 in Z
         mesh.rotation.y = -Math.PI / 2;
         mesh.position.set(
-          roof.x * scale + width / 2 + offsetX,
+          roof.x * scale + minDepth / 2 + offsetX,
           wallHeight,
-          roof.y * scale + offsetZ
+          roof.y * scale + minSpan / 2 + offsetZ
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;

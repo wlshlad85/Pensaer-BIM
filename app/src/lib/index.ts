@@ -3,3 +3,5 @@
  */
 
 export * from './indexedDB';
+export * from './commands';
+export * from './fuzzySearch';

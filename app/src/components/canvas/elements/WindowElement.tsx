@@ -39,7 +39,7 @@ export const WindowElement = memo(function WindowElement({
         isSelected && 'selected',
         isHighlighted && 'highlighted'
       )}
-      style={{ cursor: 'move' }}
+      style={{ cursor: 'pointer' }}
       onClick={(e) => onClick?.(e, element)}
       onMouseDown={(e) => onMouseDown?.(e, element)}
       onContextMenu={(e) => onContextMenu?.(e, element)}

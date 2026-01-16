@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useUIStore, useModelStore, useSelectionStore, initializeHistory, useHistoryStore } from './stores';
 import { useKeyboardShortcuts, usePersistence } from './hooks';
 import { Canvas2D, Canvas3D } from './components/canvas';
-import { Header, Toolbar, PropertiesPanel } from './components/layout';
+import { Header, Toolbar, PropertiesPanel, CommandPalette } from './components/layout';
 import clsx from 'clsx';
 
 function App() {
@@ -133,85 +133,6 @@ function App() {
             </button>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Command Palette Component
- *
- * AI-powered command palette for quick actions and natural language commands.
- */
-function CommandPalette({ onClose }: { onClose: () => void }) {
-  const setTool = useUIStore((s) => s.setTool);
-  const setViewMode = useUIStore((s) => s.setViewMode);
-  const addToast = useUIStore((s) => s.addToast);
-
-  const commands = [
-    { icon: 'fa-arrow-pointer', label: 'Select tool', shortcut: 'V', action: () => setTool('select') },
-    { icon: 'fa-square', label: 'Wall tool', shortcut: 'W', action: () => setTool('wall') },
-    { icon: 'fa-door-open', label: 'Door tool', shortcut: 'D', action: () => setTool('door') },
-    { icon: 'fa-window-maximize', label: 'Window tool', shortcut: 'N', action: () => setTool('window') },
-    { icon: 'fa-vector-square', label: 'Room tool', shortcut: 'M', action: () => setTool('room') },
-    { icon: 'fa-cube', label: 'Toggle 3D view', shortcut: '3', action: () => setViewMode('3d') },
-    { icon: 'fa-table-cells', label: 'Toggle 2D view', shortcut: '2', action: () => setViewMode('2d') },
-    { icon: 'fa-home', label: 'Add roof', shortcut: 'R', action: () => addToast('info', 'Select walls to create roof') },
-    { icon: 'fa-check-circle', label: 'Run validation', shortcut: '⌘⇧V', action: () => addToast('success', 'Validation complete - 2 issues found') },
-  ];
-
-  const handleCommand = (action: () => void) => {
-    action();
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative w-[560px] bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl animate-slide-up overflow-hidden">
-        {/* Search Input */}
-        <div className="p-4 border-b border-gray-700/50">
-          <div className="flex items-center gap-3">
-            <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
-            <input
-              type="text"
-              placeholder="Type command or ask AI..."
-              className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
-              autoFocus
-            />
-            <kbd className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded">ESC</kbd>
-          </div>
-        </div>
-
-        {/* Commands List */}
-        <div className="max-h-80 overflow-y-auto p-2">
-          <div className="text-xs text-gray-500 uppercase px-3 py-2">Quick Actions</div>
-          {commands.map((cmd, i) => (
-            <button
-              key={i}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-              onClick={() => handleCommand(cmd.action)}
-            >
-              <i className={`fa-solid ${cmd.icon} w-5 text-center text-gray-500`}></i>
-              <span className="flex-1 text-sm">{cmd.label}</span>
-              <kbd className="px-2 py-0.5 bg-gray-800 text-gray-500 text-xs rounded">{cmd.shortcut}</kbd>
-            </button>
-          ))}
-        </div>
-
-        {/* AI Section */}
-        <div className="p-3 border-t border-gray-700/50 bg-purple-900/10">
-          <div className="flex items-center gap-2 text-xs text-purple-400">
-            <i className="fa-solid fa-wand-magic-sparkles"></i>
-            <span>Try: "Add a door to Wall-101" or "Check fire compliance"</span>
-          </div>
-        </div>
       </div>
     </div>
   );
