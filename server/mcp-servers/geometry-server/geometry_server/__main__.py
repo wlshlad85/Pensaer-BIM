@@ -5,7 +5,7 @@ Usage:
 """
 
 import asyncio
-from .server import main
+from .geometry_mcp import main
 
 if __name__ == "__main__":
     asyncio.run(main())
