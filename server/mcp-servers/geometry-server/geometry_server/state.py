@@ -11,7 +11,6 @@ from typing import Any
 from uuid import uuid4
 
 
-
 @dataclass
 class ElementRecord:
     """Record of an element with metadata."""
