@@ -36,6 +36,13 @@ export function Canvas3D() {
   const [isRotating, setIsRotating] = useState(true);
   const [currentView, setCurrentView] = useState<ViewType>("perspective");
 
+  // Section plane state
+  const [sectionEnabled, setSectionEnabled] = useState(false);
+  const [sectionAxis, setSectionAxis] = useState<"x" | "y" | "z">("x");
+  const [sectionPosition, setSectionPosition] = useState(0);
+  const clippingPlaneRef = useRef<THREE.Plane>(new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0));
+  const sectionHelperRef = useRef<THREE.PlaneHelper | null>(null);
+
   const elements = useModelStore((s) => s.elements);
   const selectedIds = useSelectionStore((s) => s.selectedIds);
   const select = useSelectionStore((s) => s.select);
@@ -65,6 +72,7 @@ export function Canvas3D() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.localClippingEnabled = true; // Enable clipping planes
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -380,6 +388,49 @@ export function Canvas3D() {
     }
   }, [isRotating, currentView]);
 
+  // Update section plane
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    // Update clipping plane normal based on axis
+    const normals: Record<string, THREE.Vector3> = {
+      x: new THREE.Vector3(-1, 0, 0),
+      y: new THREE.Vector3(0, -1, 0),
+      z: new THREE.Vector3(0, 0, -1),
+    };
+    clippingPlaneRef.current.normal.copy(normals[sectionAxis]);
+    clippingPlaneRef.current.constant = sectionPosition;
+
+    // Update or create section helper
+    if (sectionEnabled) {
+      if (sectionHelperRef.current) {
+        scene.remove(sectionHelperRef.current);
+        sectionHelperRef.current.dispose();
+      }
+      const helper = new THREE.PlaneHelper(clippingPlaneRef.current, 15, 0x00ff88);
+      helper.name = "sectionHelper";
+      scene.add(helper);
+      sectionHelperRef.current = helper;
+    } else if (sectionHelperRef.current) {
+      scene.remove(sectionHelperRef.current);
+      sectionHelperRef.current.dispose();
+      sectionHelperRef.current = null;
+    }
+
+    // Update clipping on all meshes
+    meshesRef.current.forEach((mesh) => {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach((mat) => {
+        if (mat instanceof THREE.MeshStandardMaterial) {
+          mat.clippingPlanes = sectionEnabled ? [clippingPlaneRef.current] : [];
+          mat.clipShadows = true;
+          mat.needsUpdate = true;
+        }
+      });
+    });
+  }, [sectionEnabled, sectionAxis, sectionPosition]);
+
   // Animation loop
   useEffect(() => {
     const animate = () => {
@@ -506,6 +557,56 @@ export function Canvas3D() {
           ></i>
           {isRotating ? "Pause" : "Rotate"}
         </button>
+      </div>
+
+      {/* Section Plane Controls */}
+      <div className="absolute bottom-16 left-4 bg-gray-900/80 backdrop-blur-xl rounded-xl p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-400">Section</span>
+          <button
+            onClick={() => setSectionEnabled(!sectionEnabled)}
+            className={`w-10 h-5 rounded-full transition-colors relative ${
+              sectionEnabled ? "bg-green-500" : "bg-gray-600"
+            }`}
+          >
+            <span
+              className={`absolute w-4 h-4 bg-white rounded-full top-0.5 transition-transform ${
+                sectionEnabled ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+        {sectionEnabled && (
+          <>
+            <div className="flex gap-1">
+              {(["x", "y", "z"] as const).map((axis) => (
+                <button
+                  key={axis}
+                  onClick={() => setSectionAxis(axis)}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                    sectionAxis === axis
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  {axis.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <input
+              type="range"
+              min="-10"
+              max="10"
+              step="0.1"
+              value={sectionPosition}
+              onChange={(e) => setSectionPosition(parseFloat(e.target.value))}
+              className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+            />
+            <span className="text-xs text-gray-400 text-center">
+              {sectionPosition.toFixed(1)}m
+            </span>
+          </>
+        )}
       </div>
 
       {/* ViewCube - Top Right */}
