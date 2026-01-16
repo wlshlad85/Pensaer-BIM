@@ -2520,6 +2520,194 @@ async def _analyze_wall_topology(
 
 
 # =============================================================================
+# Clash Detection Tool Handlers
+# =============================================================================
+
+
+async def _detect_clashes(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Detect clashes within a set of elements."""
+    params = DetectClashesParams(**args)
+
+    # Get elements to analyze
+    if params.element_ids:
+        # Use specified elements
+        elements_data = []
+        for element_id in params.element_ids:
+            record = state.get_element(element_id)
+            if record:
+                elem = record.element
+                mesh = elem.to_mesh()
+                bbox = mesh.bounding_box()
+                if bbox:
+                    elements_data.append((
+                        element_id,
+                        record.element_type,
+                        (bbox["min"]["x"], bbox["min"]["y"], bbox["min"]["z"]),
+                        (bbox["max"]["x"], bbox["max"]["y"], bbox["max"]["z"]),
+                    ))
+            else:
+                return make_error(
+                    ErrorCodes.ELEMENT_NOT_FOUND, f"Element not found: {element_id}"
+                )
+    else:
+        # Use all elements in model
+        all_records = state.list_elements(limit=10000)
+        elements_data = []
+        for record in all_records:
+            elem = record.element
+            mesh = elem.to_mesh()
+            bbox = mesh.bounding_box()
+            if bbox:
+                elements_data.append((
+                    record.id,
+                    record.element_type,
+                    (bbox["min"]["x"], bbox["min"]["y"], bbox["min"]["z"]),
+                    (bbox["max"]["x"], bbox["max"]["y"], bbox["max"]["z"]),
+                ))
+
+    if len(elements_data) < 2:
+        return make_response(
+            {
+                "clashes": [],
+                "count": 0,
+                "message": "Need at least 2 elements for clash detection",
+            },
+            reasoning=reasoning,
+        )
+
+    # Call Rust clash detection via PyO3 binding
+    try:
+        clashes = pg.detect_clashes(
+            elements_data,
+            tolerance=params.tolerance,
+            clearance=params.clearance,
+            ignore_same_type=params.ignore_same_type,
+        )
+
+        # Format clash results
+        clash_data = []
+        for clash in clashes:
+            clash_data.append({
+                "id": clash["id"],
+                "element_a_id": clash["element_a_id"],
+                "element_b_id": clash["element_b_id"],
+                "element_a_type": clash["element_a_type"],
+                "element_b_type": clash["element_b_type"],
+                "clash_type": clash["clash_type"],
+                "clash_point": clash["clash_point"],
+                "distance": clash["distance"],
+            })
+
+        return make_response(
+            {
+                "clashes": clash_data,
+                "count": len(clash_data),
+                "elements_checked": len(elements_data),
+                "tolerance": params.tolerance,
+                "clearance": params.clearance,
+            },
+            reasoning=reasoning,
+        )
+    except Exception as e:
+        return make_error(
+            ErrorCodes.INTERNAL_ERROR,
+            f"Clash detection failed: {str(e)}",
+        )
+
+
+async def _detect_clashes_between_sets(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Detect clashes between two sets of elements."""
+    params = DetectClashesBetweenSetsParams(**args)
+
+    def get_elements_data(element_ids: list[str]) -> list | None:
+        """Convert element IDs to clash detection format."""
+        elements_data = []
+        for element_id in element_ids:
+            record = state.get_element(element_id)
+            if not record:
+                return None  # Signal element not found
+            elem = record.element
+            mesh = elem.to_mesh()
+            bbox = mesh.bounding_box()
+            if bbox:
+                elements_data.append((
+                    element_id,
+                    record.element_type,
+                    (bbox["min"]["x"], bbox["min"]["y"], bbox["min"]["z"]),
+                    (bbox["max"]["x"], bbox["max"]["y"], bbox["max"]["z"]),
+                ))
+        return elements_data
+
+    # Get set A elements
+    set_a_data = get_elements_data(params.set_a_ids)
+    if set_a_data is None:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, "One or more elements in set_a not found"
+        )
+
+    # Get set B elements
+    set_b_data = get_elements_data(params.set_b_ids)
+    if set_b_data is None:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, "One or more elements in set_b not found"
+        )
+
+    if not set_a_data or not set_b_data:
+        return make_response(
+            {
+                "clashes": [],
+                "count": 0,
+                "message": "Both sets need at least one element",
+            },
+            reasoning=reasoning,
+        )
+
+    # Call Rust clash detection via PyO3 binding
+    try:
+        clashes = pg.detect_clashes_between_sets(
+            set_a_data,
+            set_b_data,
+            tolerance=params.tolerance,
+            clearance=params.clearance,
+        )
+
+        # Format clash results
+        clash_data = []
+        for clash in clashes:
+            clash_data.append({
+                "id": clash["id"],
+                "element_a_id": clash["element_a_id"],
+                "element_b_id": clash["element_b_id"],
+                "element_a_type": clash["element_a_type"],
+                "element_b_type": clash["element_b_type"],
+                "clash_type": clash["clash_type"],
+                "clash_point": clash["clash_point"],
+                "distance": clash["distance"],
+            })
+
+        return make_response(
+            {
+                "clashes": clash_data,
+                "count": len(clash_data),
+                "set_a_count": len(set_a_data),
+                "set_b_count": len(set_b_data),
+                "tolerance": params.tolerance,
+                "clearance": params.clearance,
+            },
+            reasoning=reasoning,
+        )
+    except Exception as e:
+        return make_error(
+            ErrorCodes.INTERNAL_ERROR,
+            f"Clash detection failed: {str(e)}",
+        )
+
+
+# =============================================================================
 # Server Entry Point
 # =============================================================================
 
