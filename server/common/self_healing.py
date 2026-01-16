@@ -669,8 +669,7 @@ class SelfHealingImporter:
         }
         self.corrections.append(correction)
         logger.warning(
-            f"Self-healed import: '{original}' -> '{corrected}' "
-            f"(strategy: {strategy})"
+            f"Self-healed import: '{original}' -> '{corrected}' (strategy: {strategy})"
         )
 
 
