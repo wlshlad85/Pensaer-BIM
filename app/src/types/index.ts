@@ -80,6 +80,10 @@ export interface Relationships {
   // Roof relationships
   coversRooms?: string[];
   supportedBy?: string[];
+  covers?: string[];
+
+  // Room adjacency
+  connectedTo?: string[];
 }
 
 // ============================================
