@@ -123,7 +123,7 @@ Pensaer is a **developer-first BIM platform** targeting computational designers 
 | 9 | Section cuts | ⏹️ TODO |
 | 10 | IFC import pipeline (web-ifc) | ✅ |
 | 10 | Element mapping (IFC → Pensaer) | ✅ |
-| 10 | IFC export functionality | ⏹️ TODO |
+| 10 | IFC export functionality | ✅ |
 | 11 | Level entity type | ⏹️ TODO |
 | 11 | Level switching + browser panel | ⏹️ TODO |
 | 12 | Rule engine for compliance | ⏹️ TODO |
@@ -172,7 +172,7 @@ Pensaer is a **developer-first BIM platform** targeting computational designers 
 │                                                                       │
 │  6. [App] IFC pipeline                      ██████████  ✅ COMPLETE  │
 │     └─ web-ifc integration (Jan 17)                                  │
-│     └─ Import mapping complete, export pending                       │
+│     └─ Import + Export complete                                      │
 │                                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -557,6 +557,7 @@ Status: ✅ COMPLETE (Jan 16, 2026)
 | 3.0 | Jan 16, 2026 | AI | Complete rewrite with accurate status |
 | 3.1 | Jan 16, 2026 | AI | Updated: Spatial Server ✅, Validation Server ✅, corrected topology status |
 | 3.2 | Jan 17, 2026 | AI | IFC import pipeline ✅ complete with web-ifc |
+| 3.3 | Jan 17, 2026 | AI | IFC export ✅ complete with web-ifc |
 
 ---
 
