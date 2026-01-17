@@ -26,6 +26,34 @@ interface TerminalProps {
   maxHeight?: number;
 }
 
+// Available commands for autocomplete
+const AVAILABLE_COMMANDS = [
+  "help",
+  "clear",
+  "status",
+  "version",
+  "list",
+  "wall",
+  "floor",
+  "room",
+  "roof",
+  "door",
+  "window",
+  "detect-rooms",
+  "analyze",
+  "clash",
+  "clash-between",
+  "delete",
+  "get",
+  "adjacency",
+  "nearest",
+  "area",
+  "clearance",
+];
+
+// Maximum history size
+const MAX_HISTORY_SIZE = 100;
+
 export function Terminal({
   isExpanded = true,
   onToggle,
@@ -39,6 +67,14 @@ export function Terminal({
   const [height, setHeight] = useState(initialHeight);
   const [isResizing, setIsResizing] = useState(false);
   const [commandBuffer, setCommandBuffer] = useState("");
+
+  // Command history state
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [savedBuffer, setSavedBuffer] = useState("");
+
+  // Escape sequence buffer for arrow keys
+  const escapeBufferRef = useRef("");
 
   // Initialize terminal
   useEffect(() => {
@@ -87,16 +123,19 @@ export function Terminal({
 
     // Welcome message
     terminal.writeln(
-      "\x1b[36m╔══════════════════════════════════════════╗\x1b[0m",
+      "\x1b[36m╔══════════════════════════════════════════════════╗\x1b[0m",
     );
     terminal.writeln(
-      "\x1b[36m║\x1b[0m  \x1b[1;32mPensaer BIM Terminal\x1b[0m                    \x1b[36m║\x1b[0m",
+      "\x1b[36m║\x1b[0m  \x1b[1;32mPensaer BIM Terminal\x1b[0m                          \x1b[36m║\x1b[0m",
     );
     terminal.writeln(
-      "\x1b[36m║\x1b[0m  Type 'help' for available commands       \x1b[36m║\x1b[0m",
+      "\x1b[36m║\x1b[0m  Type 'help' for available commands             \x1b[36m║\x1b[0m",
     );
     terminal.writeln(
-      "\x1b[36m╚══════════════════════════════════════════╝\x1b[0m",
+      "\x1b[36m║\x1b[0m  \x1b[33m↑/↓\x1b[0m History  \x1b[33mTab\x1b[0m Autocomplete  \x1b[33mCtrl+L\x1b[0m Clear \x1b[36m║\x1b[0m",
+    );
+    terminal.writeln(
+      "\x1b[36m╚══════════════════════════════════════════════════╝\x1b[0m",
     );
     terminal.writeln("");
     writePrompt(terminal);
@@ -146,15 +185,170 @@ export function Terminal({
     terminal.write("\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ");
   };
 
+  // Clear current line and write new content
+  const clearLineAndWrite = useCallback(
+    (terminal: XTerminal, oldText: string, newText: string) => {
+      // Clear existing text by moving back and overwriting
+      for (let i = 0; i < oldText.length; i++) {
+        terminal.write("\b \b");
+      }
+      // Write new text
+      terminal.write(newText);
+    },
+    [],
+  );
+
+  // Find autocomplete matches
+  const findAutocompleteMatches = useCallback((prefix: string): string[] => {
+    if (!prefix) return [];
+    const lowerPrefix = prefix.toLowerCase();
+    return AVAILABLE_COMMANDS.filter((cmd) =>
+      cmd.toLowerCase().startsWith(lowerPrefix),
+    );
+  }, []);
+
   const handleInput = useCallback(
     (terminal: XTerminal, data: string) => {
       const code = data.charCodeAt(0);
 
+      // Handle escape sequences for arrow keys
+      if (code === 27) {
+        // ESC
+        escapeBufferRef.current = "\x1b";
+        return;
+      }
+
+      if (escapeBufferRef.current === "\x1b" && data === "[") {
+        escapeBufferRef.current = "\x1b[";
+        return;
+      }
+
+      if (escapeBufferRef.current === "\x1b[") {
+        escapeBufferRef.current = "";
+
+        // Up arrow
+        if (data === "A") {
+          if (commandHistory.length > 0) {
+            // Save current buffer if we're starting history navigation
+            if (historyIndex === -1) {
+              setSavedBuffer(commandBuffer);
+            }
+
+            const newIndex =
+              historyIndex === -1
+                ? commandHistory.length - 1
+                : Math.max(0, historyIndex - 1);
+
+            if (newIndex !== historyIndex || historyIndex === -1) {
+              const historyCmd = commandHistory[newIndex];
+              clearLineAndWrite(terminal, commandBuffer, historyCmd);
+              setCommandBuffer(historyCmd);
+              setHistoryIndex(newIndex);
+            }
+          }
+          return;
+        }
+
+        // Down arrow
+        if (data === "B") {
+          if (historyIndex >= 0) {
+            const newIndex = historyIndex + 1;
+
+            if (newIndex >= commandHistory.length) {
+              // Restore saved buffer
+              clearLineAndWrite(terminal, commandBuffer, savedBuffer);
+              setCommandBuffer(savedBuffer);
+              setHistoryIndex(-1);
+            } else {
+              const historyCmd = commandHistory[newIndex];
+              clearLineAndWrite(terminal, commandBuffer, historyCmd);
+              setCommandBuffer(historyCmd);
+              setHistoryIndex(newIndex);
+            }
+          }
+          return;
+        }
+
+        // Left/Right arrows - ignore for now
+        if (data === "C" || data === "D") {
+          return;
+        }
+      }
+
+      // Clear escape buffer for other inputs
+      escapeBufferRef.current = "";
+
       // Enter key
       if (code === 13) {
         terminal.writeln("");
+
+        // Add to history if non-empty and different from last command
+        const trimmedCmd = commandBuffer.trim();
+        if (
+          trimmedCmd &&
+          (commandHistory.length === 0 ||
+            commandHistory[commandHistory.length - 1] !== trimmedCmd)
+        ) {
+          setCommandHistory((prev) => {
+            const newHistory = [...prev, trimmedCmd];
+            // Limit history size
+            if (newHistory.length > MAX_HISTORY_SIZE) {
+              return newHistory.slice(-MAX_HISTORY_SIZE);
+            }
+            return newHistory;
+          });
+        }
+
+        // Reset history navigation
+        setHistoryIndex(-1);
+        setSavedBuffer("");
+
         processCommand(terminal, commandBuffer);
         setCommandBuffer("");
+        return;
+      }
+
+      // Tab - autocomplete
+      if (code === 9) {
+        const words = commandBuffer.split(/\s+/);
+        const lastWord = words[words.length - 1];
+
+        // Only autocomplete the first word (command name)
+        if (words.length === 1) {
+          const matches = findAutocompleteMatches(lastWord);
+
+          if (matches.length === 1) {
+            // Single match - complete it
+            const completion = matches[0].slice(lastWord.length);
+            terminal.write(completion + " ");
+            setCommandBuffer(matches[0] + " ");
+          } else if (matches.length > 1) {
+            // Multiple matches - show options
+            terminal.writeln("");
+            terminal.writeln(
+              `\x1b[33mMatches: ${matches.join(", ")}\x1b[0m`,
+            );
+
+            // Find common prefix
+            let commonPrefix = matches[0];
+            for (const match of matches) {
+              while (!match.startsWith(commonPrefix)) {
+                commonPrefix = commonPrefix.slice(0, -1);
+              }
+            }
+
+            // Complete to common prefix if longer than current
+            if (commonPrefix.length > lastWord.length) {
+              const completion = commonPrefix.slice(lastWord.length);
+              writePrompt(terminal);
+              terminal.write(commonPrefix);
+              setCommandBuffer(commonPrefix);
+            } else {
+              writePrompt(terminal);
+              terminal.write(commandBuffer);
+            }
+          }
+        }
         return;
       }
 
@@ -171,6 +365,8 @@ export function Terminal({
       if (code === 3) {
         terminal.writeln("^C");
         setCommandBuffer("");
+        setHistoryIndex(-1);
+        setSavedBuffer("");
         writePrompt(terminal);
         return;
       }
@@ -188,7 +384,14 @@ export function Terminal({
         setCommandBuffer((prev) => prev + data);
       }
     },
-    [commandBuffer],
+    [
+      commandBuffer,
+      commandHistory,
+      historyIndex,
+      savedBuffer,
+      clearLineAndWrite,
+      findAutocompleteMatches,
+    ],
   );
 
   // Format MCP result for terminal display
@@ -368,6 +571,20 @@ export function Terminal({
         );
         terminal.writeln(
           "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
+        );
+        terminal.writeln("");
+        terminal.writeln("\x1b[1;33mKeyboard Shortcuts:\x1b[0m");
+        terminal.writeln(
+          "  \x1b[32m↑ / ↓\x1b[0m             - Navigate command history",
+        );
+        terminal.writeln(
+          "  \x1b[32mTab\x1b[0m               - Autocomplete command name",
+        );
+        terminal.writeln(
+          "  \x1b[32mCtrl+C\x1b[0m            - Cancel current input",
+        );
+        terminal.writeln(
+          "  \x1b[32mCtrl+L\x1b[0m            - Clear terminal screen",
         );
         break;
 
