@@ -49,7 +49,39 @@ const AVAILABLE_COMMANDS = [
   "nearest",
   "area",
   "clearance",
+  "macro",
 ];
+
+// Macro type definition
+interface Macro {
+  name: string;
+  commands: string[];
+  createdAt: number;
+}
+
+// Load macros from localStorage
+const loadMacros = (): Map<string, Macro> => {
+  try {
+    const saved = localStorage.getItem("pensaer-terminal-macros");
+    if (saved) {
+      const arr = JSON.parse(saved) as Macro[];
+      return new Map(arr.map((m) => [m.name, m]));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Map();
+};
+
+// Save macros to localStorage
+const saveMacros = (macros: Map<string, Macro>) => {
+  try {
+    const arr = Array.from(macros.values());
+    localStorage.setItem("pensaer-terminal-macros", JSON.stringify(arr));
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 // Maximum history size
 const MAX_HISTORY_SIZE = 100;
@@ -75,6 +107,15 @@ export function Terminal({
 
   // Escape sequence buffer for arrow keys
   const escapeBufferRef = useRef("");
+
+  // Macro recording state
+  const [macros, setMacros] = useState<Map<string, Macro>>(loadMacros);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingMacroName, setRecordingMacroName] = useState<string | null>(
+    null,
+  );
+  const [recordingCommands, setRecordingCommands] = useState<string[]>([]);
+  const [isPlayingMacro, setIsPlayingMacro] = useState(false);
 
   // Initialize terminal
   useEffect(() => {
@@ -181,9 +222,18 @@ export function Terminal({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const writePrompt = (terminal: XTerminal) => {
-    terminal.write("\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ");
-  };
+  const writePrompt = useCallback(
+    (terminal: XTerminal) => {
+      if (isRecording) {
+        terminal.write(
+          "\x1b[31m●\x1b[0m \x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ",
+        );
+      } else {
+        terminal.write("\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ");
+      }
+    },
+    [isRecording],
+  );
 
   // Clear current line and write new content
   const clearLineAndWrite = useCallback(
@@ -571,6 +621,26 @@ export function Terminal({
         );
         terminal.writeln(
           "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
+        );
+        terminal.writeln("");
+        terminal.writeln("\x1b[1;33mMacro Commands:\x1b[0m");
+        terminal.writeln(
+          "  \x1b[32mmacro record <name>\x1b[0m - Start recording commands to a macro",
+        );
+        terminal.writeln(
+          "  \x1b[32mmacro stop\x1b[0m          - Stop recording and save macro",
+        );
+        terminal.writeln(
+          "  \x1b[32mmacro play <name>\x1b[0m   - Playback a recorded macro",
+        );
+        terminal.writeln(
+          "  \x1b[32mmacro list\x1b[0m          - List all saved macros",
+        );
+        terminal.writeln(
+          "  \x1b[32mmacro show <name>\x1b[0m   - Show macro commands",
+        );
+        terminal.writeln(
+          "  \x1b[32mmacro delete <name>\x1b[0m - Delete a saved macro",
         );
         terminal.writeln("");
         terminal.writeln("\x1b[1;33mKeyboard Shortcuts:\x1b[0m");
@@ -1107,9 +1177,217 @@ export function Terminal({
         break;
       }
 
+      case "macro": {
+        const subcommand = args[0]?.toLowerCase();
+        const macroName = args[1];
+
+        switch (subcommand) {
+          case "record": {
+            if (!macroName) {
+              terminal.writeln(
+                "\x1b[31mUsage: macro record <name>\x1b[0m",
+              );
+              terminal.writeln("  Example: macro record setup-walls");
+              break;
+            }
+            if (isRecording) {
+              terminal.writeln(
+                `\x1b[31mAlready recording macro '${recordingMacroName}'\x1b[0m`,
+              );
+              terminal.writeln("  Use 'macro stop' to finish recording");
+              break;
+            }
+            setIsRecording(true);
+            setRecordingMacroName(macroName);
+            setRecordingCommands([]);
+            terminal.writeln(
+              `\x1b[32m● Recording macro '${macroName}'...\x1b[0m`,
+            );
+            terminal.writeln(
+              "  Commands will be recorded. Type 'macro stop' when done.",
+            );
+            break;
+          }
+
+          case "stop": {
+            if (!isRecording) {
+              terminal.writeln("\x1b[31mNot currently recording\x1b[0m");
+              break;
+            }
+            if (recordingCommands.length === 0) {
+              terminal.writeln(
+                `\x1b[33mNo commands recorded for '${recordingMacroName}'\x1b[0m`,
+              );
+              setIsRecording(false);
+              setRecordingMacroName(null);
+              setRecordingCommands([]);
+              break;
+            }
+
+            const newMacro: Macro = {
+              name: recordingMacroName!,
+              commands: recordingCommands,
+              createdAt: Date.now(),
+            };
+            setMacros((prev) => {
+              const updated = new Map(prev);
+              updated.set(recordingMacroName!, newMacro);
+              saveMacros(updated);
+              return updated;
+            });
+
+            terminal.writeln(
+              `\x1b[32m✓ Saved macro '${recordingMacroName}' with ${recordingCommands.length} command(s)\x1b[0m`,
+            );
+            setIsRecording(false);
+            setRecordingMacroName(null);
+            setRecordingCommands([]);
+            break;
+          }
+
+          case "play": {
+            if (!macroName) {
+              terminal.writeln("\x1b[31mUsage: macro play <name>\x1b[0m");
+              terminal.writeln("  Example: macro play setup-walls");
+              break;
+            }
+            const macro = macros.get(macroName);
+            if (!macro) {
+              terminal.writeln(
+                `\x1b[31mMacro '${macroName}' not found\x1b[0m`,
+              );
+              terminal.writeln("  Use 'macro list' to see available macros");
+              break;
+            }
+            if (isRecording) {
+              terminal.writeln(
+                "\x1b[31mCannot play macros while recording\x1b[0m",
+              );
+              break;
+            }
+
+            terminal.writeln(
+              `\x1b[33m▶ Playing macro '${macroName}' (${macro.commands.length} commands)...\x1b[0m`,
+            );
+            setIsPlayingMacro(true);
+
+            // Execute commands sequentially
+            (async () => {
+              for (const cmd of macro.commands) {
+                terminal.writeln(`\x1b[36m→ ${cmd}\x1b[0m`);
+                await processCommand(terminal, cmd);
+              }
+              terminal.writeln(
+                `\x1b[32m✓ Macro '${macroName}' completed\x1b[0m`,
+              );
+              setIsPlayingMacro(false);
+            })();
+            return; // Don't write prompt, macro will handle it
+          }
+
+          case "list": {
+            const macroList = Array.from(macros.values());
+            if (macroList.length === 0) {
+              terminal.writeln("\x1b[33mNo macros saved\x1b[0m");
+              terminal.writeln(
+                "  Use 'macro record <name>' to create a macro",
+              );
+            } else {
+              terminal.writeln(
+                `\x1b[1;33mSaved Macros (${macroList.length}):\x1b[0m`,
+              );
+              for (const m of macroList) {
+                const date = new Date(m.createdAt).toLocaleDateString();
+                terminal.writeln(
+                  `  \x1b[32m${m.name}\x1b[0m - ${m.commands.length} command(s) - ${date}`,
+                );
+              }
+            }
+            break;
+          }
+
+          case "delete": {
+            if (!macroName) {
+              terminal.writeln("\x1b[31mUsage: macro delete <name>\x1b[0m");
+              break;
+            }
+            if (!macros.has(macroName)) {
+              terminal.writeln(
+                `\x1b[31mMacro '${macroName}' not found\x1b[0m`,
+              );
+              break;
+            }
+            setMacros((prev) => {
+              const updated = new Map(prev);
+              updated.delete(macroName);
+              saveMacros(updated);
+              return updated;
+            });
+            terminal.writeln(
+              `\x1b[32m✓ Deleted macro '${macroName}'\x1b[0m`,
+            );
+            break;
+          }
+
+          case "show": {
+            if (!macroName) {
+              terminal.writeln("\x1b[31mUsage: macro show <name>\x1b[0m");
+              break;
+            }
+            const macro = macros.get(macroName);
+            if (!macro) {
+              terminal.writeln(
+                `\x1b[31mMacro '${macroName}' not found\x1b[0m`,
+              );
+              break;
+            }
+            terminal.writeln(`\x1b[1;33mMacro: ${macro.name}\x1b[0m`);
+            terminal.writeln(
+              `  Created: ${new Date(macro.createdAt).toLocaleString()}`,
+            );
+            terminal.writeln(`  Commands (${macro.commands.length}):`);
+            macro.commands.forEach((cmd, i) => {
+              terminal.writeln(`    ${i + 1}. ${cmd}`);
+            });
+            break;
+          }
+
+          default:
+            terminal.writeln("\x1b[1;33mMacro Commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32mmacro record <name>\x1b[0m   - Start recording a macro",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro stop\x1b[0m            - Stop recording",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro play <name>\x1b[0m     - Play a saved macro",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro list\x1b[0m            - List saved macros",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro show <name>\x1b[0m     - Show macro commands",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro delete <name>\x1b[0m   - Delete a macro",
+            );
+        }
+        break;
+      }
+
       default:
         terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
         terminal.writeln("Type 'help' for available commands.");
+    }
+
+    // Record command if recording (but not macro commands or empty)
+    if (
+      isRecording &&
+      command.toLowerCase() !== "macro" &&
+      trimmed.length > 0
+    ) {
+      setRecordingCommands((prev) => [...prev, trimmed]);
     }
 
     writePrompt(terminal);
@@ -1165,6 +1443,18 @@ export function Terminal({
         <div className="flex items-center gap-2">
           <i className="fa-solid fa-terminal text-green-400 text-xs"></i>
           <span className="text-xs font-medium text-gray-300">Terminal</span>
+          {isRecording && (
+            <span className="flex items-center gap-1 text-xs bg-red-600/30 text-red-400 px-2 py-0.5 rounded-full animate-pulse">
+              <i className="fa-solid fa-circle text-[8px]"></i>
+              REC: {recordingMacroName}
+            </span>
+          )}
+          {isPlayingMacro && (
+            <span className="flex items-center gap-1 text-xs bg-blue-600/30 text-blue-400 px-2 py-0.5 rounded-full">
+              <i className="fa-solid fa-play text-[8px]"></i>
+              PLAYING
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isExpanded && (
