@@ -16,16 +16,12 @@
 - [x] Add section cuts to 3D viewer (MUL-40)
 - [x] Implement door_schedule MCP tool (MUL-41)
 - [x] Implement window_schedule MCP tool
+- [x] Implement room_schedule MCP tool (MUL-42)
 - [x] Implement export_report MCP tool (MUL-44)
+- [x] Add Level entity type to the model (MUL-38)
+- [x] Add level switching UI panel (MUL-39)
+- [x] Implement export_bcf MCP tool (MUL-43)
 
 ## Outstanding Tasks
 
-### High Priority - Levels System
-- [ ] Add Level entity type to the model (MUL-38)
-- [ ] Add level switching UI panel (MUL-39)
-
-### Medium Priority - Documentation Server
-- [ ] Implement room_schedule MCP tool (MUL-42)
-
-### Low Priority - Documentation Server
-- [ ] Implement export_bcf MCP tool (MUL-43)
+All Phase 1 tasks complete!

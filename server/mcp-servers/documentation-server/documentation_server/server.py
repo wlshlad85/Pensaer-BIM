@@ -12,6 +12,7 @@ Tools provided:
 - door_schedule - Generate specialized door schedules with ID, type, dimensions, fire rating
 - window_schedule - Generate specialized window schedules with ID, type, dimensions, glazing, U-value
 - room_schedule - Generate specialized room schedules with ID, name, number, area, finishes
+- export_bcf - Export issues/clashes to BCF (BIM Collaboration Format) for cross-tool exchange
 
 Usage:
     python -m documentation_server  # Run via stdio
@@ -200,6 +201,27 @@ class RoomScheduleParams(BaseModel):
     )
     group_by: str | None = Field(
         None, description="Property to group by (level, department, occupancy_type)"
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class ExportBcfParams(BaseModel):
+    """Parameters for export_bcf tool."""
+
+    issues: list[dict[str, Any]] = Field(
+        ..., description="List of issues/clashes to export"
+    )
+    project_name: str = Field(
+        "Pensaer Project", description="Project name for BCF header"
+    )
+    author: str = Field(
+        "Pensaer", description="Author name for BCF topics"
+    )
+    include_viewpoints: bool = Field(
+        True, description="Include viewpoint information"
+    )
+    bcf_version: str = Field(
+        "2.1", description="BCF version: 2.0, 2.1, 3.0"
     )
     reasoning: str | None = Field(None, description="AI agent reasoning")
 
@@ -1344,6 +1366,165 @@ async def _room_schedule(args: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+async def _export_bcf(args: dict[str, Any]) -> dict[str, Any]:
+    """Export issues/clashes to BCF (BIM Collaboration Format)."""
+    try:
+        params = ExportBcfParams(**args)
+    except ValidationError as e:
+        return make_error(400, f"Invalid parameters: {e}")
+
+    issues = params.issues
+    if not issues:
+        return make_error(400, "No issues provided")
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    # BCF uses a specific XML structure for each topic (issue)
+    # We'll return a structured representation that can be serialized to BCF XML/ZIP
+
+    bcf_project = {
+        "bcf_version": params.bcf_version,
+        "project_id": str(uuid4()),
+        "name": params.project_name,
+    }
+
+    bcf_topics: list[dict[str, Any]] = []
+
+    for idx, issue in enumerate(issues):
+        topic_guid = str(uuid4())
+
+        # Map severity to BCF priority
+        severity = issue.get("severity", "medium")
+        priority_map = {"critical": "critical", "high": "high", "medium": "normal", "low": "low"}
+        bcf_priority = priority_map.get(severity, "normal")
+
+        # Map issue type to BCF topic type
+        issue_type = issue.get("type", issue.get("category", "Issue"))
+        type_map = {
+            "clash": "Clash",
+            "warning": "Warning",
+            "error": "Error",
+            "info": "Info",
+            "fire": "Fire Safety",
+            "accessibility": "Accessibility",
+        }
+        bcf_type = type_map.get(issue_type.lower(), "Issue") if isinstance(issue_type, str) else "Issue"
+
+        # Create BCF topic structure
+        topic: dict[str, Any] = {
+            "guid": topic_guid,
+            "topic_type": bcf_type,
+            "topic_status": issue.get("status", "Open"),
+            "priority": bcf_priority,
+            "title": issue.get("message", issue.get("title", f"Issue {idx + 1}")),
+            "description": issue.get("description", ""),
+            "creation_date": timestamp,
+            "creation_author": params.author,
+            "modified_date": timestamp,
+            "modified_author": params.author,
+            "assigned_to": issue.get("assigned_to", ""),
+            "labels": issue.get("labels", []),
+            "index": idx + 1,
+        }
+
+        # Add reference links (elements involved in the issue)
+        element_ids = []
+        if "element_id" in issue:
+            element_ids.append(issue["element_id"])
+        if "element_a_id" in issue:
+            element_ids.append(issue["element_a_id"])
+        if "element_b_id" in issue:
+            element_ids.append(issue["element_b_id"])
+
+        if element_ids:
+            topic["reference_links"] = [
+                {"ifc_guid": eid, "type": "referenced"} for eid in element_ids
+            ]
+
+        # Add viewpoint if enabled and position available
+        if params.include_viewpoints:
+            viewpoint_guid = str(uuid4())
+            viewpoint: dict[str, Any] = {
+                "guid": viewpoint_guid,
+            }
+
+            # Try to extract position from issue
+            position = issue.get("position", issue.get("location"))
+            if position:
+                if isinstance(position, (list, tuple)) and len(position) >= 3:
+                    viewpoint["camera_view_point"] = {
+                        "x": float(position[0]),
+                        "y": float(position[1]),
+                        "z": float(position[2]) + 5,  # Offset camera above
+                    }
+                    viewpoint["camera_direction"] = {
+                        "x": 0, "y": 0, "z": -1,  # Looking down
+                    }
+                    viewpoint["camera_up_vector"] = {
+                        "x": 0, "y": 1, "z": 0,
+                    }
+
+            # Add component selection (highlight affected elements)
+            if element_ids:
+                viewpoint["components"] = {
+                    "selection": [{"ifc_guid": eid} for eid in element_ids],
+                }
+
+            topic["viewpoints"] = [viewpoint]
+
+        # Add comments if present
+        comments = issue.get("comments", [])
+        if comments:
+            topic["comments"] = [
+                {
+                    "guid": str(uuid4()),
+                    "date": timestamp,
+                    "author": params.author,
+                    "comment": c if isinstance(c, str) else c.get("text", ""),
+                }
+                for c in comments
+            ]
+
+        bcf_topics.append(topic)
+
+    # Generate BCF XML representation (simplified)
+    bcf_xml_markup = []
+    bcf_xml_markup.append('<?xml version="1.0" encoding="UTF-8"?>')
+    bcf_xml_markup.append(f'<Markup xmlns="http://www.buildingsmart-tech.org/bcf/{params.bcf_version}">')
+    bcf_xml_markup.append(f'  <Header>')
+    bcf_xml_markup.append(f'    <File>')
+    bcf_xml_markup.append(f'      <Filename>{params.project_name}.ifc</Filename>')
+    bcf_xml_markup.append(f'    </File>')
+    bcf_xml_markup.append(f'  </Header>')
+
+    for topic in bcf_topics:
+        bcf_xml_markup.append(f'  <Topic Guid="{topic["guid"]}" TopicType="{topic["topic_type"]}" TopicStatus="{topic["topic_status"]}">')
+        bcf_xml_markup.append(f'    <Title>{topic["title"]}</Title>')
+        bcf_xml_markup.append(f'    <Priority>{topic["priority"]}</Priority>')
+        bcf_xml_markup.append(f'    <Index>{topic["index"]}</Index>')
+        bcf_xml_markup.append(f'    <CreationDate>{topic["creation_date"]}</CreationDate>')
+        bcf_xml_markup.append(f'    <CreationAuthor>{topic["creation_author"]}</CreationAuthor>')
+        if topic.get("description"):
+            bcf_xml_markup.append(f'    <Description>{topic["description"]}</Description>')
+        bcf_xml_markup.append(f'  </Topic>')
+
+    bcf_xml_markup.append('</Markup>')
+
+    return make_response(
+        {
+            "bcf_structure": {
+                "project": bcf_project,
+                "topics": bcf_topics,
+            },
+            "bcf_xml_sample": "\n".join(bcf_xml_markup),
+            "topic_count": len(bcf_topics),
+            "bcf_version": params.bcf_version,
+            "note": "This is a structured BCF representation. Use BCF library for actual .bcf/.bcfzip file generation.",
+        },
+        reasoning=params.reasoning,
+    )
+
+
 # =============================================================================
 # Tool Definitions
 # =============================================================================
@@ -1649,6 +1830,45 @@ TOOLS = [
             "required": ["rooms"],
         },
     ),
+    Tool(
+        name="export_bcf",
+        description="Export issues and clashes to BCF (BIM Collaboration Format) 2.1. "
+        "BCF is an XML-based format for exchanging issues, comments, and viewpoints between BIM tools. "
+        "Returns structured BCF data with topics, viewpoints, and sample XML markup.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "issues": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of issues with message, severity, element_id, position, etc.",
+                },
+                "project_name": {
+                    "type": "string",
+                    "default": "Pensaer Project",
+                    "description": "Project name for BCF header",
+                },
+                "author": {
+                    "type": "string",
+                    "default": "Pensaer",
+                    "description": "Author name for BCF topics",
+                },
+                "include_viewpoints": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include viewpoint/camera information",
+                },
+                "bcf_version": {
+                    "type": "string",
+                    "enum": ["2.0", "2.1", "3.0"],
+                    "default": "2.1",
+                    "description": "BCF version to generate",
+                },
+                "reasoning": {"type": "string"},
+            },
+            "required": ["issues"],
+        },
+    ),
 ]
 
 
@@ -1686,6 +1906,8 @@ def create_server() -> Server:
                 result = await _window_schedule(arguments)
             elif name == "room_schedule":
                 result = await _room_schedule(arguments)
+            elif name == "export_bcf":
+                result = await _export_bcf(arguments)
             else:
                 result = make_error(404, f"Unknown tool: {name}")
 
