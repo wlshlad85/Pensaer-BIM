@@ -496,8 +496,8 @@ export function Canvas3D() {
         }
       });
 
-      // Convert final brush to mesh
-      const mesh = new THREE.Mesh(wallBrush.geometry, wallMaterial);
+      // Convert final brush to mesh (clone geometry so brush can be disposed)
+      const mesh = new THREE.Mesh(wallBrush.geometry.clone(), wallMaterial);
       mesh.name = wall.id;
       mesh.userData = { element: wall };
 
@@ -525,6 +525,9 @@ export function Canvas3D() {
       mesh.receiveShadow = true;
       buildingGroup.add(mesh);
       meshesRef.current.push(mesh);
+
+      // Clean up brush geometry
+      wallBrush.geometry.dispose();
     });
 
     // Add corner fill pieces for proper L-joint appearance
@@ -808,22 +811,54 @@ export function Canvas3D() {
         meshesRef.current.push(mesh);
       });
 
-    // Build roof
+    // Build roof - anchored to wall tops (MUL-20 fix)
+    // Calculate wall bounding box for proper roof positioning
+    const wallsBoundingBox = getWallsBoundingBox(walls, scale, wallHeight, offsetX, offsetZ);
+
     elements
       .filter((el) => el.type === "roof")
       .forEach((roof) => {
         const isSelected = selectedIds.includes(roof.id);
-        // In 2D: width is span across building, height is depth of building
-        const roofSpan = Math.max(roof.width, roof.height) * scale;
-        const roofDepth = Math.min(roof.width, roof.height) * scale;
+
+        // Determine roof dimensions and position based on walls for proper anchoring
+        let roofSpan: number;
+        let roofDepth: number;
+        let roofCenterX: number;
+        let roofCenterZ: number;
+
+        if (wallsBoundingBox) {
+          // Anchor roof to wall bounding box for proper placement
+          const wallsWidth = wallsBoundingBox.max.x - wallsBoundingBox.min.x;
+          const wallsDepth = wallsBoundingBox.max.z - wallsBoundingBox.min.z;
+
+          // Add small overhang (0.15m on each side) for realistic roof appearance
+          const overhang = 0.15;
+          roofSpan = Math.max(wallsWidth, wallsDepth) + overhang * 2;
+          roofDepth = Math.min(wallsWidth, wallsDepth) + overhang * 2;
+
+          // Center roof over walls
+          roofCenterX = (wallsBoundingBox.min.x + wallsBoundingBox.max.x) / 2;
+          roofCenterZ = (wallsBoundingBox.min.z + wallsBoundingBox.max.z) / 2;
+
+          // Orient roof ridge along the longer building dimension
+          if (wallsWidth < wallsDepth) {
+            [roofSpan, roofDepth] = [roofDepth, roofSpan];
+          }
+        } else {
+          // Fallback to element dimensions if no walls exist
+          roofSpan = Math.max(roof.width, roof.height) * scale;
+          roofDepth = Math.min(roof.width, roof.height) * scale;
+          roofCenterX = roof.x * scale + roofDepth / 2 + offsetX;
+          roofCenterZ = roof.y * scale + roofSpan / 2 + offsetZ;
+        }
 
         // Ensure minimum dimensions for visibility
         const minSpan = Math.max(roofSpan, 2);
         const minDepth = Math.max(roofDepth, 2);
 
         // Gable roof shape (triangle cross-section)
-        // Peak height proportional to span
-        const peakHeight = minSpan * 0.4;
+        // Peak height proportional to span for proper pitch (~35 degrees)
+        const peakHeight = minSpan * 0.35;
         const shape = new THREE.Shape();
         shape.moveTo(-minSpan / 2, 0);
         shape.lineTo(minSpan / 2, 0);
@@ -844,14 +879,13 @@ export function Canvas3D() {
         mesh.name = roof.id;
         mesh.userData = { element: roof };
 
-        // Position: account for rotation.y = -PI/2
-        // After rotation: original X→-Z, original Z→X
-        // Geometry origin is at start of extrusion, so offset by depth/2 in X and span/2 in Z
+        // Position roof anchored to wall tops
+        // After rotation.y = -PI/2: geometry's local X becomes -Z, local Z becomes X
         mesh.rotation.y = -Math.PI / 2;
         mesh.position.set(
-          roof.x * scale + minDepth / 2 + offsetX,
-          wallHeight,
-          roof.y * scale + minSpan / 2 + offsetZ,
+          roofCenterX,
+          wallHeight, // Base of roof sits directly on wall tops
+          roofCenterZ,
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -859,17 +893,51 @@ export function Canvas3D() {
         meshesRef.current.push(mesh);
       });
 
-    // Add default roof if none exists
+    // Add default roof anchored to walls if none exists
     if (!elements.some((el) => el.type === "roof")) {
-      const roofGeometry = new THREE.ConeGeometry(3, 1.5, 4);
-      const roofMaterial = new THREE.MeshStandardMaterial({
-        color: colors.roof,
-        roughness: 0.6,
-        metalness: 0.2,
-      });
-      const roofMesh = new THREE.Mesh(roofGeometry, roofMaterial);
-      roofMesh.position.set(0, wallHeight + 0.75, 0);
-      roofMesh.rotation.y = Math.PI / 4;
+      let roofMesh: THREE.Mesh;
+
+      if (wallsBoundingBox) {
+        // Create gable roof sized to fit over walls
+        const wallsWidth = wallsBoundingBox.max.x - wallsBoundingBox.min.x;
+        const wallsDepth = wallsBoundingBox.max.z - wallsBoundingBox.min.z;
+        const overhang = 0.15;
+        const roofSpan = Math.max(wallsWidth, wallsDepth) + overhang * 2;
+        const roofDepth = Math.min(wallsWidth, wallsDepth) + overhang * 2;
+        const peakHeight = roofSpan * 0.35;
+
+        const shape = new THREE.Shape();
+        shape.moveTo(-roofSpan / 2, 0);
+        shape.lineTo(roofSpan / 2, 0);
+        shape.lineTo(0, peakHeight);
+        shape.lineTo(-roofSpan / 2, 0);
+
+        const geometry = new THREE.ExtrudeGeometry(shape, { depth: roofDepth, bevelEnabled: false });
+        const material = new THREE.MeshStandardMaterial({
+          color: colors.roof,
+          roughness: 0.6,
+          metalness: 0.2,
+        });
+        roofMesh = new THREE.Mesh(geometry, material);
+        roofMesh.rotation.y = -Math.PI / 2;
+        roofMesh.position.set(
+          (wallsBoundingBox.min.x + wallsBoundingBox.max.x) / 2,
+          wallHeight,
+          (wallsBoundingBox.min.z + wallsBoundingBox.max.z) / 2,
+        );
+      } else {
+        // Fallback: simple cone roof at origin
+        const roofGeometry = new THREE.ConeGeometry(3, 1.5, 4);
+        const roofMaterial = new THREE.MeshStandardMaterial({
+          color: colors.roof,
+          roughness: 0.6,
+          metalness: 0.2,
+        });
+        roofMesh = new THREE.Mesh(roofGeometry, roofMaterial);
+        roofMesh.position.set(0, wallHeight + 0.75, 0);
+        roofMesh.rotation.y = Math.PI / 4;
+      }
+
       roofMesh.castShadow = true;
       buildingGroup.add(roofMesh);
       meshesRef.current.push(roofMesh);
