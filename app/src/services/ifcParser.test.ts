@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { IfcImportResult, IfcImportStats } from "./ifcParser";
+import type { IfcImportResult, IfcImportStats, IfcExportResult, IfcExportStats } from "./ifcParser";
+import type { Element } from "../types";
 
 // Mock web-ifc module for testing
 vi.mock("web-ifc", () => {
@@ -39,7 +40,10 @@ vi.mock("web-ifc", () => {
       SetWasmPath: vi.fn(),
       Init: vi.fn().mockResolvedValue(undefined),
       OpenModel: vi.fn().mockReturnValue(0),
+      CreateModel: vi.fn().mockReturnValue(1),
       CloseModel: vi.fn(),
+      WriteLine: vi.fn(),
+      SaveModel: vi.fn().mockReturnValue(new Uint8Array([73, 83, 79])), // "ISO" bytes
       GetLineIDsWithType: vi.fn().mockImplementation((_, type) => {
         // Return walls for IFCWALL type
         if (type === 2391406946 || type === 3512223829) {
@@ -56,6 +60,9 @@ vi.mock("web-ifc", () => {
       }),
       GetPropertySets: vi.fn().mockReturnValue([]),
     })),
+    Schemas: {
+      IFC4: "IFC4",
+    },
   };
 });
 
@@ -246,5 +253,189 @@ describe("IFC Element Type Mapping", () => {
     for (const pensaerType of Object.values(expectedMappings)) {
       expect(validTypes).toContain(pensaerType);
     }
+  });
+});
+
+// ============================================
+// EXPORT TESTS
+// ============================================
+
+describe("IFC Export", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  describe("exportElements", () => {
+    it("should export elements and return result", async () => {
+      const { IfcParser } = await import("./ifcParser");
+      const parser = new IfcParser();
+
+      const elements: Element[] = [
+        {
+          id: "wall-001",
+          type: "wall",
+          name: "Test Wall",
+          x: 500,
+          y: 400,
+          width: 100,
+          height: 20,
+          properties: {},
+          relationships: {},
+          issues: [],
+          aiSuggestions: [],
+        },
+      ];
+
+      const result = await parser.exportElements(elements);
+
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("filename");
+      expect(result).toHaveProperty("stats");
+      expect(result.data).toBeInstanceOf(Uint8Array);
+      expect(result.filename).toContain(".ifc");
+    });
+
+    it("should track export stats correctly", async () => {
+      const { IfcParser } = await import("./ifcParser");
+      const parser = new IfcParser();
+
+      const elements: Element[] = [
+        {
+          id: "wall-001",
+          type: "wall",
+          name: "Wall 1",
+          x: 500,
+          y: 400,
+          width: 100,
+          height: 20,
+          properties: {},
+          relationships: {},
+          issues: [],
+          aiSuggestions: [],
+        },
+        {
+          id: "door-001",
+          type: "door",
+          name: "Door 1",
+          x: 550,
+          y: 400,
+          width: 90,
+          height: 24,
+          properties: {},
+          relationships: {},
+          issues: [],
+          aiSuggestions: [],
+        },
+      ];
+
+      const result = await parser.exportElements(elements);
+
+      expect(result.stats.walls).toBe(1);
+      expect(result.stats.doors).toBe(1);
+      expect(result.stats.totalEntities).toBe(2);
+    });
+
+    it("should use custom project name", async () => {
+      const { IfcParser } = await import("./ifcParser");
+      const parser = new IfcParser();
+
+      const elements: Element[] = [];
+
+      const result = await parser.exportElements(elements, {
+        projectName: "My Custom Project",
+      });
+
+      expect(result.filename).toBe("My_Custom_Project.ifc");
+    });
+
+    it("should handle empty elements array", async () => {
+      const { IfcParser } = await import("./ifcParser");
+      const parser = new IfcParser();
+
+      const result = await parser.exportElements([]);
+
+      expect(result.stats.totalEntities).toBe(0);
+      expect(result.data).toBeInstanceOf(Uint8Array);
+    });
+  });
+
+  describe("exportToIfc convenience function", () => {
+    it("should export elements using convenience function", async () => {
+      const { exportToIfc } = await import("./ifcParser");
+
+      const elements: Element[] = [
+        {
+          id: "window-001",
+          type: "window",
+          name: "Window 1",
+          x: 500,
+          y: 200,
+          width: 120,
+          height: 24,
+          properties: {},
+          relationships: {},
+          issues: [],
+          aiSuggestions: [],
+        },
+      ];
+
+      const result = await exportToIfc(elements);
+
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("stats");
+      expect(result.stats.windows).toBe(1);
+    });
+  });
+
+  describe("IfcExportStats", () => {
+    it("should have correct structure", () => {
+      const stats: IfcExportStats = {
+        totalEntities: 10,
+        walls: 4,
+        doors: 2,
+        windows: 3,
+        rooms: 1,
+        floors: 0,
+        roofs: 0,
+        columns: 0,
+        beams: 0,
+        stairs: 0,
+      };
+
+      expect(stats.totalEntities).toBe(10);
+      expect(stats.walls).toBe(4);
+      expect(stats.doors).toBe(2);
+      expect(stats.windows).toBe(3);
+      expect(stats.rooms).toBe(1);
+    });
+  });
+
+  describe("IfcExportResult", () => {
+    it("should have correct structure", () => {
+      const result: IfcExportResult = {
+        data: new Uint8Array([1, 2, 3]),
+        filename: "test.ifc",
+        stats: {
+          totalEntities: 5,
+          walls: 2,
+          doors: 1,
+          windows: 2,
+          rooms: 0,
+          floors: 0,
+          roofs: 0,
+          columns: 0,
+          beams: 0,
+          stairs: 0,
+        },
+      };
+
+      expect(result.data).toBeInstanceOf(Uint8Array);
+      expect(result.filename).toBe("test.ifc");
+      expect(result.stats.totalEntities).toBe(5);
+    });
   });
 });

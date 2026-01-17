@@ -11,5 +11,13 @@ export {
   getIfcParser,
   parseIfcFile,
   parseIfcString,
+  exportToIfc,
+  downloadIfcFile,
 } from "./ifcParser";
-export type { IfcImportResult, IfcImportStats } from "./ifcParser";
+export type {
+  IfcImportResult,
+  IfcImportStats,
+  IfcExportResult,
+  IfcExportStats,
+  IfcExportOptions,
+} from "./ifcParser";
