@@ -204,6 +204,7 @@ export function Canvas3D() {
       roof: 0xf97316,
       roofSelected: 0xea580c,
       floor: 0x6b7280,
+      floorSelected: 0x3b82f6,
     };
 
     // Scale factor: 1 unit in 2D = 0.01 units in 3D
@@ -371,6 +372,53 @@ export function Canvas3D() {
           0.05,
           room.y * scale + depth / 2 + offsetZ,
         );
+        buildingGroup.add(mesh);
+        meshesRef.current.push(mesh);
+      });
+
+    // Build floor slabs with proper thickness
+    elements
+      .filter((el) => el.type === "floor")
+      .forEach((floor) => {
+        const isSelected = selectedIds.includes(floor.id);
+        const width = floor.width * scale;
+        const depth = floor.height * scale;
+
+        // Parse floor thickness from properties (default 150mm for typical slab)
+        const parsedThickness = parseThickness(floor.properties.thickness);
+        const slabThickness = Math.max(parsedThickness, 0.1); // Min 100mm
+
+        // Parse elevation from properties (default to ground level)
+        const elevation = typeof floor.properties.elevation === "number"
+          ? floor.properties.elevation / 1000 // Convert mm to meters
+          : 0;
+
+        // Use BoxGeometry for floor slab
+        const geometry = new THREE.BoxGeometry(
+          Math.max(width, 0.5),
+          slabThickness,
+          Math.max(depth, 0.5),
+        );
+
+        const material = new THREE.MeshStandardMaterial({
+          color: isSelected ? colors.floorSelected : colors.floor,
+          roughness: 0.8,
+          metalness: 0.1,
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = floor.id;
+        mesh.userData = { element: floor };
+
+        // Position: center of slab, with top surface at elevation
+        mesh.position.set(
+          floor.x * scale + width / 2 + offsetX,
+          elevation - slabThickness / 2,
+          floor.y * scale + depth / 2 + offsetZ,
+        );
+
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         buildingGroup.add(mesh);
         meshesRef.current.push(mesh);
       });
