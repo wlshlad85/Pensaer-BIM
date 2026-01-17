@@ -7,7 +7,7 @@
 
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { Element, ElementType } from "../types";
+import type { Element, ElementType, Level } from "../types";
 
 // ============================================
 // STORE INTERFACE
@@ -15,6 +15,7 @@ import type { Element, ElementType } from "../types";
 
 interface ModelState {
   elements: Element[];
+  levels: Level[];
   isLoading: boolean;
   error: string | null;
 }
@@ -34,6 +35,18 @@ interface ModelActions {
   getElementById: (id: string) => Element | undefined;
   getElementsByType: (type: ElementType) => Element[];
   getRelatedElements: (id: string) => Element[];
+
+  // Level CRUD Operations
+  addLevel: (level: Level) => void;
+  updateLevel: (id: string, updates: Partial<Level>) => void;
+  deleteLevel: (id: string) => void;
+  setLevels: (levels: Level[]) => void;
+
+  // Level Query Helpers
+  getLevelById: (id: string) => Level | undefined;
+  getLevelByName: (name: string) => Level | undefined;
+  getLevelsOrdered: () => Level[];
+  getElementsByLevel: (levelId: string) => Element[];
 
   // Properties
   updateProperties: (
@@ -493,6 +506,31 @@ const createInitialElements = (): Element[] => [
 ];
 
 // ============================================
+// INITIAL LEVELS
+// ============================================
+
+const createInitialLevels = (): Level[] => [
+  {
+    id: "level-1",
+    name: "Level 1",
+    elevation: 0,
+    height: 3000, // 3m floor-to-floor
+  },
+  {
+    id: "level-2",
+    name: "Level 2",
+    elevation: 3000,
+    height: 3000,
+  },
+  {
+    id: "level-roof",
+    name: "Roof Level",
+    elevation: 6000,
+    height: 0,
+  },
+];
+
+// ============================================
 // STORE CREATION
 // ============================================
 
@@ -500,6 +538,7 @@ export const useModelStore = create<ModelStore>()(
   immer((set, get) => ({
     // Initial State
     elements: createInitialElements(),
+    levels: createInitialLevels(),
     isLoading: false,
     error: null,
 
@@ -562,6 +601,46 @@ export const useModelStore = create<ModelStore>()(
       if (relationships.facesRoom) relatedIds.add(relationships.facesRoom);
 
       return get().elements.filter((el) => relatedIds.has(el.id));
+    },
+
+    // Level CRUD Operations
+    addLevel: (level) =>
+      set((state) => {
+        state.levels.push(level);
+      }),
+
+    updateLevel: (id, updates) =>
+      set((state) => {
+        const index = state.levels.findIndex((l) => l.id === id);
+        if (index !== -1) {
+          state.levels[index] = { ...state.levels[index], ...updates };
+        }
+      }),
+
+    deleteLevel: (id) =>
+      set((state) => {
+        state.levels = state.levels.filter((l) => l.id !== id);
+      }),
+
+    setLevels: (levels) =>
+      set((state) => {
+        state.levels = levels;
+      }),
+
+    // Level Query Helpers (non-mutating)
+    getLevelById: (id) => get().levels.find((l) => l.id === id),
+
+    getLevelByName: (name) => get().levels.find((l) => l.name === name),
+
+    getLevelsOrdered: () =>
+      [...get().levels].sort((a, b) => a.elevation - b.elevation),
+
+    getElementsByLevel: (levelId) => {
+      const level = get().getLevelById(levelId);
+      if (!level) return [];
+      return get().elements.filter(
+        (el) => el.level === level.name || el.properties.level === level.name
+      );
     },
 
     // Properties
