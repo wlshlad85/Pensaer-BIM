@@ -8,8 +8,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Evaluator, Brush, SUBTRACTION } from "three-bvh-csg";
 import { useModelStore, useSelectionStore } from "../../stores";
 import { ViewCube } from "./ViewCube";
+import type { Element } from "../../types";
+import { getWallEndpoints, distance } from "../../utils/geometry";
 
 type ViewType = "perspective" | "top" | "front" | "side";
 
@@ -36,6 +39,133 @@ function parseThickness(value: string | number | boolean | undefined): number {
     default:
       return num / 1000;
   }
+}
+
+/**
+ * Wall corner joint information for mitered geometry
+ */
+interface WallJoint {
+  wallId: string;
+  endpoint: "start" | "end";
+  connectedWallId: string;
+  connectedEndpoint: "start" | "end";
+  position: { x: number; y: number };
+}
+
+/**
+ * Find wall joints by detecting walls that share endpoints within a tolerance
+ */
+function findWallJoints(
+  walls: Element[],
+  scale: number,
+  tolerance: number = 0.15  // 15cm tolerance in 3D space
+): WallJoint[] {
+  const joints: WallJoint[] = [];
+
+  for (let i = 0; i < walls.length; i++) {
+    const wall1 = walls[i];
+    const endpoints1 = getWallEndpoints(wall1.x, wall1.y, wall1.width, wall1.height);
+    const start1 = { x: endpoints1.start.x * scale, y: endpoints1.start.y * scale };
+    const end1 = { x: endpoints1.end.x * scale, y: endpoints1.end.y * scale };
+
+    for (let j = i + 1; j < walls.length; j++) {
+      const wall2 = walls[j];
+      const endpoints2 = getWallEndpoints(wall2.x, wall2.y, wall2.width, wall2.height);
+      const start2 = { x: endpoints2.start.x * scale, y: endpoints2.start.y * scale };
+      const end2 = { x: endpoints2.end.x * scale, y: endpoints2.end.y * scale };
+
+      // Check all endpoint combinations
+      const combinations: Array<{
+        p1: { x: number; y: number };
+        e1: "start" | "end";
+        p2: { x: number; y: number };
+        e2: "start" | "end";
+      }> = [
+        { p1: start1, e1: "start", p2: start2, e2: "start" },
+        { p1: start1, e1: "start", p2: end2, e2: "end" },
+        { p1: end1, e1: "end", p2: start2, e2: "start" },
+        { p1: end1, e1: "end", p2: end2, e2: "end" },
+      ];
+
+      for (const combo of combinations) {
+        const dist = distance(combo.p1, combo.p2);
+        if (dist < tolerance) {
+          // Found a joint
+          const jointPos = {
+            x: (combo.p1.x + combo.p2.x) / 2,
+            y: (combo.p1.y + combo.p2.y) / 2,
+          };
+          joints.push({
+            wallId: wall1.id,
+            endpoint: combo.e1,
+            connectedWallId: wall2.id,
+            connectedEndpoint: combo.e2,
+            position: jointPos,
+          });
+          joints.push({
+            wallId: wall2.id,
+            endpoint: combo.e2,
+            connectedWallId: wall1.id,
+            connectedEndpoint: combo.e1,
+            position: jointPos,
+          });
+        }
+      }
+    }
+  }
+
+  return joints;
+}
+
+/**
+ * Get wall bounding box in 3D space (for roof anchoring)
+ */
+function getWallsBoundingBox(
+  walls: Element[],
+  scale: number,
+  wallHeight: number,
+  offsetX: number,
+  offsetZ: number
+): { min: THREE.Vector3; max: THREE.Vector3 } | null {
+  if (walls.length === 0) return null;
+
+  let minX = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxZ = -Infinity;
+
+  for (const wall of walls) {
+    const width2D = wall.width * scale;
+    const height2D = wall.height * scale;
+    const isHorizontal = width2D >= height2D;
+    const parsedThickness = parseThickness(wall.properties.thickness);
+    const wallThickness = Math.max(parsedThickness, 0.1);
+
+    if (isHorizontal) {
+      const wallLength = Math.max(width2D, 0.15);
+      const x1 = wall.x * scale + offsetX;
+      const x2 = wall.x * scale + wallLength + offsetX;
+      const z1 = wall.y * scale + offsetZ;
+      const z2 = wall.y * scale + wallThickness + offsetZ;
+      minX = Math.min(minX, x1);
+      maxX = Math.max(maxX, x2);
+      minZ = Math.min(minZ, z1);
+      maxZ = Math.max(maxZ, z2);
+    } else {
+      const wallLength = Math.max(height2D, 0.15);
+      const x1 = wall.x * scale + offsetX;
+      const x2 = wall.x * scale + wallThickness + offsetX;
+      const z1 = wall.y * scale + offsetZ;
+      const z2 = wall.y * scale + wallLength + offsetZ;
+      minX = Math.min(minX, x1);
+      maxX = Math.max(maxX, x2);
+      minZ = Math.min(minZ, z1);
+      maxZ = Math.max(maxZ, z2);
+    }
+  }
+
+  return {
+    min: new THREE.Vector3(minX, 0, minZ),
+    max: new THREE.Vector3(maxX, wallHeight, maxZ),
+  };
 }
 
 // Camera presets matching prototype
@@ -215,91 +345,261 @@ export function Canvas3D() {
     const offsetX = -3;
     const offsetZ = -2.5;
 
-    // Build walls with proper thickness using ExtrudeGeometry
-    elements
-      .filter((el) => el.type === "wall")
-      .forEach((wall) => {
-        const isSelected = selectedIds.includes(wall.id);
-        const width2D = wall.width * scale;
-        const height2D = wall.height * scale;
+    // Helper to find openings (doors/windows) hosted by a wall
+    const getOpeningsForWall = (wallId: string): Element[] => {
+      return elements.filter(
+        (el) =>
+          (el.type === "door" || el.type === "window") &&
+          el.relationships.hostedBy === wallId
+      );
+    };
 
-        // Determine wall orientation and dimensions
-        // In 2D: longer dimension is wall length, shorter is visual thickness
-        const isHorizontal = width2D >= height2D;
-        const wallLength = isHorizontal ? Math.max(width2D, 0.15) : Math.max(height2D, 0.15);
+    // CSG evaluator for boolean operations
+    const csgEvaluator = new Evaluator();
 
-        // Parse wall thickness from properties (e.g., "200mm" → 0.2m)
-        // Use the parsed value, or fall back to a minimum for visibility
-        const parsedThickness = parseThickness(wall.properties.thickness);
-        const wallThickness = Math.max(parsedThickness, 0.1);
+    // Get all walls for joint detection
+    const walls = elements.filter((el) => el.type === "wall");
 
-        // Create wall cross-section shape (rectangle profile: thickness × height)
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 0);
-        shape.lineTo(wallThickness, 0);
-        shape.lineTo(wallThickness, wallHeight);
-        shape.lineTo(0, wallHeight);
-        shape.lineTo(0, 0);
+    // Find wall joints for mitered corners
+    const wallJoints = findWallJoints(walls, scale);
 
-        // Extrude settings for wall length
-        const extrudeSettings = {
-          depth: wallLength,
-          bevelEnabled: false,
-        };
+    // Build walls with openings cut out using CSG and mitered corners
+    walls.forEach((wall) => {
+      const isSelected = selectedIds.includes(wall.id);
+      const width2D = wall.width * scale;
+      const height2D = wall.height * scale;
 
-        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        geometry.computeVertexNormals();
+      // Determine wall orientation and dimensions
+      const isHorizontal = width2D >= height2D;
+      const baseWallLength = isHorizontal ? Math.max(width2D, 0.15) : Math.max(height2D, 0.15);
 
-        const material = new THREE.MeshStandardMaterial({
-          color: isSelected ? colors.wallSelected : colors.wall,
-          roughness: 0.7,
-          metalness: 0.1,
-          side: THREE.DoubleSide,
-        });
+      // Parse wall thickness from properties
+      const parsedThickness = parseThickness(wall.properties.thickness);
+      const wallThickness = Math.max(parsedThickness, 0.1);
 
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = wall.id;
-        mesh.userData = { element: wall };
+      // Find joints for this wall to calculate extensions for mitered corners
+      const wallJointsForThisWall = wallJoints.filter((j) => j.wallId === wall.id);
 
-        // Position and rotate based on wall orientation
-        // Center the wall thickness around the 2D position
-        const thicknessOffset = wallThickness / 2;
+      // Calculate extension amounts for each endpoint to create mitered corners
+      let startExtension = 0;
+      let endExtension = 0;
 
-        if (isHorizontal) {
-          // Horizontal wall: extrusion runs along X axis
-          mesh.rotation.y = -Math.PI / 2;
-          mesh.position.set(
-            wall.x * scale + offsetX,
-            0,
-            wall.y * scale + thicknessOffset + offsetZ,
+      wallJointsForThisWall.forEach((joint) => {
+        const connectedWall = walls.find((w) => w.id === joint.connectedWallId);
+        if (!connectedWall) return;
+
+        const connectedWidth2D = connectedWall.width * scale;
+        const connectedHeight2D = connectedWall.height * scale;
+        const connectedIsHorizontal = connectedWidth2D >= connectedHeight2D;
+
+        // Only extend if walls are perpendicular (one horizontal, one vertical)
+        if (isHorizontal !== connectedIsHorizontal) {
+          const connectedThickness = Math.max(
+            parseThickness(connectedWall.properties.thickness),
+            0.1
           );
-        } else {
-          // Vertical wall: extrusion runs along Z axis
-          mesh.position.set(
-            wall.x * scale - thicknessOffset + offsetX,
-            0,
-            wall.y * scale + offsetZ,
-          );
+          // Extend by half the connected wall's thickness for a proper miter
+          const extensionAmount = connectedThickness / 2;
+
+          if (joint.endpoint === "start") {
+            startExtension = Math.max(startExtension, extensionAmount);
+          } else {
+            endExtension = Math.max(endExtension, extensionAmount);
+          }
         }
-
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        buildingGroup.add(mesh);
-        meshesRef.current.push(mesh);
       });
 
-    // Build doors
+      // Total wall length including extensions for mitered corners
+      const wallLength = baseWallLength + startExtension + endExtension;
+
+      // Create wall geometry using BoxGeometry for CSG compatibility
+      const wallGeometry = new THREE.BoxGeometry(wallLength, wallHeight, wallThickness);
+
+      // Create CSG brush from wall
+      let wallBrush = new Brush(wallGeometry);
+      const wallMaterial = new THREE.MeshStandardMaterial({
+        color: isSelected ? colors.wallSelected : colors.wall,
+        roughness: 0.7,
+        metalness: 0.1,
+        side: THREE.DoubleSide,
+      });
+      wallBrush.material = wallMaterial;
+
+      // Get openings for this wall
+      const openings = getOpeningsForWall(wall.id);
+
+      // Subtract each opening from the wall using CSG
+      // CSG is performed in wall's local coordinate system BEFORE rotation
+      // Wall geometry always extends along X axis, so openings are positioned along X
+      wallBrush.updateMatrixWorld();
+
+      openings.forEach((opening) => {
+        const openingWidth = opening.width * scale;
+        let openingHeight: number;
+        let openingY: number; // Y position of opening center (from floor)
+
+        if (opening.type === "door") {
+          openingHeight = 2.1; // Standard door height
+          openingY = openingHeight / 2; // Door bottom at floor level
+        } else {
+          // Window
+          openingHeight = 1.2; // Standard window height
+          openingY = 1.5; // Window center at 1.5m (sill at ~0.9m)
+        }
+
+        // Create opening box geometry (larger than wall thickness for clean cut)
+        const openingGeometry = new THREE.BoxGeometry(
+          Math.max(openingWidth, 0.3),
+          openingHeight,
+          wallThickness + 0.2 // Extra thickness ensures complete cut-through
+        );
+
+        const openingBrush = new Brush(openingGeometry);
+
+        // Calculate opening position in wall's LOCAL coordinate system
+        // Wall is centered at origin, extends along X (length), Y (height), Z (thickness)
+        // Rotation to final orientation happens AFTER CSG
+        const wallStartX = wall.x * scale;
+        const wallStartZ = wall.y * scale;
+        const openingStartX = opening.x * scale;
+        const openingStartZ = opening.y * scale;
+
+        // Calculate offset along wall's local X axis
+        // For horizontal walls: 2D X maps to local X
+        // For vertical walls: 2D Y maps to local X (rotation happens after CSG)
+        let openingOffsetAlongWall: number;
+        if (isHorizontal) {
+          openingOffsetAlongWall = (openingStartX - wallStartX) + openingWidth / 2 - baseWallLength / 2;
+        } else {
+          // Vertical wall: 2D Y coordinate maps to wall length (local X)
+          openingOffsetAlongWall = (openingStartZ - wallStartZ) + openingWidth / 2 - baseWallLength / 2;
+        }
+
+        // Position opening in wall's local space (always along X axis)
+        openingBrush.position.set(
+          openingOffsetAlongWall,
+          openingY - wallHeight / 2, // Convert floor-relative to wall-center-relative
+          0 // Centered on wall thickness
+        );
+        openingBrush.updateMatrixWorld();
+
+        // Perform CSG subtraction to cut the opening
+        try {
+          const resultBrush = csgEvaluator.evaluate(wallBrush, openingBrush, SUBTRACTION);
+          if (resultBrush && resultBrush.geometry) {
+            wallBrush.geometry.dispose();
+            wallBrush = resultBrush;
+            wallBrush.updateMatrixWorld();
+          }
+        } catch (e) {
+          console.warn('CSG subtraction failed for opening:', opening.id, e);
+        }
+      });
+
+      // Convert final brush to mesh
+      const mesh = new THREE.Mesh(wallBrush.geometry, wallMaterial);
+      mesh.name = wall.id;
+      mesh.userData = { element: wall };
+
+      // Position the wall (accounting for extensions)
+      const thicknessOffset = wallThickness / 2;
+
+      if (isHorizontal) {
+        // Horizontal wall - shift position to account for start extension
+        mesh.position.set(
+          wall.x * scale + baseWallLength / 2 + offsetX - startExtension + (startExtension + endExtension) / 2,
+          wallHeight / 2,
+          wall.y * scale + thicknessOffset + offsetZ,
+        );
+      } else {
+        // Vertical wall - rotate 90 degrees, shift position for start extension
+        mesh.rotation.y = Math.PI / 2;
+        mesh.position.set(
+          wall.x * scale + thicknessOffset + offsetX,
+          wallHeight / 2,
+          wall.y * scale + baseWallLength / 2 + offsetZ - startExtension + (startExtension + endExtension) / 2,
+        );
+      }
+
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      buildingGroup.add(mesh);
+      meshesRef.current.push(mesh);
+    });
+
+    // Add corner fill pieces for proper L-joint appearance
+    // This creates the solid corner blocks where perpendicular walls meet
+    const processedCorners = new Set<string>();
+    wallJoints.forEach((joint) => {
+      // Create unique key for this corner (to avoid duplicates)
+      const cornerKey = [joint.wallId, joint.connectedWallId].sort().join("-");
+      if (processedCorners.has(cornerKey)) return;
+      processedCorners.add(cornerKey);
+
+      const wall1 = walls.find((w) => w.id === joint.wallId);
+      const wall2 = walls.find((w) => w.id === joint.connectedWallId);
+      if (!wall1 || !wall2) return;
+
+      const width1 = wall1.width * scale;
+      const height1 = wall1.height * scale;
+      const width2 = wall2.width * scale;
+      const height2 = wall2.height * scale;
+      const isHorizontal1 = width1 >= height1;
+      const isHorizontal2 = width2 >= height2;
+
+      // Only create corner fill for perpendicular walls
+      if (isHorizontal1 === isHorizontal2) return;
+
+      const thickness1 = Math.max(parseThickness(wall1.properties.thickness), 0.1);
+      const thickness2 = Math.max(parseThickness(wall2.properties.thickness), 0.1);
+
+      // Create a small corner fill block
+      const cornerSize = Math.max(thickness1, thickness2);
+      const cornerGeometry = new THREE.BoxGeometry(cornerSize, wallHeight, cornerSize);
+      const cornerMaterial = new THREE.MeshStandardMaterial({
+        color: colors.wall,
+        roughness: 0.7,
+        metalness: 0.1,
+      });
+      const cornerMesh = new THREE.Mesh(cornerGeometry, cornerMaterial);
+
+      // Position at joint location
+      cornerMesh.position.set(
+        joint.position.x + offsetX,
+        wallHeight / 2,
+        joint.position.y + offsetZ,
+      );
+
+      cornerMesh.castShadow = true;
+      cornerMesh.receiveShadow = true;
+      buildingGroup.add(cornerMesh);
+      meshesRef.current.push(cornerMesh);
+    });
+
+    // Build door panels (the actual door inside the opening)
     elements
       .filter((el) => el.type === "door")
       .forEach((door) => {
         const isSelected = selectedIds.includes(door.id);
         const width = door.width * scale;
-        const height = 2.1;
+        const height = 2.0; // Slightly shorter than opening
+        const hostWall = elements.find((el) => el.id === door.relationships.hostedBy);
 
+        // Determine wall orientation for door positioning
+        const isHostHorizontal = hostWall
+          ? hostWall.width * scale >= hostWall.height * scale
+          : true;
+
+        // Parse wall thickness for door depth positioning
+        const wallThickness = hostWall
+          ? Math.max(parseThickness(hostWall.properties.thickness), 0.1)
+          : 0.2;
+
+        // Door panel geometry (thin panel)
         const geometry = new THREE.BoxGeometry(
-          Math.max(width, 0.5),
+          Math.max(width, 0.3),
           height,
-          0.1,
+          0.05
         );
         const material = new THREE.MeshStandardMaterial({
           color: isSelected ? colors.doorSelected : colors.door,
@@ -309,44 +609,129 @@ export function Canvas3D() {
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = door.id;
         mesh.userData = { element: door };
-        mesh.position.set(
-          door.x * scale + width / 2 + offsetX,
-          height / 2,
-          door.y * scale + offsetZ,
-        );
+
+        if (isHostHorizontal) {
+          mesh.position.set(
+            door.x * scale + width / 2 + offsetX,
+            height / 2,
+            door.y * scale + wallThickness / 2 + offsetZ,
+          );
+        } else {
+          mesh.rotation.y = Math.PI / 2;
+          mesh.position.set(
+            door.x * scale + wallThickness / 2 + offsetX,
+            height / 2,
+            door.y * scale + width / 2 + offsetZ,
+          );
+        }
+
         mesh.castShadow = true;
         buildingGroup.add(mesh);
         meshesRef.current.push(mesh);
       });
 
-    // Build windows
+    // Build window frames and glazing (inside the opening)
     elements
       .filter((el) => el.type === "window")
       .forEach((window) => {
         const isSelected = selectedIds.includes(window.id);
         const width = window.width * scale;
-        const height = 1.2;
+        const height = 1.1; // Slightly smaller than opening
+        const hostWall = elements.find((el) => el.id === window.relationships.hostedBy);
 
-        // Window frame
-        const geometry = new THREE.BoxGeometry(width, height, 0.08);
-        const material = new THREE.MeshStandardMaterial({
-          color: isSelected ? colors.windowSelected : colors.window,
-          roughness: 0.2,
-          metalness: 0.5,
-          transparent: true,
-          opacity: 0.7,
+        // Determine wall orientation
+        const isHostHorizontal = hostWall
+          ? hostWall.width * scale >= hostWall.height * scale
+          : true;
+
+        // Parse wall thickness
+        const wallThickness = hostWall
+          ? Math.max(parseThickness(hostWall.properties.thickness), 0.1)
+          : 0.2;
+
+        // Window frame (outer rectangle)
+        const frameThickness = 0.03;
+        const frameMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.3,
+          metalness: 0.1,
         });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = window.id;
-        mesh.userData = { element: window };
-        mesh.position.set(
-          window.x * scale + width / 2 + offsetX,
-          1.5,
-          window.y * scale + offsetZ,
+
+        // Glass pane
+        const glassMaterial = new THREE.MeshStandardMaterial({
+          color: isSelected ? colors.windowSelected : colors.window,
+          roughness: 0.1,
+          metalness: 0.3,
+          transparent: true,
+          opacity: 0.4,
+        });
+
+        const glassGeometry = new THREE.BoxGeometry(
+          Math.max(width - 0.06, 0.2),
+          height - 0.06,
+          0.02
         );
-        mesh.castShadow = true;
-        buildingGroup.add(mesh);
-        meshesRef.current.push(mesh);
+        const glassMesh = new THREE.Mesh(glassGeometry, glassMaterial);
+        glassMesh.name = window.id;
+        glassMesh.userData = { element: window };
+
+        // Create frame using thin boxes
+        const frameGroup = new THREE.Group();
+
+        // Top frame
+        const topFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.max(width, 0.3), frameThickness, frameThickness),
+          frameMaterial
+        );
+        topFrame.position.y = height / 2 - frameThickness / 2;
+
+        // Bottom frame
+        const bottomFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.max(width, 0.3), frameThickness, frameThickness),
+          frameMaterial
+        );
+        bottomFrame.position.y = -height / 2 + frameThickness / 2;
+
+        // Left frame
+        const leftFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(frameThickness, height, frameThickness),
+          frameMaterial
+        );
+        leftFrame.position.x = -width / 2 + frameThickness / 2;
+
+        // Right frame
+        const rightFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(frameThickness, height, frameThickness),
+          frameMaterial
+        );
+        rightFrame.position.x = width / 2 - frameThickness / 2;
+
+        // Center mullion (vertical divider)
+        const mullion = new THREE.Mesh(
+          new THREE.BoxGeometry(frameThickness / 2, height - frameThickness * 2, frameThickness),
+          frameMaterial
+        );
+
+        frameGroup.add(topFrame, bottomFrame, leftFrame, rightFrame, mullion, glassMesh);
+
+        if (isHostHorizontal) {
+          frameGroup.position.set(
+            window.x * scale + width / 2 + offsetX,
+            1.5,
+            window.y * scale + wallThickness / 2 + offsetZ,
+          );
+        } else {
+          frameGroup.rotation.y = Math.PI / 2;
+          frameGroup.position.set(
+            window.x * scale + wallThickness / 2 + offsetX,
+            1.5,
+            window.y * scale + width / 2 + offsetZ,
+          );
+        }
+
+        buildingGroup.add(frameGroup);
+        // Store the glass mesh for selection
+        meshesRef.current.push(glassMesh);
       });
 
     // Build room floors (transparent)
@@ -410,10 +795,10 @@ export function Canvas3D() {
         mesh.name = floor.id;
         mesh.userData = { element: floor };
 
-        // Position: center of slab, with top surface at elevation
+        // Position: center of slab, with bottom at elevation (top visible above ground)
         mesh.position.set(
           floor.x * scale + width / 2 + offsetX,
-          elevation - slabThickness / 2,
+          elevation + slabThickness / 2,
           floor.y * scale + depth / 2 + offsetZ,
         );
 
