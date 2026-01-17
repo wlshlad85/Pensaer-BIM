@@ -1078,17 +1078,20 @@ export function Canvas3D() {
 
           // Add small overhang (0.15m on each side) for realistic roof appearance
           const overhang = 0.15;
-          roofSpan = Math.max(wallsWidth, wallsDepth) + overhang * 2;
-          roofDepth = Math.min(wallsWidth, wallsDepth) + overhang * 2;
+
+          // FIX (MUL-27, MUL-28, MUL-29, MUL-30): Correct roof dimension assignment
+          // After gable geometry rotation (-PI/2 around Y):
+          // - roofSpan (triangle width) aligns with World Z
+          // - roofDepth (extrusion/ridge length) aligns with World X
+          // For our building (longer along X), we need:
+          // - roofDepth = larger dimension (ridge runs along X)
+          // - roofSpan = smaller dimension (triangle spans Z)
+          roofDepth = Math.max(wallsWidth, wallsDepth) + overhang * 2;  // Ridge length
+          roofSpan = Math.min(wallsWidth, wallsDepth) + overhang * 2;   // Triangle width
 
           // Center roof over walls
           roofCenterX = (wallsBoundingBox.min.x + wallsBoundingBox.max.x) / 2;
           roofCenterZ = (wallsBoundingBox.min.z + wallsBoundingBox.max.z) / 2;
-
-          // Orient roof ridge along the longer building dimension
-          if (wallsWidth < wallsDepth) {
-            [roofSpan, roofDepth] = [roofDepth, roofSpan];
-          }
         } else {
           // Fallback to element dimensions if no walls exist
           roofSpan = Math.max(roof.width, roof.height) * scale;
@@ -1166,12 +1169,13 @@ export function Canvas3D() {
         const wallsWidth = wallsBoundingBox.max.x - wallsBoundingBox.min.x;
         const wallsDepth = wallsBoundingBox.max.z - wallsBoundingBox.min.z;
         const overhang = 0.15;
-        const roofSpan = Math.max(wallsWidth, wallsDepth) + overhang * 2;
-        const roofDepth = Math.min(wallsWidth, wallsDepth) + overhang * 2;
+        // FIX: Correct dimension assignment (same as explicit roof handling above)
+        const defaultRoofDepth = Math.max(wallsWidth, wallsDepth) + overhang * 2;  // Ridge length
+        const defaultRoofSpan = Math.min(wallsWidth, wallsDepth) + overhang * 2;   // Triangle width
         const defaultSlope = Math.PI / 6; // 30 degrees default
 
         // Use the gable roof helper for consistency
-        const geometry = createGableRoofGeometry(roofSpan, roofDepth, defaultSlope);
+        const geometry = createGableRoofGeometry(defaultRoofSpan, defaultRoofDepth, defaultSlope);
         const material = new THREE.MeshStandardMaterial({
           color: colors.roof,
           roughness: 0.6,
@@ -1179,9 +1183,9 @@ export function Canvas3D() {
         });
         roofMesh = new THREE.Mesh(geometry, material);
         roofMesh.rotation.y = -Math.PI / 2;
-        // Center the extrusion over the building (offset by +roofDepth/2 for proper centering)
+        // Center the extrusion over the building (offset by +depth/2 for proper centering)
         roofMesh.position.set(
-          (wallsBoundingBox.min.x + wallsBoundingBox.max.x) / 2 + roofDepth / 2,
+          (wallsBoundingBox.min.x + wallsBoundingBox.max.x) / 2 + defaultRoofDepth / 2,
           wallHeight,
           (wallsBoundingBox.min.z + wallsBoundingBox.max.z) / 2,
         );
