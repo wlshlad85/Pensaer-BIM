@@ -526,7 +526,7 @@ export function Canvas3D() {
       room: 0x3b82f6,
       roof: 0xf97316,
       roofSelected: 0xea580c,
-      floor: 0x6b7280,
+      floor: 0xcbd5e1,
       floorSelected: 0x3b82f6,
     };
 
