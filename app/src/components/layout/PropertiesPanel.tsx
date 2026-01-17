@@ -576,6 +576,19 @@ function NoSelectionView({
   issueElements: Element[];
   setSelected: (id: string) => void;
 }) {
+  const [expandedIssue, setExpandedIssue] = useState<string | null>(null);
+
+  const getSeverityStyles = (severity: string | undefined, type: string) => {
+    if (type === "error" && severity === "critical") {
+      return { bg: "bg-red-900/30", text: "text-red-300", border: "border-red-800/50", icon: "fa-circle-xmark", iconColor: "text-red-400" };
+    } else if (type === "error" || severity === "high") {
+      return { bg: "bg-orange-900/30", text: "text-orange-300", border: "border-orange-800/50", icon: "fa-exclamation-triangle", iconColor: "text-orange-400" };
+    } else if (type === "warning") {
+      return { bg: "bg-yellow-900/30", text: "text-yellow-300", border: "border-yellow-800/50", icon: "fa-exclamation-circle", iconColor: "text-yellow-400" };
+    }
+    return { bg: "bg-blue-900/30", text: "text-blue-300", border: "border-blue-800/50", icon: "fa-info-circle", iconColor: "text-blue-400" };
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-4">
       <div className="text-center py-8 text-gray-500">
@@ -600,52 +613,86 @@ function NoSelectionView({
 
       {issueElements.length > 0 && (
         <>
-          <h3 className="text-xs font-medium text-gray-500 uppercase mt-6 mb-3">
+          <h3 className="text-xs font-medium text-red-400 uppercase mt-6 mb-3 flex items-center gap-2">
+            <i className="fa-solid fa-exclamation-triangle"></i>
             Issues ({issueElements.reduce((acc, e) => acc + e.issues.length, 0)})
           </h3>
           <div className="space-y-2">
             {issueElements.map((el) =>
               el.issues.map((issue, i) => {
+                const issueKey = `${el.id}-${issue.code || i}`;
+                const isExpanded = expandedIssue === issueKey;
                 const fix = getIssueFix(issue.code);
-                const severityIcon =
-                  issue.type === "error" && issue.severity === "critical"
-                    ? "fa-circle-xmark text-red-400"
-                    : issue.type === "error" || issue.severity === "high"
-                      ? "fa-exclamation-triangle text-orange-400"
-                      : issue.type === "warning"
-                        ? "fa-exclamation-circle text-yellow-400"
-                        : "fa-info-circle text-blue-400";
-                const bgColor =
-                  issue.type === "error"
-                    ? "bg-red-900/20 hover:bg-red-900/30"
-                    : issue.type === "warning"
-                      ? "bg-yellow-900/20 hover:bg-yellow-900/30"
-                      : "bg-blue-900/20 hover:bg-blue-900/30";
+                const styles = getSeverityStyles(issue.severity, issue.type);
 
                 return (
-                  <button
-                    key={`${el.id}-${i}`}
-                    className={`w-full text-left p-2 ${bgColor} rounded-lg text-xs group`}
-                    onClick={() => setSelected(el.id)}
-                    title="Click to select element and view details"
-                  >
-                    <div className="flex items-start gap-2">
-                      <i className={`fa-solid ${severityIcon} mt-0.5`}></i>
+                  <div key={`${el.id}-${i}`} className={`rounded-lg ${styles.bg} ${styles.border} border overflow-hidden`}>
+                    {/* Issue Header - clickable to expand */}
+                    <button
+                      className="w-full text-left p-2 flex items-start gap-2 hover:bg-white/5 transition-colors"
+                      onClick={() => setExpandedIssue(isExpanded ? null : issueKey)}
+                    >
+                      <i className={`fa-solid ${styles.icon} ${styles.iconColor} mt-0.5`}></i>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-white">{el.name}</div>
-                        <div className="text-gray-300 mt-0.5">{issue.message}</div>
+                        <div className={`text-xs ${styles.text} font-medium`}>{el.name}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{issue.message}</div>
                         <div className="flex items-center gap-2 mt-1">
                           {issue.code && (
-                            <span className="text-[10px] bg-gray-800 text-gray-400 px-1 py-0.5 rounded">
+                            <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">
                               {issue.code}
                             </span>
                           )}
                           <span className="text-[10px] text-gray-500">{fix.category}</span>
+                          {issue.fixable && (
+                            <span className="text-[10px] bg-green-900/50 text-green-400 px-1.5 py-0.5 rounded">
+                              Fixable
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <i className="fa-solid fa-chevron-right text-gray-600 group-hover:text-gray-400 transition-colors"></i>
-                    </div>
-                  </button>
+                      <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} text-gray-500 text-[10px]`}></i>
+                    </button>
+
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="px-3 pb-3 border-t border-gray-700/30">
+                        <div className="mt-2 space-y-2">
+                          {/* Explanation */}
+                          <div>
+                            <div className="text-[10px] uppercase text-gray-500 mb-1">Why this matters</div>
+                            <div className="text-xs text-gray-300">{fix.explanation}</div>
+                          </div>
+
+                          {/* How to Fix */}
+                          <div>
+                            <div className="text-[10px] uppercase text-gray-500 mb-1 flex items-center gap-1">
+                              <i className="fa-solid fa-wrench"></i> How to fix
+                            </div>
+                            <div className="text-xs text-gray-300">{fix.howToFix}</div>
+                          </div>
+
+                          {/* Reference Code */}
+                          {fix.reference && (
+                            <div className="text-[10px] text-gray-500">
+                              Reference: {fix.reference}
+                            </div>
+                          )}
+
+                          {/* Go to Element Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(el.id);
+                            }}
+                            className="mt-2 w-full text-center py-1.5 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 text-xs rounded transition-colors"
+                          >
+                            <i className="fa-solid fa-arrow-right mr-1"></i>
+                            Go to {el.name}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               }),
             )}
