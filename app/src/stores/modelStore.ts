@@ -421,6 +421,37 @@ const createInitialElements = (): Element[] => [
       },
     ],
   },
+
+  // === FLOOR SLAB ===
+  {
+    id: "floor-001",
+    type: "floor",
+    name: "Ground Floor Slab",
+    x: 300,
+    y: 200,
+    width: 900,
+    height: 350,
+    properties: {
+      thickness: "150mm",
+      elevation: 0,
+      material: "Concrete",
+      finish: "Polished",
+      structural: true,
+      level: "Level 1",
+    },
+    relationships: {
+      supports: ["room-001", "room-002"],
+      supportedBy: [],
+    },
+    issues: [],
+    aiSuggestions: [
+      {
+        icon: "fa-layer-group",
+        text: "150mm slab adequate for residential loads",
+        priority: "info",
+      },
+    ],
+  },
 ];
 
 // ============================================
