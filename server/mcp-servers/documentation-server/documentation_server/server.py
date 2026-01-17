@@ -11,6 +11,7 @@ Tools provided:
 - export_csv - Export element data to CSV format
 - door_schedule - Generate specialized door schedules with ID, type, dimensions, fire rating
 - window_schedule - Generate specialized window schedules with ID, type, dimensions, glazing, U-value
+- room_schedule - Generate specialized room schedules with ID, name, number, area, finishes
 
 Usage:
     python -m documentation_server  # Run via stdio
@@ -175,6 +176,30 @@ class WindowScheduleParams(BaseModel):
     )
     group_by: str | None = Field(
         None, description="Property to group by (type, glazing, level)"
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class RoomScheduleParams(BaseModel):
+    """Parameters for room_schedule tool."""
+
+    rooms: list[dict[str, Any]] = Field(
+        ..., description="List of room elements to schedule"
+    )
+    format: str = Field(
+        "table", description="Output format: table, csv, json"
+    )
+    include_area: bool = Field(
+        True, description="Include area column"
+    )
+    include_finishes: bool = Field(
+        True, description="Include floor/ceiling finish columns"
+    )
+    sort_by: str | None = Field(
+        None, description="Property to sort by (id, name, number, area, level)"
+    )
+    group_by: str | None = Field(
+        None, description="Property to group by (level, department, occupancy_type)"
     )
     reasoning: str | None = Field(None, description="AI agent reasoning")
 
@@ -1183,6 +1208,142 @@ async def _window_schedule(args: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+async def _room_schedule(args: dict[str, Any]) -> dict[str, Any]:
+    """Generate a schedule specifically for room elements."""
+    try:
+        params = RoomScheduleParams(**args)
+    except ValidationError as e:
+        return make_error(400, f"Invalid parameters: {e}")
+
+    rooms = params.rooms
+    if not rooms:
+        return make_error(400, "No room elements provided")
+
+    # Standard room schedule columns
+    base_columns = ["id", "name", "number"]
+    if params.include_area:
+        base_columns.append("area")
+    if params.include_finishes:
+        base_columns.extend(["floor_finish", "ceiling_height"])
+
+    # Extract and normalize room data
+    schedule_entries: list[dict[str, Any]] = []
+    for room in rooms:
+        entry: dict[str, Any] = {
+            "id": room.get("id", f"room_{len(schedule_entries) + 1}"),
+            "name": room.get("name", room.get("room_name", "Unnamed")),
+            "number": room.get("number", room.get("room_number", "-")),
+        }
+        if params.include_area:
+            entry["area"] = room.get("area", 0)
+        if params.include_finishes:
+            entry["floor_finish"] = room.get("floor_finish", room.get("floorFinish", "concrete"))
+            entry["ceiling_height"] = room.get("ceiling_height", room.get("ceilingHeight", 2.7))
+
+        # Preserve additional properties for grouping
+        for key in ["level", "department", "occupancy_type"]:
+            if key in room:
+                entry[key] = room[key]
+
+        schedule_entries.append(entry)
+
+    # Sort if requested
+    if params.sort_by and params.sort_by in base_columns:
+        schedule_entries = sorted(
+            schedule_entries,
+            key=lambda x: x.get(params.sort_by) or ""
+        )
+
+    # Group if requested
+    grouped_data: dict[str, list[dict[str, Any]]] = {}
+    if params.group_by:
+        for entry in schedule_entries:
+            group_key = str(entry.get(params.group_by, "Ungrouped"))
+            if group_key not in grouped_data:
+                grouped_data[group_key] = []
+            grouped_data[group_key].append(entry)
+    else:
+        grouped_data["All Rooms"] = schedule_entries
+
+    # Calculate summary stats
+    total_area = sum(e.get("area", 0) for e in schedule_entries)
+
+    # Format output
+    if params.format == "json":
+        output = {
+            "schedule_type": "room",
+            "columns": base_columns,
+            "groups": {
+                group: [
+                    {col: entry.get(col) for col in base_columns}
+                    for entry in group_entries
+                ]
+                for group, group_entries in grouped_data.items()
+            },
+            "total_count": len(schedule_entries),
+            "summary": {
+                "total_rooms": len(schedule_entries),
+                "total_area": round(total_area, 3),
+            },
+        }
+        formatted_output = json.dumps(output, indent=2)
+
+    elif params.format == "csv":
+        output_io = io.StringIO()
+        writer = csv.writer(output_io)
+        writer.writerow([col.replace("_", " ").title() for col in base_columns])
+        for entry in schedule_entries:
+            row = [format_value(entry.get(col)) for col in base_columns]
+            writer.writerow(row)
+        formatted_output = output_io.getvalue()
+
+    else:  # table format (markdown)
+        lines = []
+        lines.append("# Room Schedule")
+        lines.append("")
+
+        for group_name, group_entries in grouped_data.items():
+            if params.group_by:
+                lines.append(f"## {params.group_by.replace('_', ' ').title()}: {group_name}")
+                lines.append("")
+
+            # Table header
+            header = " | ".join(col.replace("_", " ").title() for col in base_columns)
+            lines.append(f"| {header} |")
+            lines.append("|" + "|".join("---" for _ in base_columns) + "|")
+
+            # Table rows
+            for entry in group_entries:
+                row = " | ".join(
+                    format_value(entry.get(col))
+                    for col in base_columns
+                )
+                lines.append(f"| {row} |")
+
+            lines.append("")
+            lines.append(f"*Count: {len(group_entries)}*")
+            lines.append("")
+
+        # Summary section
+        lines.append("## Summary")
+        lines.append(f"- Total Rooms: **{len(schedule_entries)}**")
+        lines.append(f"- Total Floor Area: **{total_area:.3f} m²**")
+        lines.append("")
+
+        formatted_output = "\n".join(lines)
+
+    return make_response(
+        {
+            "schedule": formatted_output,
+            "room_count": len(schedule_entries),
+            "columns": base_columns,
+            "format": params.format,
+            "total_area": round(total_area, 3),
+        },
+        reasoning=params.reasoning,
+    )
+
+
 # =============================================================================
 # Tool Definitions
 # =============================================================================
@@ -1444,6 +1605,50 @@ TOOLS = [
             "required": ["windows"],
         },
     ),
+    Tool(
+        name="room_schedule",
+        description="Generate a specialized schedule for room elements. "
+        "Includes ID, name, number, area, and finish columns. "
+        "Supports table (markdown), CSV, and JSON output formats with sorting and grouping.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "rooms": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of room elements with id, name, number, area, floor_finish, ceiling_height",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["table", "csv", "json"],
+                    "default": "table",
+                    "description": "Output format",
+                },
+                "include_area": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include area column in schedule",
+                },
+                "include_finishes": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include floor finish and ceiling height columns",
+                },
+                "sort_by": {
+                    "type": "string",
+                    "enum": ["id", "name", "number", "area", "level"],
+                    "description": "Property to sort by",
+                },
+                "group_by": {
+                    "type": "string",
+                    "enum": ["level", "department", "occupancy_type"],
+                    "description": "Property to group rooms by",
+                },
+                "reasoning": {"type": "string"},
+            },
+            "required": ["rooms"],
+        },
+    ),
 ]
 
 
@@ -1479,6 +1684,8 @@ def create_server() -> Server:
                 result = await _door_schedule(arguments)
             elif name == "window_schedule":
                 result = await _window_schedule(arguments)
+            elif name == "room_schedule":
+                result = await _room_schedule(arguments)
             else:
                 result = make_error(404, f"Unknown tool: {name}")
 
