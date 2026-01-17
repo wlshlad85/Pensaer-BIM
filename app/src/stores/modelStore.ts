@@ -452,6 +452,44 @@ const createInitialElements = (): Element[] => [
       },
     ],
   },
+
+  // === ROOF ===
+  {
+    id: "roof-001",
+    type: "roof",
+    name: "Main Roof",
+    x: 290,
+    y: 190,
+    width: 920,
+    height: 370,
+    properties: {
+      material: "Metal Standing Seam",
+      slope: "4:12",
+      insulation: "R-30",
+      roof_type: "gable",
+      level: "Level 1",
+    },
+    relationships: {
+      supportedBy: [
+        "wall-north",
+        "wall-south",
+        "wall-west",
+        "wall-east",
+        "wall-bedroom-east",
+        "wall-bedroom-north",
+        "wall-bedroom-south",
+      ],
+      covers: ["room-001", "room-002"],
+    },
+    issues: [],
+    aiSuggestions: [
+      {
+        icon: "fa-solar-panel",
+        text: "South-facing slope ideal for solar panels",
+        priority: "medium",
+      },
+    ],
+  },
 ];
 
 // ============================================
