@@ -6,10 +6,16 @@
  *
  * @example
  * ```typescript
- * import { tokenize } from './dsl';
+ * import { parse, tokenize } from './dsl';
  *
+ * // Tokenize only
  * const { tokens, errors } = tokenize('wall (0, 0) (5, 0) height 3');
- * console.log(tokens);
+ *
+ * // Parse to AST
+ * const result = parse('wall (0, 0) (5, 0) height 3');
+ * if (result.success) {
+ *   console.log(result.commands);
+ * }
  * ```
  */
 
@@ -27,3 +33,37 @@ export {
 
 // Lexer
 export { Lexer, tokenize } from "./lexer";
+
+// Parser
+export { Parser, parse } from "./parser";
+
+// AST types
+export {
+  // Enums
+  WallType,
+  DoorType,
+  WindowType,
+  SwingDirection,
+  VariableRef,
+  // Types
+  type Point2D,
+  type Point3D,
+  type ElementRef,
+  type BaseCommand,
+  type Command,
+  type CreateWallCommand,
+  type CreateRectWallsCommand,
+  type ModifyWallCommand,
+  type PlaceDoorCommand,
+  type ModifyDoorCommand,
+  type PlaceWindowCommand,
+  type ModifyWindowCommand,
+  type CreateOpeningCommand,
+  type HelpCommand,
+  type ParseError,
+  type ParseResult,
+  // Functions
+  createElementRefFromUUID,
+  createElementRefFromVariable,
+  commandToMcpArgs,
+} from "./ast";
