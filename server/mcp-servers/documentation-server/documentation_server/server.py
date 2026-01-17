@@ -10,6 +10,7 @@ Tools provided:
 - generate_quantities - Calculate quantities for elements
 - export_csv - Export element data to CSV format
 - door_schedule - Generate specialized door schedules with ID, type, dimensions, fire rating
+- window_schedule - Generate specialized window schedules with ID, type, dimensions, glazing, U-value
 
 Usage:
     python -m documentation_server  # Run via stdio
@@ -150,6 +151,30 @@ class DoorScheduleParams(BaseModel):
     )
     group_by: str | None = Field(
         None, description="Property to group by (type, fire_rating, level)"
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+
+class WindowScheduleParams(BaseModel):
+    """Parameters for window_schedule tool."""
+
+    windows: list[dict[str, Any]] = Field(
+        ..., description="List of window elements to schedule"
+    )
+    format: str = Field(
+        "table", description="Output format: table, csv, json"
+    )
+    include_glazing: bool = Field(
+        True, description="Include glazing type column"
+    )
+    include_u_value: bool = Field(
+        True, description="Include U-value (thermal performance) column"
+    )
+    sort_by: str | None = Field(
+        None, description="Property to sort by (id, type, width, height, glazing, u_value)"
+    )
+    group_by: str | None = Field(
+        None, description="Property to group by (type, glazing, level)"
     )
     reasoning: str | None = Field(None, description="AI agent reasoning")
 
@@ -1013,6 +1038,151 @@ async def _door_schedule(args: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+async def _window_schedule(args: dict[str, Any]) -> dict[str, Any]:
+    """Generate a schedule specifically for window elements."""
+    try:
+        params = WindowScheduleParams(**args)
+    except ValidationError as e:
+        return make_error(400, f"Invalid parameters: {e}")
+
+    windows = params.windows
+    if not windows:
+        return make_error(400, "No window elements provided")
+
+    # Standard window schedule columns
+    base_columns = ["id", "type", "width", "height"]
+    if params.include_glazing:
+        base_columns.append("glazing")
+    if params.include_u_value:
+        base_columns.append("u_value")
+
+    # Extract and normalize window data
+    schedule_entries: list[dict[str, Any]] = []
+    for window in windows:
+        entry: dict[str, Any] = {
+            "id": window.get("id", f"window_{len(schedule_entries) + 1}"),
+            "type": window.get("type", window.get("window_type", "fixed")),
+            "width": window.get("width", 1.2),
+            "height": window.get("height", 1.2),
+        }
+        if params.include_glazing:
+            entry["glazing"] = window.get("glazing", window.get("glazing_type", "double"))
+        if params.include_u_value:
+            entry["u_value"] = window.get("u_value", window.get("uValue", 1.4))
+
+        # Preserve additional properties for grouping
+        for key in ["level", "room", "frame_material", "orientation"]:
+            if key in window:
+                entry[key] = window[key]
+
+        schedule_entries.append(entry)
+
+    # Sort if requested
+    if params.sort_by and params.sort_by in base_columns:
+        schedule_entries = sorted(
+            schedule_entries,
+            key=lambda x: x.get(params.sort_by) or ""
+        )
+
+    # Group if requested
+    grouped_data: dict[str, list[dict[str, Any]]] = {}
+    if params.group_by:
+        for entry in schedule_entries:
+            group_key = str(entry.get(params.group_by, "Ungrouped"))
+            if group_key not in grouped_data:
+                grouped_data[group_key] = []
+            grouped_data[group_key].append(entry)
+    else:
+        grouped_data["All Windows"] = schedule_entries
+
+    # Calculate summary stats
+    total_area = sum(e["width"] * e["height"] for e in schedule_entries)
+    avg_u_value = 0.0
+    if params.include_u_value and schedule_entries:
+        u_values = [e.get("u_value", 0) for e in schedule_entries if e.get("u_value")]
+        if u_values:
+            avg_u_value = sum(u_values) / len(u_values)
+
+    # Format output
+    if params.format == "json":
+        output = {
+            "schedule_type": "window",
+            "columns": base_columns,
+            "groups": {
+                group: [
+                    {col: entry.get(col) for col in base_columns}
+                    for entry in group_entries
+                ]
+                for group, group_entries in grouped_data.items()
+            },
+            "total_count": len(schedule_entries),
+            "summary": {
+                "total_windows": len(schedule_entries),
+                "total_glazing_area": round(total_area, 3),
+                "average_u_value": round(avg_u_value, 3) if params.include_u_value else None,
+            },
+        }
+        formatted_output = json.dumps(output, indent=2)
+
+    elif params.format == "csv":
+        output_io = io.StringIO()
+        writer = csv.writer(output_io)
+        writer.writerow([col.replace("_", " ").title() for col in base_columns])
+        for entry in schedule_entries:
+            row = [format_value(entry.get(col)) for col in base_columns]
+            writer.writerow(row)
+        formatted_output = output_io.getvalue()
+
+    else:  # table format (markdown)
+        lines = []
+        lines.append("# Window Schedule")
+        lines.append("")
+
+        for group_name, group_entries in grouped_data.items():
+            if params.group_by:
+                lines.append(f"## {params.group_by.replace('_', ' ').title()}: {group_name}")
+                lines.append("")
+
+            # Table header
+            header = " | ".join(col.replace("_", " ").title() for col in base_columns)
+            lines.append(f"| {header} |")
+            lines.append("|" + "|".join("---" for _ in base_columns) + "|")
+
+            # Table rows
+            for entry in group_entries:
+                row = " | ".join(
+                    format_value(entry.get(col))
+                    for col in base_columns
+                )
+                lines.append(f"| {row} |")
+
+            lines.append("")
+            lines.append(f"*Count: {len(group_entries)}*")
+            lines.append("")
+
+        # Summary section
+        lines.append("## Summary")
+        lines.append(f"- Total Windows: **{len(schedule_entries)}**")
+        lines.append(f"- Total Glazing Area: **{total_area:.3f} m²**")
+        if params.include_u_value and avg_u_value > 0:
+            lines.append(f"- Average U-Value: **{avg_u_value:.3f} W/m²K**")
+        lines.append("")
+
+        formatted_output = "\n".join(lines)
+
+    return make_response(
+        {
+            "schedule": formatted_output,
+            "window_count": len(schedule_entries),
+            "columns": base_columns,
+            "format": params.format,
+            "total_glazing_area": round(total_area, 3),
+            "average_u_value": round(avg_u_value, 3) if params.include_u_value else None,
+        },
+        reasoning=params.reasoning,
+    )
+
+
 # =============================================================================
 # Tool Definitions
 # =============================================================================
@@ -1230,6 +1400,50 @@ TOOLS = [
             "required": ["doors"],
         },
     ),
+    Tool(
+        name="window_schedule",
+        description="Generate a specialized schedule for window elements. "
+        "Includes ID, type, dimensions (width/height), glazing type, and U-value columns. "
+        "Supports table (markdown), CSV, and JSON output formats with sorting and grouping.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "windows": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of window elements with id, type, width, height, glazing, u_value",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["table", "csv", "json"],
+                    "default": "table",
+                    "description": "Output format",
+                },
+                "include_glazing": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include glazing type column in schedule",
+                },
+                "include_u_value": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include U-value (thermal performance) column in schedule",
+                },
+                "sort_by": {
+                    "type": "string",
+                    "enum": ["id", "type", "width", "height", "glazing", "u_value"],
+                    "description": "Property to sort by",
+                },
+                "group_by": {
+                    "type": "string",
+                    "enum": ["type", "glazing", "level"],
+                    "description": "Property to group windows by",
+                },
+                "reasoning": {"type": "string"},
+            },
+            "required": ["windows"],
+        },
+    ),
 ]
 
 
@@ -1263,6 +1477,8 @@ def create_server() -> Server:
                 result = await _export_csv(arguments)
             elif name == "door_schedule":
                 result = await _door_schedule(arguments)
+            elif name == "window_schedule":
+                result = await _window_schedule(arguments)
             else:
                 result = make_error(404, f"Unknown tool: {name}")
 

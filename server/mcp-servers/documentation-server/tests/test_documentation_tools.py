@@ -7,6 +7,7 @@ Tests cover:
 - generate_quantities: Quantity takeoff calculations
 - export_csv: CSV data export
 - door_schedule: Specialized door schedules with fire rating
+- window_schedule: Specialized window schedules with glazing and U-value
 """
 
 import pytest
@@ -18,6 +19,7 @@ from documentation_server.server import (
     _generate_quantities,
     _export_csv,
     _door_schedule,
+    _window_schedule,
     get_element_property,
     format_value,
 )
@@ -721,6 +723,277 @@ class TestDoorSchedule:
         assert "## Summary" in result["data"]["schedule"]
         assert "Total Doors: **2**" in result["data"]["schedule"]
         assert "Fire-Rated Doors: **1**" in result["data"]["schedule"]
+
+
+class TestWindowSchedule:
+    """Tests for window_schedule tool."""
+
+    @pytest.mark.asyncio
+    async def test_basic_window_schedule_table(self):
+        """Test basic window schedule generation in table format."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "glazing": "double", "u_value": 1.4},
+            {"id": "W02", "type": "casement", "width": 0.9, "height": 1.2, "glazing": "triple", "u_value": 0.8},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["window_count"] == 2
+        assert result["data"]["format"] == "table"
+        assert "# Window Schedule" in result["data"]["schedule"]
+        assert "W01" in result["data"]["schedule"]
+        assert "W02" in result["data"]["schedule"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_csv_format(self):
+        """Test window schedule generation in CSV format."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5},
+            {"id": "W02", "type": "sliding", "width": 1.8, "height": 1.2},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "format": "csv",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["format"] == "csv"
+        lines = result["data"]["schedule"].strip().split("\n")
+        assert len(lines) >= 3  # header + 2 data rows
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_json_format(self):
+        """Test window schedule generation in JSON format."""
+        windows = [
+            {"id": "W01", "type": "awning", "width": 0.6, "height": 0.4, "glazing": "double", "u_value": 1.6},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["format"] == "json"
+        import json
+        output = json.loads(result["data"]["schedule"])
+        assert output["schedule_type"] == "window"
+        assert output["total_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_with_glazing(self):
+        """Test window schedule includes glazing column."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "glazing": "triple"},
+            {"id": "W02", "type": "fixed", "width": 1.2, "height": 1.5, "glazing": "double"},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "include_glazing": True,
+        })
+
+        assert result["success"] is True
+        assert "glazing" in result["data"]["columns"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_without_glazing(self):
+        """Test window schedule excludes glazing column."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "glazing": "triple"},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "include_glazing": False,
+        })
+
+        assert result["success"] is True
+        assert "glazing" not in result["data"]["columns"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_with_u_value(self):
+        """Test window schedule includes U-value column."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "u_value": 1.4},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "include_u_value": True,
+        })
+
+        assert result["success"] is True
+        assert "u_value" in result["data"]["columns"]
+        assert result["data"]["average_u_value"] == 1.4
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_without_u_value(self):
+        """Test window schedule excludes U-value column."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "u_value": 1.4},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "include_u_value": False,
+        })
+
+        assert result["success"] is True
+        assert "u_value" not in result["data"]["columns"]
+        assert result["data"]["average_u_value"] is None
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_sorting(self):
+        """Test window schedule sorting by property."""
+        windows = [
+            {"id": "W03", "type": "fixed", "width": 1.2, "height": 1.5},
+            {"id": "W01", "type": "casement", "width": 0.9, "height": 1.2},
+            {"id": "W02", "type": "sliding", "width": 1.8, "height": 1.0},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "sort_by": "id",
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        window_ids = [w["id"] for w in output["groups"]["All Windows"]]
+        assert window_ids == ["W01", "W02", "W03"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_grouping_by_type(self):
+        """Test window schedule grouping by type."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5},
+            {"id": "W02", "type": "casement", "width": 0.9, "height": 1.2},
+            {"id": "W03", "type": "fixed", "width": 1.0, "height": 1.0},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "group_by": "type",
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert "Type: fixed" in result["data"]["schedule"]
+        assert "Type: casement" in result["data"]["schedule"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_grouping_by_glazing(self):
+        """Test window schedule grouping by glazing type."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "glazing": "triple"},
+            {"id": "W02", "type": "fixed", "width": 1.0, "height": 1.0, "glazing": "double"},
+            {"id": "W03", "type": "casement", "width": 0.9, "height": 1.2, "glazing": "triple"},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "group_by": "glazing",
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        assert "triple" in output["groups"]
+        assert "double" in output["groups"]
+        assert len(output["groups"]["triple"]) == 2
+        assert len(output["groups"]["double"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_grouping_by_level(self):
+        """Test window schedule grouping by level."""
+        windows = [
+            {"id": "W01", "type": "fixed", "width": 1.2, "height": 1.5, "level": "Level 1"},
+            {"id": "W02", "type": "casement", "width": 0.9, "height": 1.2, "level": "Level 2"},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "group_by": "level",
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert "Level: Level 1" in result["data"]["schedule"]
+        assert "Level: Level 2" in result["data"]["schedule"]
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_empty_windows(self):
+        """Test window schedule with no windows."""
+        result = await _window_schedule({
+            "windows": [],
+        })
+
+        assert result["success"] is False
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_default_values(self):
+        """Test window schedule fills in default values."""
+        windows = [
+            {"id": "W01"},  # minimal window, should get defaults
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        window = output["groups"]["All Windows"][0]
+        assert window["width"] == 1.2  # default width
+        assert window["height"] == 1.2  # default height
+        assert window["type"] == "fixed"  # default type
+        assert window["glazing"] == "double"  # default glazing
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_total_glazing_area(self):
+        """Test window schedule calculates total glazing area."""
+        windows = [
+            {"id": "W01", "width": 1.0, "height": 1.0},  # 1.0 m²
+            {"id": "W02", "width": 2.0, "height": 1.5},  # 3.0 m²
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["total_glazing_area"] == 4.0  # 1.0 + 3.0
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_average_u_value(self):
+        """Test window schedule calculates average U-value."""
+        windows = [
+            {"id": "W01", "u_value": 1.0},
+            {"id": "W02", "u_value": 2.0},
+            {"id": "W03", "u_value": 1.5},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["average_u_value"] == 1.5  # (1.0 + 2.0 + 1.5) / 3
+
+    @pytest.mark.asyncio
+    async def test_window_schedule_summary_section(self):
+        """Test window schedule includes summary section in table format."""
+        windows = [
+            {"id": "W01", "width": 1.0, "height": 1.0, "u_value": 1.4},
+            {"id": "W02", "width": 1.5, "height": 1.2, "u_value": 1.2},
+        ]
+        result = await _window_schedule({
+            "windows": windows,
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert "## Summary" in result["data"]["schedule"]
+        assert "Total Windows: **2**" in result["data"]["schedule"]
+        assert "Total Glazing Area:" in result["data"]["schedule"]
+        assert "Average U-Value:" in result["data"]["schedule"]
 
 
 class TestValidationErrors:
