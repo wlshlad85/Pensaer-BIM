@@ -21,6 +21,7 @@ import {
   PropertiesPanel,
   CommandPalette,
   Terminal,
+  LevelPanel,
 } from "./components/layout";
 import clsx from "clsx";
 
@@ -75,6 +76,11 @@ function App() {
           {/* Canvas Area */}
           <div className="flex-1 relative">
             {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
+
+            {/* Level Panel (floating, top-left) */}
+            <div className="absolute top-4 left-4 w-48 z-10">
+              <LevelPanel />
+            </div>
 
             {/* Zoom indicator (2D only) */}
             {viewMode === "2d" && (
