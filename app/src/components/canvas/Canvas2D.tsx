@@ -28,6 +28,41 @@ import {
 const CANVAS_WIDTH = 2000;
 const CANVAS_HEIGHT = 1500;
 
+// Building boundary with padding to keep elements within visible area
+const BOUNDARY_PADDING = 50;
+const MIN_X = BOUNDARY_PADDING;
+const MIN_Y = BOUNDARY_PADDING;
+const MAX_X = CANVAS_WIDTH - BOUNDARY_PADDING;
+const MAX_Y = CANVAS_HEIGHT - BOUNDARY_PADDING;
+
+// ============================================
+// BOUNDARY HELPERS
+// ============================================
+
+/**
+ * Clamp a point to stay within the building boundary.
+ */
+function clampToBoundary(point: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Math.max(MIN_X, Math.min(MAX_X, point.x)),
+    y: Math.max(MIN_Y, Math.min(MAX_Y, point.y)),
+  };
+}
+
+/**
+ * Check if a point is within the building boundary.
+ */
+function isWithinBoundary(point: { x: number; y: number }): boolean {
+  return point.x >= MIN_X && point.x <= MAX_X && point.y >= MIN_Y && point.y <= MAX_Y;
+}
+
+/**
+ * Check if an element rectangle is fully within the building boundary.
+ */
+function isElementWithinBoundary(x: number, y: number, width: number, height: number): boolean {
+  return x >= MIN_X && y >= MIN_Y && x + width <= MAX_X && y + height <= MAX_Y;
+}
+
 // ============================================
 // WALL HIT DETECTION HELPERS
 // ============================================
@@ -287,12 +322,14 @@ export function Canvas2D() {
           }
         }
       } else if (["wall", "room"].includes(activeTool)) {
-        // Start drawing
-        const snapped = snapPoint(point, elements);
+        // Start drawing - clamp to boundary
+        const clampedPoint = clampToBoundary(point);
+        const snapped = snapPoint(clampedPoint, elements);
+        const boundedSnap = clampToBoundary(snapped.point);
         setIsDrawing(true);
-        setDrawStart(snapped.point);
-        setDrawEnd(snapped.point);
-        setSnapResult(snapped);
+        setDrawStart(boundedSnap);
+        setDrawEnd(boundedSnap);
+        setSnapResult({ ...snapped, point: boundedSnap });
       } else if (["door", "window"].includes(activeTool)) {
         // Click on wall to place door/window
         const hitResult = findWallAtPoint(point, elements);
@@ -435,15 +472,22 @@ export function Canvas2D() {
         const snappedX = Math.round(newX / 10) * 10;
         const snappedY = Math.round(newY / 10) * 10;
 
+        // Clamp to boundary (ensure element stays within bounds)
+        const clampedX = Math.max(MIN_X, Math.min(MAX_X - dragElement.width, snappedX));
+        const clampedY = Math.max(MIN_Y, Math.min(MAX_Y - dragElement.height, snappedY));
+
         // Update element position in real-time
-        updateElement(dragElement.id, { x: snappedX, y: snappedY });
+        updateElement(dragElement.id, { x: clampedX, y: clampedY });
         return;
       }
 
       if (isDrawing) {
-        const snapped = snapPoint(point, elements);
-        setDrawEnd(snapped.point);
-        setSnapResult(snapped);
+        // Clamp to boundary during drawing
+        const clampedPoint = clampToBoundary(point);
+        const snapped = snapPoint(clampedPoint, elements);
+        const boundedSnap = clampToBoundary(snapped.point);
+        setDrawEnd(boundedSnap);
+        setSnapResult({ ...snapped, point: boundedSnap });
       } else if (isBoxSelecting) {
         setBoxEnd(point);
       } else if (["wall", "room"].includes(activeTool)) {
@@ -775,6 +819,19 @@ export function Canvas2D() {
       <g transform={`translate(${panX}, ${panY}) scale(${zoom})`}>
         {/* Grid */}
         <Grid width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
+
+        {/* Building boundary indicator */}
+        <rect
+          x={MIN_X}
+          y={MIN_Y}
+          width={MAX_X - MIN_X}
+          height={MAX_Y - MIN_Y}
+          fill="none"
+          stroke="rgba(59, 130, 246, 0.3)"
+          strokeWidth={2}
+          strokeDasharray="10 5"
+          className="pointer-events-none"
+        />
 
         {/* Elements */}
         {sortedElements.map(renderElement)}

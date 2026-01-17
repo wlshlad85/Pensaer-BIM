@@ -377,6 +377,46 @@ const validationRules: ValidationRule[] = [
       return null;
     },
   },
+
+  // ─────────────────────────────────────────
+  // BOUNDARY VALIDATION RULES
+  // ─────────────────────────────────────────
+  {
+    id: "BOUNDARY-001",
+    name: "Element Within Building Boundary",
+    category: "model-integrity",
+    description: "Elements should be within the building boundary area",
+    appliesTo: ["wall", "door", "window", "room", "roof", "floor", "column"],
+    validate: (element) => {
+      // Canvas boundary constants (must match Canvas2D.tsx)
+      const BOUNDARY_PADDING = 50;
+      const CANVAS_WIDTH = 2000;
+      const CANVAS_HEIGHT = 1500;
+      const MIN_X = BOUNDARY_PADDING;
+      const MIN_Y = BOUNDARY_PADDING;
+      const MAX_X = CANVAS_WIDTH - BOUNDARY_PADDING;
+      const MAX_Y = CANVAS_HEIGHT - BOUNDARY_PADDING;
+
+      const isOutside =
+        element.x < MIN_X ||
+        element.y < MIN_Y ||
+        element.x + element.width > MAX_X ||
+        element.y + element.height > MAX_Y;
+
+      if (isOutside) {
+        return {
+          id: `${element.id}-BOUNDARY-001`,
+          type: "warning",
+          severity: "medium",
+          code: "BOUNDARY-001",
+          message: `Element extends beyond building boundary`,
+          fixable: true,
+        };
+      }
+
+      return null;
+    },
+  },
 ];
 
 // ============================================
@@ -502,6 +542,92 @@ export function getValidationSummary(result: ValidationResult): string {
   }
 
   return `${result.totalIssues} issue${result.totalIssues > 1 ? "s" : ""} found: ${parts.join(", ")}`;
+}
+
+// ============================================
+// ISSUE FIX EXPLANATIONS
+// ============================================
+
+export interface IssueFix {
+  explanation: string;
+  howToFix: string;
+  category: string;
+  reference?: string;
+}
+
+/**
+ * Get detailed explanation and fix instructions for an issue.
+ */
+export function getIssueFix(code: string | undefined): IssueFix {
+  const fixes: Record<string, IssueFix> = {
+    "FIRE-001": {
+      explanation: "Fire-rated walls require doors with equal or higher fire ratings to maintain compartmentalization.",
+      howToFix: "Select the door, double-click 'Fire Rating' in properties, and set to match or exceed the wall rating.",
+      category: "Fire Safety",
+      reference: "IBC 716.5",
+    },
+    "ADA-001": {
+      explanation: "Doors must provide minimum clear width for wheelchair accessibility.",
+      howToFix: "Select the door, double-click 'Width' in properties, and set to at least 820mm (32 inches).",
+      category: "Accessibility",
+      reference: "ADA 404.2.3",
+    },
+    "ADA-002": {
+      explanation: "Door height should meet minimum clearance for accessibility.",
+      howToFix: "Select the door, double-click 'Height' in properties, and set to at least 2030mm (80 inches).",
+      category: "Accessibility",
+      reference: "ADA 404.2.3",
+    },
+    "SAFE-001": {
+      explanation: "Windows with low sill heights pose a fall hazard and require safety glazing.",
+      howToFix: "Select the window, double-click 'Glazing Type' in properties, and set to 'Tempered' or 'Laminated'.",
+      category: "Safety",
+      reference: "IBC 2406.4",
+    },
+    "ENERGY-001": {
+      explanation: "High U-value windows reduce energy efficiency and may not meet code requirements.",
+      howToFix: "Select the window and change to a more efficient glazing type with lower U-value.",
+      category: "Energy",
+      reference: "IECC C402.4",
+    },
+    "STRUCT-001": {
+      explanation: "Roofs should be supported by structural walls to ensure proper load transfer.",
+      howToFix: "Either mark the supporting walls as structural, or redesign to use structural walls.",
+      category: "Structural",
+      reference: "IBC 1604",
+    },
+    "MODEL-001": {
+      explanation: "Doors must be hosted by a wall to be valid BIM elements.",
+      howToFix: "Delete this door and re-place it by clicking on a wall while the door tool is active.",
+      category: "Model Integrity",
+    },
+    "MODEL-002": {
+      explanation: "Windows must be hosted by a wall to be valid BIM elements.",
+      howToFix: "Delete this window and re-place it by clicking on a wall while the window tool is active.",
+      category: "Model Integrity",
+    },
+    "MODEL-003": {
+      explanation: "Wall thickness is outside typical ranges and may indicate a modeling error.",
+      howToFix: "Select the wall, double-click 'Thickness' in properties, and adjust to a realistic value (typically 100-400mm).",
+      category: "Model Integrity",
+    },
+    "MODEL-004": {
+      explanation: "Room area is very small and may indicate incorrect room boundaries.",
+      howToFix: "Delete and redraw the room with correct boundaries, or adjust the bounding walls.",
+      category: "Model Integrity",
+    },
+    "BOUNDARY-001": {
+      explanation: "Element extends beyond the building boundary area.",
+      howToFix: "Select the element and move it within the canvas boundaries, or delete and redraw within bounds.",
+      category: "Model Integrity",
+    },
+  };
+
+  return fixes[code || ""] || {
+    explanation: "This issue requires attention to ensure model quality.",
+    howToFix: "Review the element properties and correct any invalid values.",
+    category: "General",
+  };
 }
 
 // ============================================
