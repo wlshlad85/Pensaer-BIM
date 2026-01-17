@@ -627,23 +627,29 @@ export function Canvas3D() {
       wallBrush.updateMatrixWorld();
 
       openings.forEach((opening) => {
-        const openingWidth = opening.width * scale;
-        let openingHeight: number;
+        // CRITICAL FIX (MUL-32, MUL-33): Opening width depends on wall orientation
+        // For horizontal walls: opening.width is the dimension along the wall
+        // For vertical walls: opening.height is the dimension along the wall
+        const openingWidthAlongWall = isHorizontal
+          ? opening.width * scale
+          : opening.height * scale;
+
+        let openingHeight3D: number;
         let openingY: number; // Y position of opening center (from floor)
 
         if (opening.type === "door") {
-          openingHeight = 2.1; // Standard door height
-          openingY = openingHeight / 2; // Door bottom at floor level
+          openingHeight3D = 2.1; // Standard door height
+          openingY = openingHeight3D / 2; // Door bottom at floor level
         } else {
           // Window
-          openingHeight = 1.2; // Standard window height
+          openingHeight3D = 1.2; // Standard window height
           openingY = 1.5; // Window center at 1.5m (sill at ~0.9m)
         }
 
         // Create opening box geometry (larger than wall thickness for clean cut)
         const openingGeometry = new THREE.BoxGeometry(
-          Math.max(openingWidth, 0.3),
-          openingHeight,
+          Math.max(openingWidthAlongWall, 0.3),
+          openingHeight3D,
           wallThickness + 0.2 // Extra thickness ensures complete cut-through
         );
 
@@ -662,10 +668,10 @@ export function Canvas3D() {
         // For vertical walls: 2D Y maps to local X (rotation happens after CSG)
         let openingOffsetAlongWall: number;
         if (isHorizontal) {
-          openingOffsetAlongWall = (openingStartX - wallStartX) + openingWidth / 2 - baseWallLength / 2;
+          openingOffsetAlongWall = (openingStartX - wallStartX) + openingWidthAlongWall / 2 - baseWallLength / 2;
         } else {
           // Vertical wall: 2D Y coordinate maps to wall length (local X)
-          openingOffsetAlongWall = (openingStartZ - wallStartZ) + openingWidth / 2 - baseWallLength / 2;
+          openingOffsetAlongWall = (openingStartZ - wallStartZ) + openingWidthAlongWall / 2 - baseWallLength / 2;
         }
 
         // Position opening in wall's local space (always along X axis)
@@ -811,14 +817,20 @@ export function Canvas3D() {
       .filter((el) => el.type === "door")
       .forEach((door) => {
         const isSelected = selectedIds.includes(door.id);
-        const width = door.width * scale;
-        const height = 2.0; // Slightly shorter than opening
         const hostWall = elements.find((el) => el.id === door.relationships.hostedBy);
 
         // Determine wall orientation for door positioning
         const isHostHorizontal = hostWall
           ? hostWall.width * scale >= hostWall.height * scale
           : true;
+
+        // FIX (MUL-32): Door width depends on wall orientation
+        // For horizontal walls: door.width is the dimension along the wall
+        // For vertical walls: door.height is the dimension along the wall
+        const doorWidthAlongWall = isHostHorizontal
+          ? door.width * scale
+          : door.height * scale;
+        const doorHeight3D = 2.0; // Slightly shorter than opening
 
         // Parse wall thickness for door depth positioning
         const wallThickness = hostWall
@@ -827,8 +839,8 @@ export function Canvas3D() {
 
         // Door panel geometry (thin panel)
         const geometry = new THREE.BoxGeometry(
-          Math.max(width, 0.3),
-          height,
+          Math.max(doorWidthAlongWall, 0.3),
+          doorHeight3D,
           0.05
         );
         const material = new THREE.MeshStandardMaterial({
@@ -842,16 +854,16 @@ export function Canvas3D() {
 
         if (isHostHorizontal) {
           mesh.position.set(
-            door.x * scale + width / 2 + offsetX,
-            height / 2,
+            door.x * scale + doorWidthAlongWall / 2 + offsetX,
+            doorHeight3D / 2,
             door.y * scale + wallThickness / 2 + offsetZ,
           );
         } else {
           mesh.rotation.y = Math.PI / 2;
           mesh.position.set(
             door.x * scale + wallThickness / 2 + offsetX,
-            height / 2,
-            door.y * scale + width / 2 + offsetZ,
+            doorHeight3D / 2,
+            door.y * scale + doorWidthAlongWall / 2 + offsetZ,
           );
         }
 
@@ -865,14 +877,20 @@ export function Canvas3D() {
       .filter((el) => el.type === "window")
       .forEach((window) => {
         const isSelected = selectedIds.includes(window.id);
-        const width = window.width * scale;
-        const height = 1.1; // Slightly smaller than opening
         const hostWall = elements.find((el) => el.id === window.relationships.hostedBy);
 
         // Determine wall orientation
         const isHostHorizontal = hostWall
           ? hostWall.width * scale >= hostWall.height * scale
           : true;
+
+        // FIX (MUL-33): Window width depends on wall orientation
+        // For horizontal walls: window.width is the dimension along the wall
+        // For vertical walls: window.height is the dimension along the wall
+        const windowWidthAlongWall = isHostHorizontal
+          ? window.width * scale
+          : window.height * scale;
+        const windowHeight3D = 1.1; // Slightly smaller than opening
 
         // Parse wall thickness
         const wallThickness = hostWall
@@ -897,8 +915,8 @@ export function Canvas3D() {
         });
 
         const glassGeometry = new THREE.BoxGeometry(
-          Math.max(width - 0.06, 0.2),
-          height - 0.06,
+          Math.max(windowWidthAlongWall - 0.06, 0.2),
+          windowHeight3D - 0.06,
           0.02
         );
         const glassMesh = new THREE.Mesh(glassGeometry, glassMaterial);
@@ -910,35 +928,35 @@ export function Canvas3D() {
 
         // Top frame
         const topFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(Math.max(width, 0.3), frameThickness, frameThickness),
+          new THREE.BoxGeometry(Math.max(windowWidthAlongWall, 0.3), frameThickness, frameThickness),
           frameMaterial
         );
-        topFrame.position.y = height / 2 - frameThickness / 2;
+        topFrame.position.y = windowHeight3D / 2 - frameThickness / 2;
 
         // Bottom frame
         const bottomFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(Math.max(width, 0.3), frameThickness, frameThickness),
+          new THREE.BoxGeometry(Math.max(windowWidthAlongWall, 0.3), frameThickness, frameThickness),
           frameMaterial
         );
-        bottomFrame.position.y = -height / 2 + frameThickness / 2;
+        bottomFrame.position.y = -windowHeight3D / 2 + frameThickness / 2;
 
         // Left frame
         const leftFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(frameThickness, height, frameThickness),
+          new THREE.BoxGeometry(frameThickness, windowHeight3D, frameThickness),
           frameMaterial
         );
-        leftFrame.position.x = -width / 2 + frameThickness / 2;
+        leftFrame.position.x = -windowWidthAlongWall / 2 + frameThickness / 2;
 
         // Right frame
         const rightFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(frameThickness, height, frameThickness),
+          new THREE.BoxGeometry(frameThickness, windowHeight3D, frameThickness),
           frameMaterial
         );
-        rightFrame.position.x = width / 2 - frameThickness / 2;
+        rightFrame.position.x = windowWidthAlongWall / 2 - frameThickness / 2;
 
         // Center mullion (vertical divider)
         const mullion = new THREE.Mesh(
-          new THREE.BoxGeometry(frameThickness / 2, height - frameThickness * 2, frameThickness),
+          new THREE.BoxGeometry(frameThickness / 2, windowHeight3D - frameThickness * 2, frameThickness),
           frameMaterial
         );
 
@@ -946,7 +964,7 @@ export function Canvas3D() {
 
         if (isHostHorizontal) {
           frameGroup.position.set(
-            window.x * scale + width / 2 + offsetX,
+            window.x * scale + windowWidthAlongWall / 2 + offsetX,
             1.5,
             window.y * scale + wallThickness / 2 + offsetZ,
           );
@@ -955,7 +973,7 @@ export function Canvas3D() {
           frameGroup.position.set(
             window.x * scale + wallThickness / 2 + offsetX,
             1.5,
-            window.y * scale + width / 2 + offsetZ,
+            window.y * scale + windowWidthAlongWall / 2 + offsetZ,
           );
         }
 
