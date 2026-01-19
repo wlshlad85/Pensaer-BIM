@@ -14,7 +14,7 @@ import { useModelStore } from "./modelStore";
 // CONFIGURATION
 // ============================================
 
-const MAX_HISTORY_SIZE = 50; // Maximum number of undo steps
+const MAX_HISTORY_SIZE = 100; // Maximum number of undo steps
 
 // ============================================
 // STORE INTERFACE

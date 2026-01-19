@@ -8,6 +8,12 @@
 
 import * as WebIFC from "web-ifc";
 import type { Element, ElementType } from "../types";
+import {
+  PropertyMapper,
+  type PreservedIfcProperties,
+  getPreservedProperties,
+  createDefaultPropertySets,
+} from "./ifc/propertyMapper";
 
 // Additional IFC constants for export
 const IFCPROJECT = 103090709;
@@ -248,8 +254,9 @@ export class IfcParser {
     // Extract geometry placement (simplified - uses local placement coordinates)
     const geometry = this.extractGeometry(api, modelID, expressID);
 
-    // Extract property sets
-    const properties = this.extractProperties(api, modelID, expressID);
+    // Extract property sets with preservation for round-trip fidelity
+    const propertyMapper = new PropertyMapper(api);
+    const { preserved, flattened } = propertyMapper.extractAllProperties(modelID, expressID);
 
     const element: Element = {
       id: globalId || `ifc-${expressID}`,
@@ -262,7 +269,9 @@ export class IfcParser {
       rotation: geometry.rotation,
       properties: {
         ifcExpressId: expressID,
-        ...properties,
+        ...flattened,
+        // Store preserved property sets for round-trip export
+        _ifcPropertySets: preserved as unknown as string | number | boolean,
       },
       relationships: {},
       issues: [],
@@ -346,47 +355,7 @@ export class IfcParser {
     };
   }
 
-  /**
-   * Extract property sets from an IFC entity
-   */
-  private extractProperties(
-    api: WebIFC.IfcAPI,
-    modelID: number,
-    expressID: number
-  ): Record<string, string | number | boolean> {
-    const properties: Record<string, string | number | boolean> = {};
-
-    try {
-      // Get property sets defined by this element
-      const propSets = api.GetPropertySets(modelID, expressID);
-
-      for (const pset of propSets) {
-        if (pset.HasProperties) {
-          for (const prop of pset.HasProperties) {
-            if (prop.type === IFCPROPERTYSINGLEVALUE) {
-              const propLine = api.GetLine(modelID, prop.expressID);
-              if (propLine && propLine.Name && propLine.NominalValue) {
-                const propName = propLine.Name.value || propLine.Name;
-                const propValue = propLine.NominalValue.value ?? propLine.NominalValue;
-
-                if (
-                  typeof propValue === "string" ||
-                  typeof propValue === "number" ||
-                  typeof propValue === "boolean"
-                ) {
-                  properties[String(propName)] = propValue;
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // Property extraction is optional, continue without
-    }
-
-    return properties;
-  }
+  // Property extraction now handled by PropertyMapper for round-trip fidelity
 
   /**
    * Increment the appropriate stat counter
@@ -919,6 +888,37 @@ export class IfcParser {
       Representation: null,
       Tag: null,
     });
+
+    // Write property sets for round-trip fidelity
+    let nextId = elementId + 1;
+    const preserved = getPreservedProperties(element.properties);
+    if (preserved) {
+      // Use preserved property sets from import
+      const propertyMapper = new PropertyMapper(api);
+      nextId = propertyMapper.writePropertySets(
+        modelID,
+        elementId,
+        preserved,
+        nextId,
+        ownerHistoryId
+      );
+    } else {
+      // Create default property sets for new elements
+      const defaultPsets = createDefaultPropertySets(
+        element.type,
+        element.properties as Record<string, string | number | boolean>
+      );
+      if (defaultPsets.propertySets.length > 0 || defaultPsets.quantitySets.length > 0) {
+        const propertyMapper = new PropertyMapper(api);
+        nextId = propertyMapper.writePropertySets(
+          modelID,
+          elementId,
+          defaultPsets,
+          nextId,
+          ownerHistoryId
+        );
+      }
+    }
 
     return elementId;
   }

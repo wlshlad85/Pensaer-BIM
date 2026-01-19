@@ -1,32 +1,148 @@
 /**
  * Pensaer BIM Platform - Core Type Definitions
  *
- * This file contains the foundational TypeScript interfaces
- * for the BIM data model, following IFC-inspired relationships.
+ * This file re-exports all types from specialized modules and provides
+ * backward-compatible type aliases for existing code.
+ *
+ * @module types
  */
 
 // ============================================
-// ELEMENT TYPES
+// RE-EXPORTS FROM SPECIALIZED MODULES
 // ============================================
 
-export type ElementType =
-  | "wall"
-  | "door"
-  | "window"
-  | "room"
-  | "floor"
-  | "roof"
-  | "column"
-  | "beam"
-  | "stair";
+// Element types and type guards
+export type {
+  ElementId,
+  LevelId,
+  ElementType,
+  BaseElement,
+  WallElement,
+  DoorElement,
+  WindowElement,
+  RoomElement,
+  FloorElement,
+  RoofElement,
+  ColumnElement,
+  BeamElement,
+  StairElement,
+  Element,
+} from "./elements";
+
+export {
+  createElementId,
+  createLevelId,
+  isWall,
+  isDoor,
+  isWindow,
+  isRoom,
+  isFloor,
+  isRoof,
+  isColumn,
+  isBeam,
+  isStair,
+  isHostElement,
+  isHostedElement,
+} from "./elements";
+
+// Relationship types
+export type {
+  Relationships,
+  RelationshipType,
+  RelationshipMeta,
+} from "./relationships";
+
+export { getInverseRelationType } from "./relationships";
+
+// Validation types
+export type {
+  IssueType,
+  IssueSeverity,
+  IssueCategory,
+  Issue,
+  IssueFix,
+  SuggestionPriority,
+  SuggestionCategory,
+  Suggestion,
+  ValidationResult,
+  ValidationConfig,
+} from "./validation";
+
+// MCP types
+export type {
+  MCPServerType,
+  MCPConnectionState,
+  MCPServerStatus,
+  JSONRPCRequest,
+  JSONRPCResponse,
+  JSONRPCError,
+  MCPResultStatus,
+  MCPWarning,
+  MCPToolResult,
+  TokenUsage,
+  CreateWallRequest,
+  CreateOpeningRequest,
+  ComputeMeshRequest,
+  MeshData,
+  CreateRoomRequest,
+  AdjacencyGraph,
+  CheckComplianceRequest,
+  ComplianceResult,
+  DetectClashesRequest,
+  ClashResult,
+  GenerateScheduleRequest,
+  ScheduleData,
+  ExportReportRequest,
+  MCPCallOptions,
+  IMCPClient,
+} from "./mcp";
+
+export { JSONRPC_ERROR_CODES } from "./mcp";
+
+// Store types
+export type {
+  ModelState,
+  ModelActions,
+  ModelStore,
+  SelectionMode,
+  SelectionState,
+  SelectionActions,
+  SelectionStore,
+  ViewMode,
+  ToolType,
+  PanelState,
+  ToastType,
+  Toast,
+  UIState,
+  GridSettings,
+  SnapSettings,
+  UIActions,
+  UIStore,
+  HistoryEntry,
+  HistoryState,
+  HistoryActions,
+  HistoryStore,
+  TokenStats,
+  TokenState,
+  TokenActions,
+  TokenStore,
+  Level,
+  ProjectMeta,
+  ProjectSettings,
+  SerializedModel,
+} from "./store";
 
 // ============================================
-// BASE ELEMENT INTERFACE
+// LEGACY COMPATIBILITY TYPES
 // ============================================
 
-export interface Element {
+/**
+ * @deprecated Use the new Element union type from ./elements
+ * Kept for backward compatibility with existing code.
+ */
+export interface LegacyElement {
   id: string;
-  type: ElementType;
+  type: import("./elements").ElementType;
   name: string;
 
   // Geometry (2D for now)
@@ -40,13 +156,13 @@ export interface Element {
   properties: Record<string, string | number | boolean>;
 
   // Relationships (IFC-inspired)
-  relationships: Relationships;
+  relationships: import("./relationships").Relationships;
 
   // Validation
-  issues: Issue[];
+  issues: import("./validation").Issue[];
 
   // AI-native features
-  aiSuggestions: Suggestion[];
+  aiSuggestions: import("./validation").Suggestion[];
 
   // Metadata
   level?: string;
@@ -55,104 +171,28 @@ export interface Element {
 }
 
 // ============================================
-// RELATIONSHIPS (IFC-INSPIRED)
+// TOOL STATE (Legacy)
 // ============================================
 
-export interface Relationships {
-  // Host relationships (door/window → wall)
-  hostedBy?: string;
-  hosts?: string[];
-
-  // Spatial relationships (room → walls)
-  bounds?: string[];
-  boundedBy?: string[];
-
-  // Connection relationships (wall → wall)
-  joins?: string[];
-
-  // Access relationships (door → rooms)
-  leadsTo?: string[];
-  accessVia?: string[];
-
-  // View relationships (window → room)
-  facesRoom?: string;
-
-  // Roof relationships
-  coversRooms?: string[];
-  supportedBy?: string[];
-  covers?: string[];
-
-  // Room adjacency
-  connectedTo?: string[];
-}
-
-// ============================================
-// ISSUES & SUGGESTIONS
-// ============================================
-
-export type IssueType = "error" | "warning" | "info";
-export type IssueSeverity = "critical" | "high" | "medium" | "low";
-
-export interface Issue {
-  id?: string;
-  type: IssueType;
-  message: string;
-  severity?: IssueSeverity;
-  code?: string; // e.g., 'FIRE-001', 'CLASH-002'
-  fixable?: boolean;
-}
-
-export type SuggestionPriority = "high" | "medium" | "low" | "info";
-
-export interface Suggestion {
-  id?: string;
-  icon: string;
-  text: string;
-  priority: SuggestionPriority;
-  action?: () => void;
-}
-
-// ============================================
-// SELECTION STATE
-// ============================================
-
-export interface SelectionState {
-  selectedIds: string[];
-  hoveredId: string | null;
-  highlightedIds: string[];
-}
-
-// ============================================
-// TOOL STATE
-// ============================================
-
-export type ToolType =
-  | "select"
-  | "wall"
-  | "door"
-  | "window"
-  | "room"
-  | "floor"
-  | "roof"
-  | "column"
-  | "measure"
-  | "pan";
-
+/**
+ * Tool drawing state for canvas interactions.
+ */
 export interface ToolState {
-  activeTool: ToolType;
+  activeTool: import("./store").ToolType;
   isDrawing: boolean;
   drawStart: { x: number; y: number } | null;
   drawEnd: { x: number; y: number } | null;
 }
 
 // ============================================
-// VIEW STATE
+// VIEW STATE (Legacy)
 // ============================================
 
-export type ViewMode = "2d" | "3d";
-
+/**
+ * View state for canvas display.
+ */
 export interface ViewState {
-  mode: ViewMode;
+  mode: import("./store").ViewMode;
   zoom: number;
   panX: number;
   panY: number;
@@ -160,20 +200,12 @@ export interface ViewState {
 }
 
 // ============================================
-// HISTORY (UNDO/REDO)
-// ============================================
-
-export interface HistoryEntry {
-  id: string;
-  timestamp: number;
-  description: string;
-  elements: Element[];
-}
-
-// ============================================
 // COMMAND PALETTE
 // ============================================
 
+/**
+ * Command category for grouping in command palette.
+ */
 export type CommandCategory =
   | "Modeling"
   | "Selection"
@@ -186,14 +218,32 @@ export type CommandCategory =
   | "Spaces"
   | "Structure";
 
+/**
+ * Command definition for command palette.
+ */
 export interface Command {
+  /** Unique command ID */
   id: string;
+
+  /** Command type */
   type: string;
+
+  /** Icon identifier */
   icon: string;
+
+  /** Display label */
   label: string;
+
+  /** Keyboard shortcut */
   shortcut?: string;
+
+  /** Command category */
   category: CommandCategory;
+
+  /** Description shown in palette */
   description: string;
+
+  /** Action to execute */
   action?: () => void;
 }
 
@@ -201,54 +251,47 @@ export interface Command {
 // CONTEXT MENU
 // ============================================
 
+/**
+ * Context menu item definition.
+ */
 export interface ContextMenuItem {
+  /** Unique item ID */
   id: string;
+
+  /** Icon identifier */
   icon?: string;
+
+  /** Display label */
   label?: string;
+
+  /** Keyboard shortcut hint */
   shortcut?: string;
+
+  /** Whether this is a destructive action */
   danger?: boolean;
+
+  /** Item type (divider for separator) */
   type?: "divider";
+
+  /** Action to execute */
   action?: () => void;
 }
 
 // ============================================
-// TOAST NOTIFICATIONS
+// PROJECT (Legacy)
 // ============================================
 
-export type ToastType = "success" | "error" | "warning" | "info";
-
-export interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
-  duration?: number;
-}
-
-// ============================================
-// PROJECT
-// ============================================
-
+/**
+ * @deprecated Use ProjectMeta from ./store
+ * Project definition for persistence.
+ */
 export interface Project {
   id: string;
   name: string;
   description?: string;
   createdAt: number;
   modifiedAt: number;
-  elements: Element[];
-  levels: Level[];
-  settings: ProjectSettings;
-}
-
-export interface Level {
-  id: string;
-  name: string;
-  elevation: number; // mm from ground
-  height: number; // floor-to-floor height in mm
-}
-
-export interface ProjectSettings {
-  units: "metric" | "imperial";
-  gridSize: number;
-  snapEnabled: boolean;
-  snapTolerance: number;
+  elements: LegacyElement[];
+  levels: import("./store").Level[];
+  settings: import("./store").ProjectSettings;
 }

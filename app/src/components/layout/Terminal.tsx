@@ -11,7 +11,22 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import clsx from "clsx";
-import { mcpClient, type MCPToolResult } from "../../services";
+import {
+  mcpClient,
+  type MCPToolResult,
+  formatError,
+  writeErrorToTerminal,
+  type McpError,
+  formatMcpResult as formatMcpResultService,
+  writeResultToTerminal as writeResultToTerminalService,
+  formatClashReport,
+  type ResultFormatterOptions,
+  dispatchCommand,
+  type CommandResult,
+} from "../../services";
+import { getAllCommands } from "../../commands";
+import { useTokenStore } from "../../stores";
+import { useTerminalInput } from "../Terminal";
 
 interface TerminalProps {
   /** Whether the terminal panel is expanded */
@@ -32,6 +47,7 @@ const AVAILABLE_COMMANDS = [
   "clear",
   "status",
   "version",
+  "echo",
   "list",
   "wall",
   "floor",
@@ -86,6 +102,55 @@ const saveMacros = (macros: Map<string, Macro>) => {
 // Maximum history size
 const MAX_HISTORY_SIZE = 100;
 
+// Load command history from localStorage
+const loadCommandHistory = (): string[] => {
+  try {
+    const saved = localStorage.getItem("pensaer-terminal-history");
+    if (saved) {
+      const arr = JSON.parse(saved) as string[];
+      // Ensure we don't exceed MAX_HISTORY_SIZE
+      return arr.slice(-MAX_HISTORY_SIZE);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+};
+
+// Save command history to localStorage
+const saveCommandHistory = (history: string[]) => {
+  try {
+    // Only keep the last MAX_HISTORY_SIZE commands
+    const trimmed = history.slice(-MAX_HISTORY_SIZE);
+    localStorage.setItem("pensaer-terminal-history", JSON.stringify(trimmed));
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+/** Token counter display component */
+function TokenCounter() {
+  const inputTokens = useTokenStore((s) => s.inputTokens);
+  const outputTokens = useTokenStore((s) => s.outputTokens);
+  const total = inputTokens + outputTokens;
+
+  const formatNumber = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return n.toString();
+  };
+
+  return (
+    <div
+      className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-800/50 px-2 py-0.5 rounded"
+      title={`Input: ${inputTokens.toLocaleString()} | Output: ${outputTokens.toLocaleString()}`}
+    >
+      <i className="fa-solid fa-microchip text-[10px] text-cyan-500"></i>
+      <span className="font-mono">{formatNumber(total)}</span>
+    </div>
+  );
+}
+
 export function Terminal({
   isExpanded = true,
   onToggle,
@@ -98,15 +163,32 @@ export function Terminal({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [height, setHeight] = useState(initialHeight);
   const [isResizing, setIsResizing] = useState(false);
-  const [commandBuffer, setCommandBuffer] = useState("");
 
-  // Command history state
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  // Use the terminal input hook for buffer management and cursor support
+  const {
+    buffer: commandBuffer,
+    cursorPosition,
+    handleInput: handleBufferInput,
+    clearBuffer,
+    setBuffer: setCommandBuffer,
+    submitBuffer,
+    redrawLine,
+  } = useTerminalInput();
+
+  // Command history state - persisted to localStorage
+  const [commandHistory, setCommandHistory] = useState<string[]>(loadCommandHistory);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [savedBuffer, setSavedBuffer] = useState("");
 
-  // Escape sequence buffer for arrow keys
-  const escapeBufferRef = useRef("");
+  // Save command history to localStorage whenever it changes
+  useEffect(() => {
+    saveCommandHistory(commandHistory);
+  }, [commandHistory]);
+
+  // Tab completion cycling state
+  const [tabMatches, setTabMatches] = useState<string[]>([]);
+  const [tabIndex, setTabIndex] = useState(-1);
+  const [tabPrefix, setTabPrefix] = useState("");
 
   // Macro recording state
   const [macros, setMacros] = useState<Map<string, Macro>>(loadMacros);
@@ -257,11 +339,32 @@ export function Terminal({
     );
   }, []);
 
+  // Track escape sequence state for history navigation (Up/Down arrows)
+  const escapeBufferRef = useRef("");
+
   const handleInput = useCallback(
     (terminal: XTerminal, data: string) => {
       const code = data.charCodeAt(0);
 
-      // Handle escape sequences for arrow keys
+      // First, let the input hook try to handle basic input (cursor movement, etc.)
+      // It returns false for keys that need external handling
+      const handled = handleBufferInput(terminal, data);
+
+      if (handled) {
+        // Input was handled by the hook (cursor movement, typing, backspace, etc.)
+        // Reset tab cycling state when user types or edits
+        if (tabMatches.length > 0) {
+          setTabMatches([]);
+          setTabIndex(-1);
+          setTabPrefix("");
+        }
+        return;
+      }
+
+      // Handle keys that the hook delegates to us
+
+      // Handle escape sequences for history navigation (Up/Down arrows)
+      // The hook signals these by returning false after processing ESC[A or ESC[B
       if (code === 27) {
         // ESC
         escapeBufferRef.current = "\x1b";
@@ -276,7 +379,7 @@ export function Terminal({
       if (escapeBufferRef.current === "\x1b[") {
         escapeBufferRef.current = "";
 
-        // Up arrow
+        // Up arrow - navigate history
         if (data === "A") {
           if (commandHistory.length > 0) {
             // Save current buffer if we're starting history navigation
@@ -299,7 +402,7 @@ export function Terminal({
           return;
         }
 
-        // Down arrow
+        // Down arrow - navigate history
         if (data === "B") {
           if (historyIndex >= 0) {
             const newIndex = historyIndex + 1;
@@ -318,22 +421,21 @@ export function Terminal({
           }
           return;
         }
-
-        // Left/Right arrows - ignore for now
-        if (data === "C" || data === "D") {
-          return;
-        }
+        return;
       }
 
       // Clear escape buffer for other inputs
       escapeBufferRef.current = "";
 
-      // Enter key
+      // Enter key - submit command
       if (code === 13) {
         terminal.writeln("");
 
+        // Get buffer content and clear it
+        const currentCmd = submitBuffer();
+        const trimmedCmd = currentCmd.trim();
+
         // Add to history if non-empty and different from last command
-        const trimmedCmd = commandBuffer.trim();
         if (
           trimmedCmd &&
           (commandHistory.length === 0 ||
@@ -353,94 +455,96 @@ export function Terminal({
         setHistoryIndex(-1);
         setSavedBuffer("");
 
-        processCommand(terminal, commandBuffer);
-        setCommandBuffer("");
+        processCommand(terminal, currentCmd);
         return;
       }
 
-      // Tab - autocomplete
+      // Tab - autocomplete with cycling support
       if (code === 9) {
         const words = commandBuffer.split(/\s+/);
         const lastWord = words[words.length - 1];
 
-        // Only autocomplete the first word (command name)
+        // Check if we're continuing a tab cycle (same prefix as before)
+        if (tabMatches.length > 1 && lastWord === tabMatches[tabIndex]) {
+          // Cycle to next match
+          const nextIndex = (tabIndex + 1) % tabMatches.length;
+          const nextMatch = tabMatches[nextIndex];
+          clearLineAndWrite(terminal, commandBuffer, nextMatch);
+          setCommandBuffer(nextMatch);
+          setTabIndex(nextIndex);
+          return;
+        }
+
+        // Only autocomplete the first word (command name) for now
         if (words.length === 1) {
           const matches = findAutocompleteMatches(lastWord);
 
           if (matches.length === 1) {
-            // Single match - complete it
-            const completion = matches[0].slice(lastWord.length);
-            terminal.write(completion + " ");
-            setCommandBuffer(matches[0] + " ");
+            // Single match - complete it and reset tab state
+            const completed = matches[0] + " ";
+            clearLineAndWrite(terminal, commandBuffer, completed);
+            setCommandBuffer(completed);
+            setTabMatches([]);
+            setTabIndex(-1);
+            setTabPrefix("");
           } else if (matches.length > 1) {
-            // Multiple matches - show options
+            // Multiple matches - start cycling
+            // First Tab: complete to first match
+            const firstMatch = matches[0];
+            clearLineAndWrite(terminal, commandBuffer, firstMatch);
+            setCommandBuffer(firstMatch);
+            setTabMatches(matches);
+            setTabIndex(0);
+            setTabPrefix(lastWord);
+
+            // Also show all matches for user awareness
             terminal.writeln("");
             terminal.writeln(
               `\x1b[33mMatches: ${matches.join(", ")}\x1b[0m`,
             );
-
-            // Find common prefix
-            let commonPrefix = matches[0];
-            for (const match of matches) {
-              while (!match.startsWith(commonPrefix)) {
-                commonPrefix = commonPrefix.slice(0, -1);
-              }
-            }
-
-            // Complete to common prefix if longer than current
-            if (commonPrefix.length > lastWord.length) {
-              const completion = commonPrefix.slice(lastWord.length);
-              writePrompt(terminal);
-              terminal.write(commonPrefix);
-              setCommandBuffer(commonPrefix);
-            } else {
-              writePrompt(terminal);
-              terminal.write(commandBuffer);
-            }
+            writePrompt(terminal);
+            terminal.write(firstMatch);
           }
         }
         return;
       }
 
-      // Backspace
-      if (code === 127) {
-        if (commandBuffer.length > 0) {
-          terminal.write("\b \b");
-          setCommandBuffer((prev) => prev.slice(0, -1));
-        }
-        return;
-      }
-
-      // Ctrl+C
+      // Ctrl+C - cancel current input
       if (code === 3) {
         terminal.writeln("^C");
-        setCommandBuffer("");
+        clearBuffer();
         setHistoryIndex(-1);
         setSavedBuffer("");
         writePrompt(terminal);
         return;
       }
 
-      // Ctrl+L (clear)
+      // Ctrl+L - clear screen
       if (code === 12) {
         terminal.clear();
         writePrompt(terminal);
+        terminal.write(commandBuffer);
+        // Move cursor back to correct position if not at end
+        const moveBack = commandBuffer.length - cursorPosition;
+        if (moveBack > 0) {
+          terminal.write(`\x1b[${moveBack}D`);
+        }
         return;
-      }
-
-      // Printable characters
-      if (code >= 32) {
-        terminal.write(data);
-        setCommandBuffer((prev) => prev + data);
       }
     },
     [
       commandBuffer,
+      cursorPosition,
       commandHistory,
       historyIndex,
       savedBuffer,
+      handleBufferInput,
+      submitBuffer,
+      clearBuffer,
       clearLineAndWrite,
       findAutocompleteMatches,
+      tabMatches,
+      tabIndex,
     ],
   );
 
@@ -449,22 +553,54 @@ export function Terminal({
     terminal: XTerminal,
     result: MCPToolResult,
     toolName: string,
+    options: ResultFormatterOptions = {},
   ) => {
     if (result.success) {
-      terminal.writeln(`\x1b[32m✓ ${toolName} completed\x1b[0m`);
+      // Use the new result formatter for improved display
+      writeResultToTerminalService(terminal, result, toolName, {
+        format: "auto",
+        maxItems: 20,
+        ...options,
+      });
+    } else {
+      // Use the error formatter for improved error display
+      const mcpError: McpError = {
+        code: result.error?.code ?? -32603,
+        message: result.error?.message ?? `${toolName} failed`,
+        data: result.error?.data,
+        timestamp: result.timestamp,
+      };
+      const formattedError = formatError(mcpError);
+      writeErrorToTerminal(terminal, formattedError);
+    }
+  };
+
+  // Format command result for terminal display (from command dispatcher)
+  const formatCommandResult = (
+    terminal: XTerminal,
+    result: CommandResult,
+    commandName: string,
+  ) => {
+    if (result.success) {
+      terminal.writeln(`\x1b[32m✓ ${result.message}\x1b[0m`);
       if (result.data) {
-        formatObject(terminal, result.data, "  ");
+        for (const [key, value] of Object.entries(result.data)) {
+          if (value !== null && value !== undefined) {
+            terminal.writeln(`  \x1b[36m${key}:\x1b[0m ${value}`);
+          }
+        }
       }
-      if (result.warnings && result.warnings.length > 0) {
-        terminal.writeln("\x1b[33mWarnings:\x1b[0m");
-        result.warnings.forEach((w) => terminal.writeln(`  ⚠ ${w}`));
+      if (result.elementCreated) {
+        terminal.writeln(`  \x1b[33mCreated:\x1b[0m ${result.elementCreated.type} ${result.elementCreated.id}`);
       }
     } else {
-      terminal.writeln(`\x1b[31m✗ ${toolName} failed\x1b[0m`);
-      if (result.error) {
-        terminal.writeln(
-          `  Error ${result.error.code}: ${result.error.message}`,
-        );
+      terminal.writeln(`\x1b[31m✗ ${result.message}\x1b[0m`);
+      if (result.data) {
+        for (const [key, value] of Object.entries(result.data)) {
+          if (value !== null && value !== undefined) {
+            terminal.writeln(`  \x1b[36m${key}:\x1b[0m ${value}`);
+          }
+        }
       }
     }
   };
@@ -556,140 +692,238 @@ export function Terminal({
     const [command, ...args] = trimmed.split(/\s+/);
 
     switch (command.toLowerCase()) {
-      case "help":
-        terminal.writeln("\x1b[1;33mAvailable commands:\x1b[0m");
-        terminal.writeln(
-          "  \x1b[32mhelp\x1b[0m              - Show this help message",
-        );
-        terminal.writeln(
-          "  \x1b[32mclear\x1b[0m             - Clear the terminal",
-        );
-        terminal.writeln(
-          "  \x1b[32mstatus\x1b[0m            - Show model status via MCP",
-        );
-        terminal.writeln(
-          "  \x1b[32mversion\x1b[0m           - Show version info",
-        );
-        terminal.writeln("");
-        terminal.writeln("\x1b[1;33mMCP Tool Commands:\x1b[0m");
-        terminal.writeln(
-          "  \x1b[32mlist [category]\x1b[0m   - List elements (walls, rooms, etc.)",
-        );
-        terminal.writeln(
-          "  \x1b[32mwall\x1b[0m              - Create wall: wall --start 0,0 --end 5,0",
-        );
-        terminal.writeln(
-          "  \x1b[32mfloor\x1b[0m             - Create floor: floor --min 0,0 --max 10,10",
-        );
-        terminal.writeln(
-          "  \x1b[32mroom\x1b[0m              - Create room: room --min 0,0 --max 5,5 --name Kitchen",
-        );
-        terminal.writeln(
-          "  \x1b[32mroof\x1b[0m              - Create roof: roof --min 0,0 --max 10,10 --type gable",
-        );
-        terminal.writeln(
-          "  \x1b[32mdoor\x1b[0m              - Place door: door --wall <id> --position 2.5",
-        );
-        terminal.writeln(
-          "  \x1b[32mwindow\x1b[0m            - Place window: window --wall <id> --position 1.5",
-        );
-        terminal.writeln(
-          "  \x1b[32mdetect-rooms\x1b[0m      - Detect rooms from wall topology",
-        );
-        terminal.writeln(
-          "  \x1b[32manalyze\x1b[0m           - Analyze wall topology",
-        );
-        terminal.writeln(
-          "  \x1b[32mclash\x1b[0m             - Detect clashes: clash [--clearance 0.1] [--ids id1,id2]",
-        );
-        terminal.writeln(
-          "  \x1b[32mclash-between\x1b[0m     - Clash between sets: clash-between --a id1,id2 --b id3,id4",
-        );
-        terminal.writeln(
-          "  \x1b[32mdelete\x1b[0m            - Delete elements: delete <id1> <id2> ...",
-        );
-        terminal.writeln("");
-        terminal.writeln("\x1b[1;33mSpatial Analysis Commands:\x1b[0m");
-        terminal.writeln(
-          "  \x1b[32madjacency\x1b[0m         - Find adjacent rooms (rooms sharing walls)",
-        );
-        terminal.writeln(
-          "  \x1b[32mnearest\x1b[0m           - Find nearest elements: nearest --x 5 --y 5 --radius 10",
-        );
-        terminal.writeln(
-          "  \x1b[32marea\x1b[0m              - Calculate room area: area --room <room_id>",
-        );
-        terminal.writeln(
-          "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
-        );
-        terminal.writeln("");
-        terminal.writeln("\x1b[1;33mMacro Commands:\x1b[0m");
-        terminal.writeln(
-          "  \x1b[32mmacro record <name>\x1b[0m - Start recording commands to a macro",
-        );
-        terminal.writeln(
-          "  \x1b[32mmacro stop\x1b[0m          - Stop recording and save macro",
-        );
-        terminal.writeln(
-          "  \x1b[32mmacro play <name>\x1b[0m   - Playback a recorded macro",
-        );
-        terminal.writeln(
-          "  \x1b[32mmacro list\x1b[0m          - List all saved macros",
-        );
-        terminal.writeln(
-          "  \x1b[32mmacro show <name>\x1b[0m   - Show macro commands",
-        );
-        terminal.writeln(
-          "  \x1b[32mmacro delete <name>\x1b[0m - Delete a saved macro",
-        );
-        terminal.writeln("");
-        terminal.writeln("\x1b[1;33mKeyboard Shortcuts:\x1b[0m");
-        terminal.writeln(
-          "  \x1b[32m↑ / ↓\x1b[0m             - Navigate command history",
-        );
-        terminal.writeln(
-          "  \x1b[32mTab\x1b[0m               - Autocomplete command name",
-        );
-        terminal.writeln(
-          "  \x1b[32mCtrl+C\x1b[0m            - Cancel current input",
-        );
-        terminal.writeln(
-          "  \x1b[32mCtrl+L\x1b[0m            - Clear terminal screen",
-        );
-        break;
+      case "help": {
+        // Check if specific command help is requested
+        const specificCommand = args[0];
+        const result = await dispatchCommand("help", specificCommand ? { command: specificCommand } : {});
 
-      case "clear":
-        terminal.clear();
+        if (result.success && result.data) {
+          if (specificCommand) {
+            // Detailed help for specific command
+            terminal.writeln(`\x1b[1;33m${result.data.name}\x1b[0m - ${result.data.description}`);
+            terminal.writeln(`  \x1b[36mUsage:\x1b[0m ${result.data.usage}`);
+            if (result.data.examples && Array.isArray(result.data.examples)) {
+              terminal.writeln("  \x1b[36mExamples:\x1b[0m");
+              for (const ex of result.data.examples as string[]) {
+                terminal.writeln(`    ${ex}`);
+              }
+            }
+          } else {
+            // Full help listing
+            const commands = getAllCommands();
+            terminal.writeln("\x1b[1;33mAvailable commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32mhelp\x1b[0m              - Show this help message",
+            );
+            terminal.writeln(
+              "  \x1b[32mclear\x1b[0m             - Clear the terminal",
+            );
+            terminal.writeln(
+              "  \x1b[32mstatus\x1b[0m            - Show model statistics",
+            );
+            terminal.writeln(
+              "  \x1b[32mversion\x1b[0m           - Show version info",
+            );
+            terminal.writeln(
+              "  \x1b[32mecho\x1b[0m              - Print text (for testing)",
+            );
+            terminal.writeln("");
+            terminal.writeln("\x1b[1;33mMCP Tool Commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32mlist [category]\x1b[0m   - List elements (walls, rooms, etc.)",
+            );
+            terminal.writeln(
+              "                        Options: --json, --table, --all, --page N",
+            );
+            terminal.writeln(
+              "  \x1b[32mwall\x1b[0m              - Create wall: wall --start 0,0 --end 5,0",
+            );
+            terminal.writeln(
+              "  \x1b[32mfloor\x1b[0m             - Create floor: floor --min 0,0 --max 10,10",
+            );
+            terminal.writeln(
+              "  \x1b[32mroom\x1b[0m              - Create room: room --min 0,0 --max 5,5 --name Kitchen",
+            );
+            terminal.writeln(
+              "  \x1b[32mroof\x1b[0m              - Create roof: roof --min 0,0 --max 10,10 --type gable",
+            );
+            terminal.writeln(
+              "  \x1b[32mdoor\x1b[0m              - Place door: door --wall <id> --offset 2.5",
+            );
+            terminal.writeln(
+              "                        Types: --type single|double|sliding",
+            );
+            terminal.writeln(
+              "  \x1b[32mwindow\x1b[0m            - Place window: window --wall <id> --offset 1.5",
+            );
+            terminal.writeln(
+              "                        Options: --sill 0.9 --type fixed|casement|awning",
+            );
+            terminal.writeln(
+              "  \x1b[32mdetect-rooms\x1b[0m      - Detect rooms from wall topology",
+            );
+            terminal.writeln(
+              "  \x1b[32manalyze\x1b[0m           - Analyze wall topology",
+            );
+            terminal.writeln(
+              "  \x1b[32mclash\x1b[0m             - Detect clashes: clash [--clearance 0.1] [--ids id1,id2]",
+            );
+            terminal.writeln(
+              "  \x1b[32mclash-between\x1b[0m     - Clash between sets: clash-between --a id1,id2 --b id3,id4",
+            );
+            terminal.writeln(
+              "  \x1b[32mdelete\x1b[0m            - Delete elements: delete <id1> <id2> ...",
+            );
+            terminal.writeln("");
+            terminal.writeln("\x1b[1;33mSpatial Analysis Commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32madjacency\x1b[0m         - Find adjacent rooms (rooms sharing walls)",
+            );
+            terminal.writeln(
+              "  \x1b[32mnearest\x1b[0m           - Find nearest elements: nearest --x 5 --y 5 --radius 10",
+            );
+            terminal.writeln(
+              "  \x1b[32marea\x1b[0m              - Calculate room area: area --room <room_id>",
+            );
+            terminal.writeln(
+              "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
+            );
+            terminal.writeln("");
+            terminal.writeln("\x1b[1;33mMacro Commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32mmacro record <name>\x1b[0m - Start recording commands to a macro",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro stop\x1b[0m          - Stop recording and save macro",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro play <name>\x1b[0m   - Playback a recorded macro",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro list\x1b[0m          - List all saved macros",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro show <name>\x1b[0m   - Show macro commands",
+            );
+            terminal.writeln(
+              "  \x1b[32mmacro delete <name>\x1b[0m - Delete a saved macro",
+            );
+            terminal.writeln("");
+            terminal.writeln("\x1b[1;33mKeyboard Shortcuts:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32m↑ / ↓\x1b[0m             - Navigate command history",
+            );
+            terminal.writeln(
+              "  \x1b[32mTab\x1b[0m               - Autocomplete command name",
+            );
+            terminal.writeln(
+              "  \x1b[32mCtrl+C\x1b[0m            - Cancel current input",
+            );
+            terminal.writeln(
+              "  \x1b[32mCtrl+L\x1b[0m            - Clear terminal screen",
+            );
+            terminal.writeln("");
+            terminal.writeln(`\x1b[36mTip: Use 'help <command>' for detailed help on a specific command\x1b[0m`);
+          }
+        } else {
+          formatCommandResult(terminal, result, "help");
+        }
         break;
+      }
 
-      case "version":
-        terminal.writeln("\x1b[1mPensaer BIM Platform\x1b[0m");
-        terminal.writeln("  Version: 0.1.0 (Phase 1 Foundation)");
-        terminal.writeln("  Kernel: pensaer-geometry 0.1.0");
-        terminal.writeln("  Client: React 19 + TypeScript");
-        terminal.writeln("  MCP Mode: mock (development)");
+      case "clear": {
+        const result = await dispatchCommand("clear", {});
+        if (result.success && result.message === "__CLEAR_TERMINAL__") {
+          terminal.clear();
+        } else {
+          formatCommandResult(terminal, result, "clear");
+        }
         break;
+      }
+
+      case "version": {
+        const result = await dispatchCommand("version", {});
+        if (result.success && result.data) {
+          terminal.writeln("\x1b[1mPensaer BIM Platform\x1b[0m");
+          terminal.writeln(`  Version: ${result.data.version} (${result.data.phase})`);
+          terminal.writeln(`  Kernel: ${result.data.kernel}`);
+          terminal.writeln(`  Client: ${result.data.client}`);
+          terminal.writeln(`  MCP Mode: ${result.data.mcp_mode}`);
+          terminal.writeln(`  Environment: ${result.data.environment}`);
+        } else {
+          formatCommandResult(terminal, result, "version");
+        }
+        break;
+      }
 
       case "status": {
         terminal.writeln("\x1b[33mFetching model status...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "get_state_summary",
-          arguments: {},
-        });
-        formatMcpResult(terminal, result, "get_state_summary");
+        const result = await dispatchCommand("status", {});
+        if (result.success && result.data) {
+          terminal.writeln("\x1b[32m✓ Model Status\x1b[0m");
+          terminal.writeln(`  \x1b[36mTotal Elements:\x1b[0m ${result.data.total_elements}`);
+
+          // Show elements by type
+          const byType = result.data.elements_by_type as Record<string, number>;
+          if (byType && Object.keys(byType).length > 0) {
+            terminal.writeln("  \x1b[36mBy Type:\x1b[0m");
+            for (const [type, count] of Object.entries(byType)) {
+              terminal.writeln(`    ${type}: ${count}`);
+            }
+          }
+
+          terminal.writeln(`  \x1b[36mLevels:\x1b[0m ${result.data.levels}`);
+          terminal.writeln(`  \x1b[36mSelected:\x1b[0m ${result.data.selected}`);
+
+          // Show history info
+          const history = result.data.history as Record<string, unknown>;
+          if (history) {
+            terminal.writeln(`  \x1b[36mUndo Available:\x1b[0m ${history.undo_available}`);
+            terminal.writeln(`  \x1b[36mRedo Available:\x1b[0m ${history.redo_available}`);
+            if (history.last_action) {
+              terminal.writeln(`  \x1b[36mLast Action:\x1b[0m ${history.last_action}`);
+            }
+          }
+
+          // Show issues if any
+          const issues = result.data.issues as Record<string, unknown>;
+          if (issues && (issues.total as number) > 0) {
+            terminal.writeln(`  \x1b[33mIssues:\x1b[0m ${issues.total}`);
+          }
+
+          // Show AI suggestions if any
+          if ((result.data.ai_suggestions as number) > 0) {
+            terminal.writeln(`  \x1b[35mAI Suggestions:\x1b[0m ${result.data.ai_suggestions}`);
+          }
+        } else {
+          formatCommandResult(terminal, result, "status");
+        }
+        break;
+      }
+
+      case "echo": {
+        // Pass all arguments as raw text
+        const text = args.join(" ");
+        const result = await dispatchCommand("echo", { text, _raw: args });
+        if (result.success) {
+          terminal.writeln(result.message);
+        } else {
+          formatCommandResult(terminal, result, "echo");
+        }
         break;
       }
 
       case "list": {
-        const category = args[0] || undefined;
+        const parsed = parseArgs(args);
+        // Category can be first positional arg or --category flag
+        const category = args.find(a => !a.startsWith("--")) || (parsed.category as string) || undefined;
+
         terminal.writeln(
           `\x1b[33mListing elements${category ? ` (${category})` : ""}...\x1b[0m`,
         );
-        const result = await mcpClient.callTool({
-          tool: "list_elements",
-          arguments: category ? { category } : {},
-        });
-        formatMcpResult(terminal, result, "list_elements");
+        // Use command dispatcher to list elements from model store
+        const result = await dispatchCommand("list", category ? { category } : {});
+        formatCommandResult(terminal, result, "list");
         break;
       }
 
@@ -705,11 +939,9 @@ export function Terminal({
           break;
         }
         terminal.writeln("\x1b[33mCreating wall...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "create_wall",
-          arguments: parsed,
-        });
-        formatMcpResult(terminal, result, "create_wall");
+        // Use command dispatcher to create wall and update model store
+        const result = await dispatchCommand("wall", parsed);
+        formatCommandResult(terminal, result, "wall");
         break;
       }
 
@@ -723,15 +955,9 @@ export function Terminal({
           break;
         }
         terminal.writeln("\x1b[33mCreating floor...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "create_floor",
-          arguments: {
-            min_point: parsed.min,
-            max_point: parsed.max,
-            thickness: parsed.thickness,
-          },
-        });
-        formatMcpResult(terminal, result, "create_floor");
+        // Use command dispatcher to create floor and update model store
+        const result = await dispatchCommand("floor", parsed);
+        formatCommandResult(terminal, result, "floor");
         break;
       }
 
@@ -747,17 +973,9 @@ export function Terminal({
           break;
         }
         terminal.writeln("\x1b[33mCreating room...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "create_room",
-          arguments: {
-            min_point: parsed.min,
-            max_point: parsed.max,
-            name: parsed.name,
-            number: parsed.number,
-            height: parsed.height,
-          },
-        });
-        formatMcpResult(terminal, result, "create_room");
+        // Use command dispatcher to create room and update model store
+        const result = await dispatchCommand("room", parsed);
+        formatCommandResult(terminal, result, "room");
         break;
       }
 
@@ -773,16 +991,9 @@ export function Terminal({
           break;
         }
         terminal.writeln("\x1b[33mCreating roof...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "create_roof",
-          arguments: {
-            min_point: parsed.min,
-            max_point: parsed.max,
-            roof_type: parsed.type,
-            slope_degrees: parsed.slope,
-          },
-        });
-        formatMcpResult(terminal, result, "create_roof");
+        // Use command dispatcher to create roof and update model store
+        const result = await dispatchCommand("roof", parsed);
+        formatCommandResult(terminal, result, "roof");
         break;
       }
 
@@ -790,26 +1001,27 @@ export function Terminal({
         const parsed = parseArgs(args);
         if (!parsed.wall) {
           terminal.writeln(
-            "\x1b[31mUsage: door --wall <wall_id> [--position p] [--width w] [--height h]\x1b[0m",
+            "\x1b[31mUsage: door --wall <wall_id> --offset <m> [--width w] [--height h] [--type single|double|sliding]\x1b[0m",
           );
           terminal.writeln(
-            "  Example: door --wall wall-1 --position 2.5 --width 0.9",
+            "  Example: door --wall wall-north --offset 2.5",
           );
+          terminal.writeln(
+            "  Example: door --wall wall-south --offset 1.5 --type double",
+          );
+          terminal.writeln("");
+          terminal.writeln("  \x1b[36mOffset\x1b[0m: Distance from wall start (in meters)");
+          terminal.writeln("  \x1b[36mTypes\x1b[0m: single (default), double (2x width), sliding");
           break;
         }
-        terminal.writeln("\x1b[33mPlacing door...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "place_door",
-          arguments: {
-            wall_id: parsed.wall,
-            position: parsed.position,
-            width: parsed.width,
-            height: parsed.height,
-            door_type: parsed.type,
-            swing: parsed.swing,
-          },
+        const doorOffset = parsed.offset ?? parsed.position ?? 0.5;
+        terminal.writeln(`\x1b[33mPlacing door at offset ${doorOffset}m...\x1b[0m`);
+        // Use command dispatcher to create door and update model store
+        const result = await dispatchCommand("door", {
+          ...parsed,
+          offset: doorOffset,
         });
-        formatMcpResult(terminal, result, "place_door");
+        formatCommandResult(terminal, result, "door");
         break;
       }
 
@@ -817,26 +1029,28 @@ export function Terminal({
         const parsed = parseArgs(args);
         if (!parsed.wall) {
           terminal.writeln(
-            "\x1b[31mUsage: window --wall <wall_id> [--position p] [--width w] [--height h]\x1b[0m",
+            "\x1b[31mUsage: window --wall <wall_id> --offset <m> [--width w] [--height h] [--sill s] [--type fixed|casement|awning]\x1b[0m",
           );
           terminal.writeln(
-            "  Example: window --wall wall-1 --position 1.5 --sill 0.9",
+            "  Example: window --wall wall-north --offset 2.0",
           );
+          terminal.writeln(
+            "  Example: window --wall wall-north --offset 1.5 --sill 0.9 --type casement",
+          );
+          terminal.writeln("");
+          terminal.writeln("  \x1b[36mOffset\x1b[0m: Distance from wall start (in meters)");
+          terminal.writeln("  \x1b[36mSill\x1b[0m: Sill height from floor (default 0.9m)");
+          terminal.writeln("  \x1b[36mTypes\x1b[0m: fixed (default), casement, awning, sliding");
           break;
         }
-        terminal.writeln("\x1b[33mPlacing window...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "place_window",
-          arguments: {
-            wall_id: parsed.wall,
-            position: parsed.position,
-            width: parsed.width,
-            height: parsed.height,
-            sill_height: parsed.sill,
-            window_type: parsed.type,
-          },
+        const windowOffset = parsed.offset ?? parsed.position ?? 0.5;
+        terminal.writeln(`\x1b[33mPlacing window at offset ${windowOffset}m...\x1b[0m`);
+        // Use command dispatcher to create window and update model store
+        const result = await dispatchCommand("window", {
+          ...parsed,
+          offset: windowOffset,
         });
-        formatMcpResult(terminal, result, "place_window");
+        formatCommandResult(terminal, result, "window");
         break;
       }
 
@@ -844,21 +1058,17 @@ export function Terminal({
         terminal.writeln(
           "\x1b[33mDetecting rooms from wall topology...\x1b[0m",
         );
-        const result = await mcpClient.callTool({
-          tool: "detect_rooms",
-          arguments: {},
-        });
-        formatMcpResult(terminal, result, "detect_rooms");
+        // Use command dispatcher for detect-rooms
+        const result = await dispatchCommand("detect-rooms", {});
+        formatCommandResult(terminal, result, "detect-rooms");
         break;
       }
 
       case "analyze": {
         terminal.writeln("\x1b[33mAnalyzing wall topology...\x1b[0m");
-        const result = await mcpClient.callTool({
-          tool: "analyze_wall_topology",
-          arguments: {},
-        });
-        formatMcpResult(terminal, result, "analyze_wall_topology");
+        // Use command dispatcher for analyze
+        const result = await dispatchCommand("analyze", {});
+        formatCommandResult(terminal, result, "analyze");
         break;
       }
 
@@ -881,16 +1091,14 @@ export function Terminal({
           terminal.writeln(`  Checking ${elementIds.length} elements`);
         }
 
-        const result = await mcpClient.callTool({
-          tool: "detect_clashes",
-          arguments: {
-            element_ids: elementIds,
-            tolerance,
-            clearance,
-            ignore_same_type: ignoreSameType,
-          },
+        // Use command dispatcher for clash detection
+        const result = await dispatchCommand("clash", {
+          ids: parsed.ids,
+          tolerance,
+          clearance,
+          ignore_same_type: ignoreSameType,
         });
-        formatMcpResult(terminal, result, "detect_clashes");
+        formatCommandResult(terminal, result, "clash");
         break;
       }
 
@@ -907,25 +1115,21 @@ export function Terminal({
           break;
         }
 
-        const setAIds = String(parsed.a).split(",");
-        const setBIds = String(parsed.b).split(",");
         const tolerance = (parsed.tolerance as number) || 0.001;
         const clearance = (parsed.clearance as number) || 0;
 
         terminal.writeln("\x1b[33mDetecting clashes between sets...\x1b[0m");
-        terminal.writeln(`  Set A: ${setAIds.length} elements`);
-        terminal.writeln(`  Set B: ${setBIds.length} elements`);
+        terminal.writeln(`  Set A: ${String(parsed.a).split(",").length} elements`);
+        terminal.writeln(`  Set B: ${String(parsed.b).split(",").length} elements`);
 
-        const result = await mcpClient.callTool({
-          tool: "detect_clashes_between_sets",
-          arguments: {
-            set_a_ids: setAIds,
-            set_b_ids: setBIds,
-            tolerance,
-            clearance,
-          },
+        // Use command dispatcher for clash-between
+        const result = await dispatchCommand("clash-between", {
+          a: parsed.a,
+          b: parsed.b,
+          tolerance,
+          clearance,
         });
-        formatMcpResult(terminal, result, "detect_clashes_between_sets");
+        formatCommandResult(terminal, result, "clash-between");
         break;
       }
 
@@ -940,11 +1144,9 @@ export function Terminal({
         terminal.writeln(
           `\x1b[33mDeleting ${args.length} element(s)...\x1b[0m`,
         );
-        const result = await mcpClient.callTool({
-          tool: "delete_element",
-          arguments: { element_ids: args },
-        });
-        formatMcpResult(terminal, result, "delete_element");
+        // Use command dispatcher to delete elements from model store
+        const result = await dispatchCommand("delete", { element_ids: args });
+        formatCommandResult(terminal, result, "delete");
         break;
       }
 
@@ -955,11 +1157,9 @@ export function Terminal({
           break;
         }
         terminal.writeln(`\x1b[33mFetching element ${args[0]}...\x1b[0m`);
-        const result = await mcpClient.callTool({
-          tool: "get_element",
-          arguments: { element_id: args[0] },
-        });
-        formatMcpResult(terminal, result, "get_element");
+        // Use command dispatcher to get element from model store
+        const result = await dispatchCommand("get", { element_id: args[0] });
+        formatCommandResult(terminal, result, "get");
         break;
       }
 
@@ -1457,6 +1657,7 @@ export function Terminal({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <TokenCounter />
           {isExpanded && (
             <button
               onClick={() => terminalRef.current?.clear()}
@@ -1482,13 +1683,15 @@ export function Terminal({
       </div>
 
       {/* Terminal container */}
-      {isExpanded && (
-        <div
-          ref={containerRef}
-          className="flex-1 overflow-hidden"
-          style={{ padding: "4px 8px" }}
-        />
-      )}
+      <div
+        ref={containerRef}
+        data-terminal-state={isExpanded ? "expanded" : "collapsed"}
+        className={clsx(
+          "flex-1 overflow-hidden",
+          !isExpanded && "hidden",
+        )}
+        style={isExpanded ? { padding: "4px 8px" } : undefined}
+      />
 
       {/* Resize indicator */}
       {isResizing && <div className="fixed inset-0 z-50 cursor-ns-resize" />}

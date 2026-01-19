@@ -239,6 +239,7 @@ class ArgumentHealer:
             "get_element": {"element_id"},
             "list_elements": {"category", "level_id", "limit", "offset"},
             "delete_element": {"element_ids", "reasoning"},
+            "modify_element": {"element_id", "properties", "geometry", "reasoning"},
             "generate_mesh": {"element_id", "format"},
             "validate_mesh": {"element_id"},
             "create_simple_building": {

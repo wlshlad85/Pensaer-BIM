@@ -28,6 +28,34 @@ export default defineConfig([
           varsIgnorePattern: "^_",
         },
       ],
+
+      // Self-Healing: Bug prevention rules
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "@typescript-eslint/strict-boolean-expressions": "warn",
+
+      // Self-Healing: Code quality rules
+      "@typescript-eslint/explicit-function-return-type": [
+        "warn",
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+        },
+      ],
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+      "@typescript-eslint/prefer-nullish-coalescing": "warn",
+      "@typescript-eslint/prefer-optional-chain": "warn",
+
+      // Self-Healing: Security rules
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+      "no-console": ["warn", { allow: ["warn", "error", "info"] }],
+
+      // React best practices
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ]);

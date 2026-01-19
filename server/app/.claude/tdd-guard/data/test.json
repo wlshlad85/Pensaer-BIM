@@ -1,0 +1,604 @@
+{
+  "testModules": [
+    {
+      "moduleId": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py",
+      "tests": [
+        {
+          "name": "test_empty_input",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestBasicTokens::test_empty_input",
+          "state": "passed"
+        },
+        {
+          "name": "test_whitespace_only",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestBasicTokens::test_whitespace_only",
+          "state": "passed"
+        },
+        {
+          "name": "test_newline_token",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestBasicTokens::test_newline_token",
+          "state": "passed"
+        },
+        {
+          "name": "test_comment_ignored",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestBasicTokens::test_comment_ignored",
+          "state": "passed"
+        },
+        {
+          "name": "test_integer",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_integer",
+          "state": "passed"
+        },
+        {
+          "name": "test_float",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_float",
+          "state": "passed"
+        },
+        {
+          "name": "test_negative_integer",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_negative_integer",
+          "state": "passed"
+        },
+        {
+          "name": "test_negative_float",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_negative_float",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_meters",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_meters",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_millimeters",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_millimeters",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_centimeters",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_centimeters",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_feet",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_feet",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_inches",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_inches",
+          "state": "passed"
+        },
+        {
+          "name": "test_unit_case_insensitive",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestNumbers::test_unit_case_insensitive",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_keyword",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_wall_keyword",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_keyword",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_door_keyword",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_keyword",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_window_keyword",
+          "state": "passed"
+        },
+        {
+          "name": "test_create_keyword",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_create_keyword",
+          "state": "passed"
+        },
+        {
+          "name": "test_from_to_keywords",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_from_to_keywords",
+          "state": "passed"
+        },
+        {
+          "name": "test_height_keyword",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_height_keyword",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_type_keywords",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_wall_type_keywords",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_type_keywords",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_door_type_keywords",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_type_keywords",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_window_type_keywords",
+          "state": "passed"
+        },
+        {
+          "name": "test_swing_directions",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_swing_directions",
+          "state": "passed"
+        },
+        {
+          "name": "test_keyword_case_insensitive",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestKeywords::test_keyword_case_insensitive",
+          "state": "passed"
+        },
+        {
+          "name": "test_var_last",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestVariables::test_var_last",
+          "state": "passed"
+        },
+        {
+          "name": "test_var_selected",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestVariables::test_var_selected",
+          "state": "passed"
+        },
+        {
+          "name": "test_var_wall",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestVariables::test_var_wall",
+          "state": "passed"
+        },
+        {
+          "name": "test_var_case_insensitive",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestVariables::test_var_case_insensitive",
+          "state": "passed"
+        },
+        {
+          "name": "test_unknown_variable_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestVariables::test_unknown_variable_error",
+          "state": "passed"
+        },
+        {
+          "name": "test_short_option_h",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_short_option_h",
+          "state": "passed"
+        },
+        {
+          "name": "test_short_option_t",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_short_option_t",
+          "state": "passed"
+        },
+        {
+          "name": "test_short_option_w",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_short_option_w",
+          "state": "passed"
+        },
+        {
+          "name": "test_long_option_height",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_long_option_height",
+          "state": "passed"
+        },
+        {
+          "name": "test_long_option_with_equals",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_long_option_with_equals",
+          "state": "passed"
+        },
+        {
+          "name": "test_long_option_thickness",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_long_option_thickness",
+          "state": "passed"
+        },
+        {
+          "name": "test_long_option_sill_height",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_long_option_sill_height",
+          "state": "passed"
+        },
+        {
+          "name": "test_unknown_short_option_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_unknown_short_option_error",
+          "state": "passed"
+        },
+        {
+          "name": "test_unknown_long_option_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestOptions::test_unknown_long_option_error",
+          "state": "passed"
+        },
+        {
+          "name": "test_lparen",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestPunctuation::test_lparen",
+          "state": "passed"
+        },
+        {
+          "name": "test_rparen",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestPunctuation::test_rparen",
+          "state": "passed"
+        },
+        {
+          "name": "test_comma",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestPunctuation::test_comma",
+          "state": "passed"
+        },
+        {
+          "name": "test_at_sign",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestPunctuation::test_at_sign",
+          "state": "passed"
+        },
+        {
+          "name": "test_equals",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestPunctuation::test_equals",
+          "state": "passed"
+        },
+        {
+          "name": "test_valid_uuid",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestUUID::test_valid_uuid",
+          "state": "passed"
+        },
+        {
+          "name": "test_uuid_case_insensitive",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestUUID::test_uuid_case_insensitive",
+          "state": "passed"
+        },
+        {
+          "name": "test_double_quoted_string",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestStrings::test_double_quoted_string",
+          "state": "passed"
+        },
+        {
+          "name": "test_single_quoted_string",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestStrings::test_single_quoted_string",
+          "state": "passed"
+        },
+        {
+          "name": "test_simple_wall_command",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_simple_wall_command",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_wall_with_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_short_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_wall_with_short_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_long_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_wall_with_long_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_in_wall",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_door_in_wall",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_with_sill",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_window_with_sill",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_with_at_shorthand",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_door_with_at_shorthand",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_units",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_wall_with_units",
+          "state": "passed"
+        },
+        {
+          "name": "test_rectangular_walls",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_rectangular_walls",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_from_to_syntax",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestCompleteCommands::test_wall_from_to_syntax",
+          "state": "passed"
+        },
+        {
+          "name": "test_first_token_position",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestLineAndColumn::test_first_token_position",
+          "state": "passed"
+        },
+        {
+          "name": "test_second_line_position",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestLineAndColumn::test_second_line_position",
+          "state": "passed"
+        },
+        {
+          "name": "test_column_after_whitespace",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestLineAndColumn::test_column_after_whitespace",
+          "state": "passed"
+        },
+        {
+          "name": "test_unknown_character_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestErrorRecovery::test_unknown_character_error",
+          "state": "passed"
+        },
+        {
+          "name": "test_continues_after_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_lexer.py::TestErrorRecovery::test_continues_after_error",
+          "state": "passed"
+        }
+      ]
+    },
+    {
+      "moduleId": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py",
+      "tests": [
+        {
+          "name": "test_empty_input",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestParserBasics::test_empty_input",
+          "state": "passed"
+        },
+        {
+          "name": "test_whitespace_only",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestParserBasics::test_whitespace_only",
+          "state": "passed"
+        },
+        {
+          "name": "test_multiple_commands",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestParserBasics::test_multiple_commands",
+          "state": "passed"
+        },
+        {
+          "name": "test_simple_wall",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_simple_wall",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_from_to",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_from_to",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_height",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_height",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_thickness",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_thickness",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_short_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_short_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_long_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_long_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_type",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_level",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_with_level",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_all_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_all_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_create_wall_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_create_wall_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_space_separated_coords",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWallCommands::test_wall_space_separated_coords",
+          "state": "passed"
+        },
+        {
+          "name": "test_walls_rect",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestRectWallsCommands::test_walls_rect",
+          "state": "passed"
+        },
+        {
+          "name": "test_walls_rectangle",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestRectWallsCommands::test_walls_rectangle",
+          "state": "passed"
+        },
+        {
+          "name": "test_rect_walls",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestRectWallsCommands::test_rect_walls",
+          "state": "passed"
+        },
+        {
+          "name": "test_box_command",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestRectWallsCommands::test_box_command",
+          "state": "passed"
+        },
+        {
+          "name": "test_rect_walls_with_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestRectWallsCommands::test_rect_walls_with_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_modify_wall_height",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestModifyWallCommands::test_modify_wall_height",
+          "state": "passed"
+        },
+        {
+          "name": "test_modify_wall_type",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestModifyWallCommands::test_modify_wall_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_modify_wall_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestModifyWallCommands::test_modify_wall_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_in_wall_at",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_in_wall_at",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_with_uuid",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_with_uuid",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_at_shorthand",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_at_shorthand",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_with_dimensions",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_with_dimensions",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_with_type",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_with_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_with_swing",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_with_swing",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_all_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_all_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_place_door_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_place_door_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_add_door_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_add_door_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_var_selected",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_var_selected",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_var_wall",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestDoorCommands::test_door_var_wall",
+          "state": "passed"
+        },
+        {
+          "name": "test_modify_door",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestModifyDoorCommands::test_modify_door",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_basic",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_basic",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_with_dimensions",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_with_dimensions",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_with_sill",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_with_sill",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_with_type",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_with_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_all_options",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_all_options",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_at_shorthand",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_window_at_shorthand",
+          "state": "passed"
+        },
+        {
+          "name": "test_place_window_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestWindowCommands::test_place_window_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_modify_window",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestModifyWindowCommands::test_modify_window",
+          "state": "passed"
+        },
+        {
+          "name": "test_opening_basic",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestOpeningCommands::test_opening_basic",
+          "state": "passed"
+        },
+        {
+          "name": "test_opening_by_syntax",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestOpeningCommands::test_opening_by_syntax",
+          "state": "passed"
+        },
+        {
+          "name": "test_opening_width_height_syntax",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestOpeningCommands::test_opening_width_height_syntax",
+          "state": "passed"
+        },
+        {
+          "name": "test_create_opening_prefix",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestOpeningCommands::test_create_opening_prefix",
+          "state": "passed"
+        },
+        {
+          "name": "test_help_no_topic",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestHelpCommand::test_help_no_topic",
+          "state": "passed"
+        },
+        {
+          "name": "test_help_with_topic",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestHelpCommand::test_help_with_topic",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_to_mcp_args",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestMCPArgGeneration::test_wall_to_mcp_args",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_to_mcp_args",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestMCPArgGeneration::test_door_to_mcp_args",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_to_mcp_args",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestMCPArgGeneration::test_window_to_mcp_args",
+          "state": "passed"
+        },
+        {
+          "name": "test_missing_end_point",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestErrorHandling::test_missing_end_point",
+          "state": "passed"
+        },
+        {
+          "name": "test_invalid_token",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestErrorHandling::test_invalid_token",
+          "state": "passed"
+        },
+        {
+          "name": "test_continues_after_error",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestErrorHandling::test_continues_after_error",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_with_mm",
+          "fullName": "Pensaer-BIM/server/app/pensaer/dsl/tests/test_parser.py::TestUnitConversion::test_wall_with_mm",
+          "state": "passed"
+        }
+      ]
+    }
+  ]
+}

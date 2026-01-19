@@ -476,6 +476,7 @@ export function Canvas3D() {
       if (!containerRef.current || !camera || !renderer) return;
       const newWidth = containerRef.current.clientWidth;
       const newHeight = containerRef.current.clientHeight;
+      if (newWidth === 0 || newHeight === 0) return; // Skip if not laid out
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(newWidth, newHeight);
@@ -483,8 +484,20 @@ export function Canvas3D() {
 
     window.addEventListener("resize", handleResize);
 
+    // Use ResizeObserver to handle initial layout and container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(container);
+
+    // Force initial resize after a short delay to ensure layout is complete
+    requestAnimationFrame(() => {
+      handleResize();
+    });
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -1351,7 +1364,7 @@ export function Canvas3D() {
   );
 
   return (
-    <div className="w-full h-full relative canvas-bg">
+    <div className="w-full h-full relative canvas-bg" data-canvas="3d">
       <div ref={containerRef} className="w-full h-full" onClick={handleClick} />
 
       {/* View Controls Panel - Matching Prototype */}

@@ -26,6 +26,8 @@ export function useKeyboardShortcuts() {
   const setTool = useUIStore((s) => s.setTool);
   const setViewMode = useUIStore((s) => s.setViewMode);
   const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
+  const toggleLayersPanel = useUIStore((s) => s.toggleLayersPanel);
+  const showAllLayers = useUIStore((s) => s.showAllLayers);
   const zoomIn = useUIStore((s) => s.zoomIn);
   const zoomOut = useUIStore((s) => s.zoomOut);
   const zoomToFit = useUIStore((s) => s.zoomToFit);
@@ -59,6 +61,15 @@ export function useKeyboardShortcuts() {
     // Views
     { key: "2", action: () => setViewMode("2d"), description: "2D view" },
     { key: "3", action: () => setViewMode("3d"), description: "3D view" },
+
+    // Panels
+    { key: "l", action: toggleLayersPanel, description: "Toggle layers panel" },
+    {
+      key: "l",
+      shift: true,
+      action: showAllLayers,
+      description: "Show all layers",
+    },
 
     // Zoom
     { key: "=", ctrl: true, action: zoomIn, description: "Zoom in" },

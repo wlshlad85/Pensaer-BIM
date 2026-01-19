@@ -52,8 +52,10 @@ from .schemas import (
     GetElementParams,
     ListElementsParams,
     DeleteElementParams,
+    ModifyElementParams,
     GenerateMeshParams,
     ValidateMeshParams,
+    ComputeMeshParams,
     CreateSimpleBuildingParams,
     CreateRoofParams,
     AttachRoofToWallsParams,
@@ -497,6 +499,26 @@ TOOLS = [
             "required": ["element_ids"],
         },
     ),
+    Tool(
+        name="modify_element",
+        description="Modify an element's properties and/or geometry.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_id": {"type": "string", "description": "UUID of the element to modify"},
+                "properties": {
+                    "type": "object",
+                    "description": "Properties to update (partial update)",
+                },
+                "geometry": {
+                    "type": "object",
+                    "description": "Geometry parameters to update (e.g., start_point, end_point for walls)",
+                },
+                "reasoning": {"type": "string", "description": "AI agent reasoning"},
+            },
+            "required": ["element_id"],
+        },
+    ),
     # Mesh Tools
     Tool(
         name="generate_mesh",
@@ -522,6 +544,42 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "element_id": {"type": "string", "description": "UUID of the element"}
+            },
+            "required": ["element_id"],
+        },
+    ),
+    Tool(
+        name="compute_mesh",
+        description="Compute a 3D mesh for an element with full features. "
+        "Generates vertices, faces, normals, and UV coordinates. "
+        "Supports LOD levels and multiple output formats including glTF-compatible JSON.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "element_id": {"type": "string", "description": "UUID of the element to mesh"},
+                "include_normals": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include vertex normals for lighting",
+                },
+                "include_uvs": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include UV coordinates for texturing",
+                },
+                "lod_level": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Level of detail: 0=full, 1=medium, 2=low",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["gltf", "json", "obj"],
+                    "default": "gltf",
+                    "description": "Output format: gltf (glTF-compatible), json, obj",
+                },
             },
             "required": ["element_id"],
         },
@@ -1115,12 +1173,16 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return await _list_elements(state, args)
     elif name == "delete_element":
         return await _delete_element(state, args, reasoning)
+    elif name == "modify_element":
+        return await _modify_element(state, args, reasoning)
 
     # Mesh Tools
     elif name == "generate_mesh":
         return await _generate_mesh(state, args)
     elif name == "validate_mesh":
         return await _validate_mesh(state, args)
+    elif name == "compute_mesh":
+        return await _compute_mesh(state, args)
     elif name == "compute_mesh_batch":
         return await _compute_mesh_batch(state, args)
 
@@ -1601,6 +1663,131 @@ async def _delete_element(
     )
 
 
+async def _modify_element(
+    state: GeometryState, args: dict[str, Any], reasoning: str | None
+) -> dict[str, Any]:
+    """Modify an element's properties and/or geometry."""
+    try:
+        params = ModifyElementParams(**args)
+    except ValueError as e:
+        return make_error(ErrorCodes.INVALID_PARAMS, str(e))
+
+    record = state.get_element(params.element_id)
+    if not record:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Element not found: {params.element_id}"
+        )
+
+    element = record.element
+    element_type = record.element_type
+    modified_fields = []
+    warnings = []
+
+    # Store original state for undo support
+    original_data = {
+        "element_id": params.element_id,
+        "element_type": element_type,
+    }
+
+    # Apply property updates
+    if params.properties:
+        for key, value in params.properties.items():
+            if hasattr(element, key):
+                old_value = getattr(element, key)
+                setattr(element, key, value)
+                modified_fields.append(key)
+                original_data[f"original_{key}"] = old_value
+            else:
+                warnings.append(f"Unknown property: {key}")
+
+    # Apply geometry updates (element-type specific)
+    if params.geometry:
+        if element_type == "wall":
+            # Wall geometry: start_point, end_point, height, thickness
+            if "start_point" in params.geometry:
+                old_start = element.start_point()
+                new_start = tuple(params.geometry["start_point"])
+                element = pg.Wall(
+                    new_start,
+                    element.end_point(),
+                    element.height,
+                    element.thickness,
+                )
+                modified_fields.append("start_point")
+                original_data["original_start_point"] = list(old_start)
+            if "end_point" in params.geometry:
+                old_end = element.end_point()
+                new_end = tuple(params.geometry["end_point"])
+                element = pg.Wall(
+                    element.start_point(),
+                    new_end,
+                    element.height,
+                    element.thickness,
+                )
+                modified_fields.append("end_point")
+                original_data["original_end_point"] = list(old_end)
+            if "height" in params.geometry:
+                old_height = element.height
+                element = pg.Wall(
+                    element.start_point(),
+                    element.end_point(),
+                    params.geometry["height"],
+                    element.thickness,
+                )
+                modified_fields.append("height")
+                original_data["original_height"] = old_height
+            if "thickness" in params.geometry:
+                old_thickness = element.thickness
+                element = pg.Wall(
+                    element.start_point(),
+                    element.end_point(),
+                    element.height,
+                    params.geometry["thickness"],
+                )
+                modified_fields.append("thickness")
+                original_data["original_thickness"] = old_thickness
+        elif element_type in ("floor", "roof"):
+            # Floor/Roof: may have points, thickness
+            if "thickness" in params.geometry and hasattr(element, "thickness"):
+                old_thickness = element.thickness
+                element.thickness = params.geometry["thickness"]
+                modified_fields.append("thickness")
+                original_data["original_thickness"] = old_thickness
+        elif element_type == "door":
+            # Door: width, height, offset
+            for field in ["width", "height", "offset"]:
+                if field in params.geometry and hasattr(element, field):
+                    old_value = getattr(element, field)
+                    setattr(element, field, params.geometry[field])
+                    modified_fields.append(field)
+                    original_data[f"original_{field}"] = old_value
+        elif element_type == "window":
+            # Window: width, height, offset, sill_height
+            for field in ["width", "height", "offset", "sill_height"]:
+                if field in params.geometry and hasattr(element, field):
+                    old_value = getattr(element, field)
+                    setattr(element, field, params.geometry[field])
+                    modified_fields.append(field)
+                    original_data[f"original_{field}"] = old_value
+        else:
+            warnings.append(f"Geometry modification not supported for type: {element_type}")
+
+    # Update element in state
+    if modified_fields:
+        state.update_element(params.element_id, element)
+
+    return make_response(
+        {
+            "element_id": params.element_id,
+            "element_type": element_type,
+            "modified_fields": modified_fields,
+            "undo_data": original_data,
+        },
+        warnings=warnings if warnings else None,
+        reasoning=reasoning,
+    )
+
+
 # =============================================================================
 # Mesh Tool Handlers
 # =============================================================================
@@ -1667,6 +1854,143 @@ async def _validate_mesh(state: GeometryState, args: dict[str, Any]) -> dict[str
             "bounding_box": validation.get("bounding_box"),
         }
     )
+
+
+async def _compute_mesh(state: GeometryState, args: dict[str, Any]) -> dict[str, Any]:
+    """Compute a mesh with full features: normals, UVs, LOD, glTF format.
+
+    This is the comprehensive mesh generation tool that produces
+    glTF-compatible output with optional normals and UVs.
+    """
+    params = ComputeMeshParams(**args)
+
+    record = state.get_element(params.element_id)
+    if not record:
+        return make_error(
+            ErrorCodes.ELEMENT_NOT_FOUND, f"Element not found: {params.element_id}"
+        )
+
+    element = record.element
+    mesh = element.to_mesh()
+
+    # Apply LOD reduction if requested
+    if params.lod_level > 0:
+        # LOD 1: reduce to ~50% triangles, LOD 2: reduce to ~25%
+        target_ratio = 0.5 if params.lod_level == 1 else 0.25
+        mesh = pg.simplify_mesh(mesh, target_ratio)
+
+    # Compute normals if requested
+    normals = None
+    if params.include_normals:
+        mesh.compute_smooth_normals()
+        normals = mesh.normals()
+
+    # Compute UVs if requested (box projection)
+    uvs = None
+    if params.include_uvs:
+        uvs = mesh.compute_box_uvs()
+
+    # Get base mesh data
+    vertices = mesh.vertices()
+    indices = mesh.indices()
+    vertex_count = mesh.vertex_count()
+    triangle_count = mesh.triangle_count()
+
+    # Compute bounding box
+    bbox = mesh.bounding_box()
+
+    if params.format == "obj":
+        # Generate OBJ format string
+        obj_string = pg.mesh_to_obj(mesh)
+        return make_response(
+            {
+                "format": "obj",
+                "content": obj_string,
+                "element_id": params.element_id,
+                "element_type": record.element_type,
+                "vertex_count": vertex_count,
+                "triangle_count": triangle_count,
+                "lod_level": params.lod_level,
+                "has_normals": params.include_normals,
+                "has_uvs": params.include_uvs,
+                "bounding_box": bbox,
+            }
+        )
+
+    elif params.format == "json":
+        # Simple JSON format
+        result = {
+            "format": "json",
+            "element_id": params.element_id,
+            "element_type": record.element_type,
+            "vertices": vertices,
+            "indices": indices,
+            "vertex_count": vertex_count,
+            "triangle_count": triangle_count,
+            "lod_level": params.lod_level,
+            "bounding_box": bbox,
+        }
+        if normals is not None:
+            result["normals"] = normals
+        if uvs is not None:
+            result["uvs"] = uvs
+        return make_response(result)
+
+    else:
+        # glTF-compatible format (default)
+        # Structure follows glTF 2.0 accessor/bufferView pattern
+        gltf_data = {
+            "format": "gltf",
+            "element_id": params.element_id,
+            "element_type": record.element_type,
+            "lod_level": params.lod_level,
+            "mesh": {
+                "primitives": [
+                    {
+                        "attributes": {
+                            "POSITION": {
+                                "type": "VEC3",
+                                "componentType": 5126,  # FLOAT
+                                "count": vertex_count,
+                                "data": vertices,
+                                "min": bbox["min"] if bbox else None,
+                                "max": bbox["max"] if bbox else None,
+                            }
+                        },
+                        "indices": {
+                            "type": "SCALAR",
+                            "componentType": 5125,  # UNSIGNED_INT
+                            "count": len(indices),
+                            "data": indices,
+                        },
+                        "mode": 4,  # TRIANGLES
+                    }
+                ]
+            },
+            "vertex_count": vertex_count,
+            "triangle_count": triangle_count,
+            "bounding_box": bbox,
+        }
+
+        # Add normals attribute
+        if normals is not None:
+            gltf_data["mesh"]["primitives"][0]["attributes"]["NORMAL"] = {
+                "type": "VEC3",
+                "componentType": 5126,  # FLOAT
+                "count": len(normals) // 3,
+                "data": normals,
+            }
+
+        # Add UV attribute
+        if uvs is not None:
+            gltf_data["mesh"]["primitives"][0]["attributes"]["TEXCOORD_0"] = {
+                "type": "VEC2",
+                "componentType": 5126,  # FLOAT
+                "count": len(uvs) // 2,
+                "data": uvs,
+            }
+
+        return make_response(gltf_data)
 
 
 async def _compute_mesh_batch(

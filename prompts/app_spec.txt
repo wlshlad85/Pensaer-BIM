@@ -1,0 +1,352 @@
+# Pensaer-BIM - Complete App Specification & Task Breakdown
+
+## Project Overview
+Building a developer-first BIM (Building Information Modeling) platform with keyboard-driven workflows, real-time collaboration, and AI agent integration via MCP. Targets computational designers frustrated with click-heavy CAD tools.
+
+## Core Technology Stack
+- **Kernel:** Rust (geometry, topology, CRDT, IFC parsing) with PyO3 bindings
+- **Server:** Python FastAPI + 4 MCP tool servers (geometry, spatial, validation, documentation)
+- **Client:** React 19 + TypeScript + Vite, Three.js for 3D, xterm.js for terminal
+- **State:** Zustand + Immer with event-sourcing
+- **Database:** PostgreSQL 16 + PostGIS (Phase 2+)
+- **Sync:** Loro CRDT + WebSocket (Phase 2+)
+- **API:** Claude API via MCP JSON-RPC 2.0
+
+---
+
+## Major Features Defined
+
+### 1. Model Kernel (Rust)
+- Geometry primitives (Point3, Vector3, Polygon3)
+- Boolean operations via Clipper2
+- Triangulation via earcutr
+- Spatial indexing via R*-tree (rstar)
+- Topology graph for wall connectivity
+- Room detection from wall topology
+- PyO3 bindings for Python server
+
+### 2. MCP Tool Servers (Python)
+- **Geometry Server:** 35+ tools for element creation, modification, mesh generation
+- **Spatial Server:** Room analysis, adjacency, pathfinding, area calculation
+- **Validation Server:** Clash detection, code compliance, accessibility checks
+- **Documentation Server:** Schedules, IFC export, BCF export, reports
+
+### 3. React Client
+- Three-column layout: property panel, 2D/3D canvas, terminal
+- 2D SVG canvas with element rendering
+- 3D Three.js view with orbit controls
+- Command palette (Cmd+K) with fuzzy search
+- xterm.js terminal with MCP integration
+- Zustand stores: model, selection, UI, history
+- IndexedDB persistence with auto-save
+
+### 4. Terminal & DSL
+- xterm.js integration with custom theme
+- Command history with arrow key navigation
+- Tab autocomplete for commands
+- Macro recording and playback
+- DSL parser for BIM commands (wall, door, window, room, roof, floor)
+- Natural language pattern matching (Phase 3)
+
+### 5. BIM Elements
+- Wall (with thickness, height, material)
+- Door (single, double, sliding types)
+- Window (fixed, casement, awning types)
+- Room (with area calculation, name, number)
+- Floor (slab with thickness)
+- Roof (flat, gable, hip types)
+- Column, Beam, Stair (Phase 3)
+
+### 6. IFC Pipeline
+- Import via web-ifc
+- Element mapping (IFC types to Pensaer types)
+- Export with full geometry and properties
+- BCF export for issue tracking
+- Round-trip validation
+
+### 7. Visualization
+- 2D floor plan view with layer control
+- 3D perspective view with Three.js
+- Section cuts and elevation views
+- Level switching with browser panel
+- Snap system (grid, element, endpoint)
+- Selection (click, shift-click, box select)
+
+### 8. Collaboration (Phase 2)
+- Supabase authentication (email + Google OAuth)
+- PostgreSQL event store
+- Loro CRDT for conflict resolution
+- WebSocket real-time sync
+- Presence indicators and cursor sharing
+- Comments and markup system
+- Branch/merge for design options
+
+### 9. AI Agent Integration (Phase 3)
+- MCP tool exposure for Claude
+- LangGraph orchestration for multi-step workflows
+- Governance gates for destructive operations
+- Audit logging for all agent actions
+- Evaluation harness for testing
+
+---
+
+## Complete Implementation Task Breakdown
+
+### Step 1: Project Setup & Configuration [4 tasks]
+1. Initialize Vite + React + TypeScript project with Tailwind CSS
+2. Set up ESLint, Prettier, and TypeScript strict mode
+3. Create folder structure (components, stores, services, types, hooks)
+4. Configure Vitest for testing with coverage
+
+### Step 2: TypeScript Types & Interfaces [6 tasks]
+5. Define Element base interface (id, type, name, x, y, width, height, properties)
+6. Define Wall, Door, Window, Room, Floor, Roof element types
+7. Define Relationship interfaces (hosts, joins, bounds)
+8. Define Issue and AISuggestion interfaces
+9. Define MCP tool result types (success, error, warnings)
+10. Define Store state interfaces for model, selection, UI, history
+
+### Step 3: Zustand State Management [8 tasks]
+11. Create modelStore with elements Map and CRUD operations
+12. Create selectionStore with selected IDs and selection modes
+13. Create uiStore with panel states, view mode, active level
+14. Create historyStore with undo/redo stack and action recording
+15. Create tokenStore for AI token usage tracking
+16. Implement IndexedDB persistence adapter
+17. Add auto-save with debouncing (500ms)
+18. Add model import/export (JSON format)
+
+### Step 4: 2D Canvas Component [10 tasks]
+19. Create Canvas2D SVG container with zoom/pan
+20. Implement coordinate transform (screen to model)
+21. Create WallRenderer component with thickness visualization
+22. Create DoorRenderer and WindowRenderer components
+23. Create RoomRenderer with fill and label
+24. Create FloorRenderer and RoofRenderer components
+25. Implement selection highlight styles
+26. Implement grid overlay with snapping
+27. Create selection box (rubber band) for multi-select
+28. Add keyboard navigation (arrow keys, delete, escape)
+
+### Step 5: 3D Canvas Component [12 tasks]
+29. Set up Three.js scene with WebGLRenderer
+30. Create OrbitControls with constrained rotation
+31. Implement camera presets (top, front, side, perspective)
+32. Create Wall3D geometry with proper thickness extrusion
+33. Create Door3D and Window3D with frame geometry
+34. Create Floor3D slab geometry
+35. Create Roof3D with gable/hip/flat variants
+36. Create Room3D with transparent boundary
+37. Add ambient and directional lighting
+38. Implement raycaster for 3D picking
+39. Add ground plane with grid
+40. Implement viewcube UI for orientation
+
+### Step 6: Command Palette [6 tasks]
+41. Create CommandPalette modal component
+42. Implement fuzzy search algorithm for commands
+43. Add keyboard shortcut manager (Cmd+K trigger)
+44. Define command registry with actions and shortcuts
+45. Implement command categories (Create, Edit, View, Tools)
+46. Add recent commands section
+
+### Step 7: Terminal Integration [10 tasks]
+47. Install and configure xterm.js with addons (fit, web-links)
+48. Create Terminal component with custom theme
+49. Implement command input buffer with prompt
+50. Add command history with up/down arrow navigation
+51. Implement Tab autocomplete for commands
+52. Create processCommand dispatcher
+53. Implement built-in commands (help, clear, status, version)
+54. Wire terminal commands to modelStore actions
+55. Add macro recording (macro record/stop/play/list)
+56. Implement demo automation (Ctrl+Shift+D)
+
+### Step 8: DSL Parser [8 tasks]
+57. Define BNF grammar for BIM commands
+58. Create lexer for tokenization
+59. Create parser for AST generation
+60. Implement wall command: wall --start x,y --end x,y --height h
+61. Implement door/window commands with wall reference
+62. Implement room command with boundary points
+63. Implement floor and roof commands with bounds
+64. Add error handling with helpful messages
+
+### Step 9: MCP Client Service [8 tasks]
+65. Create MCPClient class with tool call method
+66. Implement request/response handling with timeout
+67. Add mock mode for development
+68. Create tool call logging for debugging
+69. Implement token counting for requests
+70. Add error formatting for terminal display
+71. Create result formatting for complex data
+72. Wire MCP client to terminal commands
+
+### Step 10: Geometry Server Tools [12 tasks]
+73. Implement create_wall tool with all parameters
+74. Implement create_door tool with wall reference
+75. Implement create_window tool with sill height
+76. Implement create_floor tool with bounds
+77. Implement create_roof tool with type and slope
+78. Implement create_opening tool for boolean cuts
+79. Implement compute_mesh tool for 3D geometry
+80. Implement list_elements tool with filtering
+81. Implement get_element tool by ID
+82. Implement delete_element tool with validation
+83. Implement modify_element tool for property updates
+84. Add unit tests for all geometry tools
+
+### Step 11: Spatial Server Tools [8 tasks]
+85. Implement detect_rooms tool from wall topology
+86. Implement compute_adjacency tool for room connections
+87. Implement find_nearest tool with radius search
+88. Implement calculate_area tool for rooms
+89. Implement check_clearance tool for accessibility
+90. Implement analyze_circulation tool for paths
+91. Implement point_in_polygon tool for containment
+92. Add unit tests for all spatial tools
+
+### Step 12: Validation Server Tools [8 tasks]
+93. Implement detect_clashes tool with tolerance
+94. Implement detect_clashes_between_sets tool
+95. Implement validate_model tool for integrity
+96. Implement check_fire_rating tool for walls
+97. Implement check_accessibility tool for doors
+98. Implement check_egress tool for exits
+99. Implement check_door_clearances tool
+100. Add unit tests for all validation tools
+
+### Step 13: Documentation Server Tools [6 tasks]
+101. Implement door_schedule tool with export
+102. Implement window_schedule tool with properties
+103. Implement room_schedule tool with areas
+104. Implement export_ifc tool with web-ifc
+105. Implement export_bcf tool for issues
+106. Add unit tests for all documentation tools
+
+### Step 14: IFC Pipeline [8 tasks]
+107. Install and configure web-ifc
+108. Create IFC import parser with element mapping
+109. Map IFC wall types to Pensaer walls
+110. Map IFC door/window types with geometry
+111. Map IFC spaces to rooms
+112. Implement IFC export with geometry generation
+113. Add property set preservation
+114. Add round-trip validation tests
+
+### Step 15: UI Components [10 tasks]
+115. Create PropertyPanel component with element details
+116. Create LevelPanel for level switching
+117. Create LayerPanel for visibility control
+118. Create Toolbar with common actions
+119. Create StatusBar with model statistics
+120. Create ContextMenu for right-click actions
+121. Create Modal component for dialogs
+122. Create Toast notifications
+123. Create Loading spinner and skeleton states
+124. Add keyboard shortcuts reference panel
+
+### Step 16: Selection System [6 tasks]
+125. Implement single-click selection with highlight
+126. Implement shift-click for additive selection
+127. Implement ctrl-click for toggle selection
+128. Implement box/lasso selection
+129. Implement select all / deselect all
+130. Add selection info in status bar
+
+### Step 17: Snap System [6 tasks]
+131. Implement grid snapping with configurable size
+132. Implement element endpoint snapping
+133. Implement edge midpoint snapping
+134. Implement perpendicular snapping
+135. Add snap indicator visualization
+136. Add snap toggle in toolbar
+
+### Step 18: History & Undo [4 tasks]
+137. Implement undo with Ctrl+Z
+138. Implement redo with Ctrl+Shift+Z
+139. Add history panel with action list
+140. Implement action batching for complex operations
+
+### Step 19: Polish & Performance [8 tasks]
+141. Implement virtualized element rendering for large models
+142. Add lazy loading for 3D geometries
+143. Optimize re-render with React.memo
+144. Add FPS counter for 3D view
+145. Implement keyboard navigation
+146. Add loading states for async operations
+147. Test mobile responsiveness
+148. Add accessibility (ARIA labels, focus management)
+
+### Step 20: Testing & Documentation [6 tasks]
+149. Write unit tests for all stores
+150. Write integration tests for MCP tools
+151. Write E2E tests for common workflows
+152. Create API documentation for MCP tools
+153. Create user guide for terminal commands
+154. Create architecture documentation
+
+---
+
+## Database Schema Summary (Phase 2)
+
+**Core Tables:**
+- projects (id, name, owner_id, created_at, updated_at)
+- documents (id, project_id, name, branch_id)
+- events (id, sequence_num, event_type, aggregate_id, payload, user_id, branch_id)
+- snapshots (id, branch_id, sequence_num, state_blob)
+- permissions (user_id, project_id, role)
+
+**Collaboration Tables:**
+- branches (id, document_id, name, parent_branch_id)
+- presence (user_id, document_id, cursor_x, cursor_y, selection_ids)
+- comments (id, element_id, user_id, content, resolved)
+
+---
+
+## Success Criteria
+
+### Phase 1 (Foundation)
+- Create/modify/delete walls, doors, windows, rooms, floors, roofs via terminal
+- 2D and 3D visualization of model
+- IFC import and export functional
+- Terminal with history, autocomplete, macros
+- < 100ms response for model operations
+
+### Phase 2 (Collaboration)
+- Multi-user real-time editing
+- < 100ms sync latency
+- 24+ hour offline tolerance
+- Automatic conflict resolution
+- Branch/merge for design options
+
+### Phase 3 (Agentic AI)
+- 33+ MCP tools available
+- > 90% agent task completion rate
+- Human-in-loop for destructive ops
+- Complete audit trail
+- Deterministic evaluation harness
+
+### Phase 4 (Production)
+- 1M+ element capacity
+- 99.9% uptime
+- Security audit passed
+- < 15 min recovery time
+
+---
+
+## Test Validation Steps
+
+For each task, include these test steps in Linear issues:
+
+1. **Unit Test:** Tool/function works in isolation
+2. **Integration Test:** Works with related components
+3. **Visual Test:** UI renders correctly (screenshot comparison)
+4. **Puppeteer Test:** E2E workflow completes successfully
+5. **Manual Test:** Human verification of behavior
+
+---
+
+*Generated for Linear Coding Agent Harness*
+*Total Tasks: ~150 issues across 20 steps*
+*Estimated Duration: 12 weeks (Phase 1)*

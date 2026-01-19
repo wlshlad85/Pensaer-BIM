@@ -20,10 +20,12 @@ from spatial_server.server import (
     _check_clearance,
     _analyze_circulation,
     _point_in_polygon,
+    _detect_rooms,
     polygon_area,
     polygon_centroid,
     point_in_polygon,
     distance_2d,
+    TopologyGraphPy,
 )
 
 
@@ -380,3 +382,228 @@ class TestValidationErrors:
         # Should still succeed but return 0 area
         assert result["success"] is True
         assert result["data"]["gross_area"] == 0.0
+
+
+class TestTopologyGraph:
+    """Tests for the TopologyGraphPy class."""
+
+    def test_create_empty_graph(self):
+        """Test creating an empty topology graph."""
+        graph = TopologyGraphPy(tolerance=0.001)
+        assert len(graph.nodes) == 0
+        assert len(graph.edges) == 0
+
+    def test_add_single_edge(self):
+        """Test adding a single edge creates two nodes."""
+        graph = TopologyGraphPy(tolerance=0.001)
+        edge_id = graph.add_edge([0, 0], [10, 0])
+
+        assert edge_id is not None
+        assert len(graph.nodes) == 2
+        assert len(graph.edges) == 1
+
+    def test_nodes_merge_within_tolerance(self):
+        """Test that nodes within tolerance are merged."""
+        graph = TopologyGraphPy(tolerance=0.01)  # 10mm tolerance
+
+        # Add first edge: (0,0) to (10,0)
+        graph.add_edge([0, 0], [10, 0])
+
+        # Add second edge starting very close to first edge's end
+        graph.add_edge([10.005, 0], [20, 0])  # 5mm away, within 10mm tolerance
+
+        # Should have 3 nodes, not 4 (middle node merged)
+        assert len(graph.nodes) == 3
+        assert len(graph.edges) == 2
+
+    def test_l_shaped_walls(self):
+        """Test L-shaped walls share a corner node."""
+        graph = TopologyGraphPy(tolerance=0.001)
+
+        # Horizontal wall
+        graph.add_edge([0, 0], [10, 0])
+        # Vertical wall meeting at corner
+        graph.add_edge([10, 0], [10, 10])
+
+        # Should share the corner node
+        assert len(graph.nodes) == 3
+        assert len(graph.edges) == 2
+
+    def test_zero_length_edge_rejected(self):
+        """Test that zero-length edges are rejected."""
+        graph = TopologyGraphPy(tolerance=0.001)
+        edge_id = graph.add_edge([5, 5], [5, 5])  # Same point
+
+        assert edge_id is None
+        assert len(graph.edges) == 0
+
+
+class TestDetectRooms:
+    """Tests for detect_rooms tool."""
+
+    @pytest.mark.asyncio
+    async def test_simple_rectangular_room(self):
+        """Test detecting a simple rectangular room from 4 walls."""
+        # Create 4 walls forming a 10x10 room
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},     # bottom
+            {"start": [10, 0], "end": [10, 10]},   # right
+            {"start": [10, 10], "end": [0, 10]},   # top
+            {"start": [0, 10], "end": [0, 0]},     # left
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 1
+        assert result["data"]["wall_count"] == 4
+
+        room = result["data"]["rooms"][0]
+        # Area should be 10 * 10 = 100
+        assert abs(room["area"] - 100.0) < 1.0
+
+    @pytest.mark.asyncio
+    async def test_two_adjacent_rooms(self):
+        """Test detecting two adjacent rooms sharing a wall."""
+        # Create two adjacent rooms:
+        # Room 1: (0,0) to (10,10)
+        # Room 2: (10,0) to (20,10)
+        # They share the middle wall from (10,0) to (10,10)
+        walls = [
+            # Outer perimeter
+            {"start": [0, 0], "end": [10, 0]},      # bottom left
+            {"start": [10, 0], "end": [20, 0]},     # bottom right
+            {"start": [20, 0], "end": [20, 10]},    # right
+            {"start": [20, 10], "end": [10, 10]},   # top right
+            {"start": [10, 10], "end": [0, 10]},    # top left
+            {"start": [0, 10], "end": [0, 0]},      # left
+            # Middle dividing wall
+            {"start": [10, 0], "end": [10, 10]},    # middle
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 2
+
+        # Each room should have area 10 * 10 = 100
+        for room in result["data"]["rooms"]:
+            assert abs(room["area"] - 100.0) < 1.0
+
+    @pytest.mark.asyncio
+    async def test_triangular_room(self):
+        """Test detecting a triangular room."""
+        # Create a right triangle with legs 10 and 10
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},   # base
+            {"start": [10, 0], "end": [0, 10]},  # hypotenuse
+            {"start": [0, 10], "end": [0, 0]},   # height
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 1
+
+        room = result["data"]["rooms"][0]
+        # Area of right triangle = 0.5 * 10 * 10 = 50
+        assert abs(room["area"] - 50.0) < 1.0
+
+    @pytest.mark.asyncio
+    async def test_open_layout_no_rooms(self):
+        """Test that an open layout (L-shape) detects no rooms."""
+        # L-shape: not closed
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},
+            {"start": [10, 0], "end": [10, 10]},
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_empty_walls_list(self):
+        """Test with empty walls list."""
+        result = await _detect_rooms({"walls": []})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 0
+        assert result["data"]["wall_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_room_with_wall_ids(self):
+        """Test that wall IDs are preserved in room boundaries."""
+        walls = [
+            {"id": "w1", "start": [0, 0], "end": [10, 0]},
+            {"id": "w2", "start": [10, 0], "end": [10, 10]},
+            {"id": "w3", "start": [10, 10], "end": [0, 10]},
+            {"id": "w4", "start": [0, 10], "end": [0, 0]},
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 1
+
+        room = result["data"]["rooms"][0]
+        assert "boundary_wall_ids" in room
+        assert len(room["boundary_wall_ids"]) == 4
+
+    @pytest.mark.asyncio
+    async def test_room_centroid(self):
+        """Test that room centroid is correctly calculated."""
+        # Square room from (0,0) to (10,10)
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},
+            {"start": [10, 0], "end": [10, 10]},
+            {"start": [10, 10], "end": [0, 10]},
+            {"start": [0, 10], "end": [0, 0]},
+        ]
+
+        result = await _detect_rooms({"walls": walls})
+
+        assert result["success"] is True
+        room = result["data"]["rooms"][0]
+
+        # Centroid should be at (5, 5)
+        centroid = room["centroid"]
+        assert abs(centroid[0] - 5.0) < 0.1
+        assert abs(centroid[1] - 5.0) < 0.1
+
+    @pytest.mark.asyncio
+    async def test_custom_tolerance(self):
+        """Test room detection with custom tolerance."""
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},
+            {"start": [10, 0], "end": [10, 10]},
+            {"start": [10, 10], "end": [0, 10]},
+            {"start": [0, 10], "end": [0, 0]},
+        ]
+
+        result = await _detect_rooms({
+            "walls": walls,
+            "tolerance": 1.0,  # 1mm tolerance
+        })
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_level_parameter(self):
+        """Test that level parameter is passed through."""
+        walls = [
+            {"start": [0, 0], "end": [10, 0]},
+            {"start": [10, 0], "end": [10, 10]},
+            {"start": [10, 10], "end": [0, 10]},
+            {"start": [0, 10], "end": [0, 0]},
+        ]
+
+        result = await _detect_rooms({
+            "walls": walls,
+            "level": 2,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["level"] == 2

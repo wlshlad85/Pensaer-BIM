@@ -1,0 +1,134 @@
+{
+  "testModules": [
+    {
+      "moduleId": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py",
+      "tests": [
+        {
+          "name": "test_distance_2d",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_distance_2d",
+          "state": "passed"
+        },
+        {
+          "name": "test_polygon_area_triangle",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_polygon_area_triangle",
+          "state": "passed"
+        },
+        {
+          "name": "test_polygon_area_square",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_polygon_area_square",
+          "state": "passed"
+        },
+        {
+          "name": "test_polygon_area_rectangle",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_polygon_area_rectangle",
+          "state": "passed"
+        },
+        {
+          "name": "test_polygon_centroid_square",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_polygon_centroid_square",
+          "state": "passed"
+        },
+        {
+          "name": "test_point_in_polygon_inside",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_point_in_polygon_inside",
+          "state": "passed"
+        },
+        {
+          "name": "test_point_in_polygon_outside",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestGeometryUtilities::test_point_in_polygon_outside",
+          "state": "passed"
+        },
+        {
+          "name": "test_two_adjacent_rooms",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestComputeAdjacency::test_two_adjacent_rooms",
+          "state": "passed"
+        },
+        {
+          "name": "test_three_adjacent_rooms",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestComputeAdjacency::test_three_adjacent_rooms",
+          "state": "passed"
+        },
+        {
+          "name": "test_isolated_room",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestComputeAdjacency::test_isolated_room",
+          "state": "passed"
+        },
+        {
+          "name": "test_find_nearest_basic",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestFindNearest::test_find_nearest_basic",
+          "state": "passed"
+        },
+        {
+          "name": "test_find_nearest_with_type_filter",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestFindNearest::test_find_nearest_with_type_filter",
+          "state": "passed"
+        },
+        {
+          "name": "test_find_nearest_outside_radius",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestFindNearest::test_find_nearest_outside_radius",
+          "state": "passed"
+        },
+        {
+          "name": "test_compute_area_square",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestComputeArea::test_compute_area_square",
+          "state": "passed"
+        },
+        {
+          "name": "test_compute_area_with_holes",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestComputeArea::test_compute_area_with_holes",
+          "state": "passed"
+        },
+        {
+          "name": "test_clearance_passed",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestCheckClearance::test_clearance_passed",
+          "state": "passed"
+        },
+        {
+          "name": "test_clearance_failed",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestCheckClearance::test_clearance_failed",
+          "state": "passed"
+        },
+        {
+          "name": "test_wheelchair_clearance",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestCheckClearance::test_wheelchair_clearance",
+          "state": "passed"
+        },
+        {
+          "name": "test_simple_path",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestAnalyzeCirculation::test_simple_path",
+          "state": "passed"
+        },
+        {
+          "name": "test_no_path",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestAnalyzeCirculation::test_no_path",
+          "state": "passed"
+        },
+        {
+          "name": "test_circulation_statistics",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestAnalyzeCirculation::test_circulation_statistics",
+          "state": "passed"
+        },
+        {
+          "name": "test_point_inside",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestPointInPolygon::test_point_inside",
+          "state": "passed"
+        },
+        {
+          "name": "test_point_outside",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestPointInPolygon::test_point_outside",
+          "state": "passed"
+        },
+        {
+          "name": "test_missing_required_field",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestValidationErrors::test_missing_required_field",
+          "state": "passed"
+        },
+        {
+          "name": "test_invalid_polygon",
+          "fullName": "Pensaer-BIM/server/mcp-servers/spatial-server/tests/test_spatial_tools.py::TestValidationErrors::test_invalid_polygon",
+          "state": "passed"
+        }
+      ]
+    }
+  ]
+}

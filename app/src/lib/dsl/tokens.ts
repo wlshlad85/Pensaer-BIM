@@ -21,6 +21,9 @@ export enum TokenType {
   // Commands
   WALL = "WALL",
   WALLS = "WALLS",
+  FLOOR = "FLOOR",
+  ROOF = "ROOF",
+  ROOM = "ROOM",
   DOOR = "DOOR",
   WINDOW = "WINDOW",
   OPENING = "OPENING",
@@ -55,6 +58,11 @@ export enum TokenType {
   SWING = "SWING",
   SILL = "SILL",
   SILL_HEIGHT = "SILL_HEIGHT",
+  SLOPE = "SLOPE",
+  OVERHANG = "OVERHANG",
+  POINTS = "POINTS",
+  NAME = "NAME",
+  NUMBER_KW = "NUMBER_KW",
 
   // Wall Types
   BASIC = "BASIC",
@@ -77,6 +85,23 @@ export enum TokenType {
   AWNING = "AWNING",
   HOPPER = "HOPPER",
   PIVOT = "PIVOT",
+
+  // Roof Types
+  FLAT = "FLAT",
+  GABLE = "GABLE",
+  HIP = "HIP",
+  SHED = "SHED",
+  MANSARD = "MANSARD",
+
+  // Room Types
+  BEDROOM = "BEDROOM",
+  BATHROOM = "BATHROOM",
+  KITCHEN = "KITCHEN",
+  LIVING = "LIVING",
+  DINING = "DINING",
+  OFFICE = "OFFICE",
+  STORAGE = "STORAGE",
+  GENERIC = "GENERIC",
 
   // Swing Directions
   LEFT = "LEFT",
@@ -115,6 +140,16 @@ export enum TokenType {
   LONG_SWING = "LONG_SWING",
   LONG_SILL = "LONG_SILL",
   LONG_SILL_HEIGHT = "LONG_SILL_HEIGHT",
+  LONG_START = "LONG_START",
+  LONG_END = "LONG_END",
+  LONG_MATERIAL = "LONG_MATERIAL",
+  LONG_SLOPE = "LONG_SLOPE",
+  LONG_OVERHANG = "LONG_OVERHANG",
+  LONG_POINTS = "LONG_POINTS",
+  LONG_NAME = "LONG_NAME",
+  LONG_NUMBER = "LONG_NUMBER",
+  LONG_MIN = "LONG_MIN",
+  LONG_MAX = "LONG_MAX",
 
   // Variables
   VAR_LAST = "VAR_LAST",
@@ -155,6 +190,9 @@ export const KEYWORDS: Record<string, TokenType> = {
   // Commands
   wall: TokenType.WALL,
   walls: TokenType.WALLS,
+  floor: TokenType.FLOOR,
+  roof: TokenType.ROOF,
+  room: TokenType.ROOM,
   door: TokenType.DOOR,
   window: TokenType.WINDOW,
   opening: TokenType.OPENING,
@@ -187,6 +225,11 @@ export const KEYWORDS: Record<string, TokenType> = {
   swing: TokenType.SWING,
   sill: TokenType.SILL,
   "sill-height": TokenType.SILL_HEIGHT,
+  slope: TokenType.SLOPE,
+  overhang: TokenType.OVERHANG,
+  points: TokenType.POINTS,
+  name: TokenType.NAME,
+  number: TokenType.NUMBER_KW,
   // Wall types
   basic: TokenType.BASIC,
   structural: TokenType.STRUCTURAL,
@@ -206,6 +249,21 @@ export const KEYWORDS: Record<string, TokenType> = {
   awning: TokenType.AWNING,
   hopper: TokenType.HOPPER,
   pivot: TokenType.PIVOT,
+  // Roof types
+  flat: TokenType.FLAT,
+  gable: TokenType.GABLE,
+  hip: TokenType.HIP,
+  shed: TokenType.SHED,
+  mansard: TokenType.MANSARD,
+  // Room types
+  bedroom: TokenType.BEDROOM,
+  bathroom: TokenType.BATHROOM,
+  kitchen: TokenType.KITCHEN,
+  living: TokenType.LIVING,
+  dining: TokenType.DINING,
+  office: TokenType.OFFICE,
+  storage: TokenType.STORAGE,
+  generic: TokenType.GENERIC,
   // Swing directions
   left: TokenType.LEFT,
   right: TokenType.RIGHT,
@@ -248,6 +306,16 @@ export const LONG_OPTIONS: Record<string, TokenType> = {
   swing: TokenType.LONG_SWING,
   sill: TokenType.LONG_SILL,
   "sill-height": TokenType.LONG_SILL_HEIGHT,
+  start: TokenType.LONG_START,
+  end: TokenType.LONG_END,
+  material: TokenType.LONG_MATERIAL,
+  slope: TokenType.LONG_SLOPE,
+  overhang: TokenType.LONG_OVERHANG,
+  points: TokenType.LONG_POINTS,
+  name: TokenType.LONG_NAME,
+  number: TokenType.LONG_NUMBER,
+  min: TokenType.LONG_MIN,
+  max: TokenType.LONG_MAX,
 };
 
 /**

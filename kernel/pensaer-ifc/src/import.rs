@@ -27,6 +27,23 @@ pub struct ImportStatistics {
     pub floors_imported: usize,
     pub roofs_imported: usize,
     pub unknown_entities: usize,
+    /// Number of entities skipped due to errors (self-healing mode)
+    pub skipped_entities: usize,
+    /// Number of entities repaired (self-healing mode)
+    pub repaired_entities: usize,
+}
+
+/// Result of a self-healing import operation.
+#[derive(Debug)]
+pub struct HealingImportResult<T> {
+    /// Successfully imported elements
+    pub elements: Vec<T>,
+    /// Number of elements skipped due to unrecoverable errors
+    pub skipped_count: usize,
+    /// Number of elements that were repaired
+    pub repaired_count: usize,
+    /// Error log with details of each issue
+    pub error_log: Vec<String>,
 }
 
 impl ImportStatistics {
@@ -379,6 +396,294 @@ impl IfcImporter {
         }
 
         summary
+    }
+
+    // =========================================================================
+    // Self-Healing Import Methods
+    // =========================================================================
+
+    /// Import walls with automatic error recovery.
+    ///
+    /// Unlike `extract_walls()`, this method:
+    /// - Skips invalid entities instead of failing
+    /// - Attempts to repair common geometry issues
+    /// - Returns detailed error log for diagnostics
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut importer = IfcImporter::from_file("building.ifc")?;
+    /// let result = importer.extract_walls_healing();
+    /// println!("Imported {} walls, skipped {}", result.elements.len(), result.skipped_count);
+    /// for error in &result.error_log {
+    ///     eprintln!("  Warning: {}", error);
+    /// }
+    /// ```
+    pub fn extract_walls_healing(&mut self) -> HealingImportResult<WallExportData> {
+        let mut elements = Vec::new();
+        let mut error_log = Vec::new();
+        let mut skipped = 0;
+        let mut repaired = 0;
+
+        let wall_entities: Vec<_> = self
+            .entities
+            .values()
+            .filter(|e| e.entity_type == "IFCWALL" || e.entity_type == "IFCWALLSTANDARDCASE")
+            .cloned()
+            .collect();
+
+        for entity in wall_entities {
+            match self.parse_wall_healing(&entity) {
+                Ok((wall, was_repaired)) => {
+                    if was_repaired {
+                        repaired += 1;
+                        error_log.push(format!("#{}: geometry repaired", entity.id));
+                    }
+                    elements.push(wall);
+                }
+                Err(e) => {
+                    error_log.push(format!("#{}: {} - skipped", entity.id, e));
+                    skipped += 1;
+                }
+            }
+        }
+
+        self.statistics.walls_imported = elements.len();
+        self.statistics.skipped_entities += skipped;
+        self.statistics.repaired_entities += repaired;
+
+        HealingImportResult {
+            elements,
+            skipped_count: skipped,
+            repaired_count: repaired,
+            error_log,
+        }
+    }
+
+    /// Parse a wall entity with self-healing.
+    ///
+    /// Returns (WallExportData, was_repaired) on success.
+    fn parse_wall_healing(&self, entity: &IfcEntity) -> Result<(WallExportData, bool)> {
+        let mut was_repaired = false;
+
+        // Get GlobalId - required field
+        let global_id = if entity.parameters.is_empty() {
+            return Err(IfcError::MissingAttribute {
+                entity_id: entity.id,
+                entity_type: entity.entity_type.clone(),
+                attribute: "GlobalId".to_string(),
+            });
+        } else {
+            self.parse_string(&entity.parameters[0])
+        };
+
+        // Get name - optional, default to empty
+        let name = self
+            .parse_string(&entity.parameters.get(2).cloned().unwrap_or_default());
+
+        // Try to parse UUID, or generate new one
+        let id = parse_global_id_to_uuid(&global_id).unwrap_or_else(Uuid::new_v4);
+
+        // Get geometry with repair attempts
+        let (start, end) = match self.extract_wall_geometry(entity) {
+            Some((s, e)) => {
+                // Validate and potentially repair geometry
+                let (repaired_start, repaired_end, needed_repair) =
+                    self.try_repair_wall_geometry(entity.id, s, e)?;
+                if needed_repair {
+                    was_repaired = true;
+                }
+                (repaired_start, repaired_end)
+            }
+            None => {
+                // Use default geometry if extraction fails completely
+                was_repaired = true;
+                (Point2::new(0.0, 0.0), Point2::new(1.0, 0.0))
+            }
+        };
+
+        // Extract height and thickness with defaults
+        let height = self
+            .extract_wall_height(entity)
+            .unwrap_or(3.0)
+            .clamp(0.1, 100.0);
+        let thickness = self
+            .extract_wall_thickness(entity)
+            .unwrap_or(0.2)
+            .clamp(0.01, 2.0);
+
+        Ok((
+            WallExportData {
+                id,
+                name,
+                start,
+                end,
+                height,
+                thickness,
+                base_level: 0.0,
+                wall_type: "Basic".to_string(),
+            },
+            was_repaired,
+        ))
+    }
+
+    /// Attempt to repair wall geometry issues.
+    ///
+    /// Common repairs:
+    /// - Snap near-zero coordinates to zero
+    /// - Clamp coordinates to valid range (-10km to +10km)
+    /// - Ensure minimum wall length
+    fn try_repair_wall_geometry(
+        &self,
+        entity_id: u64,
+        start: Point2,
+        end: Point2,
+    ) -> Result<(Point2, Point2, bool)> {
+        const MAX_COORD: f64 = 10_000.0; // 10km sanity limit
+        const MIN_WALL_LENGTH: f64 = 0.001; // 1mm minimum
+        const SNAP_THRESHOLD: f64 = 1e-10;
+
+        let mut repaired = false;
+
+        // Helper to sanitize a coordinate
+        let sanitize = |v: f64| -> f64 {
+            if !v.is_finite() {
+                0.0
+            } else if v.abs() < SNAP_THRESHOLD {
+                0.0
+            } else {
+                v.clamp(-MAX_COORD, MAX_COORD)
+            }
+        };
+
+        // Sanitize coordinates
+        let start_x = sanitize(start.x);
+        let start_y = sanitize(start.y);
+        let end_x = sanitize(end.x);
+        let end_y = sanitize(end.y);
+
+        // Check if repair was needed
+        if (start_x - start.x).abs() > SNAP_THRESHOLD
+            || (start_y - start.y).abs() > SNAP_THRESHOLD
+            || (end_x - end.x).abs() > SNAP_THRESHOLD
+            || (end_y - end.y).abs() > SNAP_THRESHOLD
+        {
+            repaired = true;
+        }
+
+        let mut new_start = Point2::new(start_x, start_y);
+        let mut new_end = Point2::new(end_x, end_y);
+
+        // Check wall length
+        let dx = new_end.x - new_start.x;
+        let dy = new_end.y - new_start.y;
+        let length = (dx * dx + dy * dy).sqrt();
+
+        if length < MIN_WALL_LENGTH {
+            // Wall is too short - make it minimum length in X direction
+            new_end = Point2::new(new_start.x + MIN_WALL_LENGTH, new_start.y);
+            repaired = true;
+        }
+
+        // Validate final length isn't unreasonable
+        let final_length = {
+            let dx = new_end.x - new_start.x;
+            let dy = new_end.y - new_start.y;
+            (dx * dx + dy * dy).sqrt()
+        };
+
+        if final_length > MAX_COORD {
+            return Err(IfcError::DegenerateGeometry {
+                entity_id,
+                description: format!("Wall length {} exceeds maximum {}", final_length, MAX_COORD),
+            });
+        }
+
+        Ok((new_start, new_end, repaired))
+    }
+
+    /// Try to extract wall height from entity (placeholder - would parse representation).
+    fn extract_wall_height(&self, _entity: &IfcEntity) -> Option<f64> {
+        // In a full implementation, this would parse the IfcExtrudedAreaSolid
+        // depth from the wall's representation
+        None
+    }
+
+    /// Try to extract wall thickness from entity (placeholder - would parse representation).
+    fn extract_wall_thickness(&self, _entity: &IfcEntity) -> Option<f64> {
+        // In a full implementation, this would parse the IfcRectangleProfileDef
+        // from the wall's representation
+        None
+    }
+
+    /// Import rooms with automatic error recovery.
+    pub fn extract_rooms_healing(&mut self) -> HealingImportResult<RoomExportData> {
+        let mut elements = Vec::new();
+        let mut error_log = Vec::new();
+        let mut skipped = 0;
+        let repaired = 0;
+
+        let space_entities: Vec<_> = self
+            .entities
+            .values()
+            .filter(|e| e.entity_type == "IFCSPACE")
+            .cloned()
+            .collect();
+
+        for entity in space_entities {
+            match self.parse_room(&entity) {
+                Some(room) => elements.push(room),
+                None => {
+                    error_log.push(format!("#{}: failed to parse room - skipped", entity.id));
+                    skipped += 1;
+                }
+            }
+        }
+
+        self.statistics.rooms_imported = elements.len();
+        self.statistics.skipped_entities += skipped;
+
+        HealingImportResult {
+            elements,
+            skipped_count: skipped,
+            repaired_count: repaired,
+            error_log,
+        }
+    }
+
+    /// Import floors with automatic error recovery.
+    pub fn extract_floors_healing(&mut self) -> HealingImportResult<FloorExportData> {
+        let mut elements = Vec::new();
+        let mut error_log = Vec::new();
+        let mut skipped = 0;
+        let repaired = 0;
+
+        let slab_entities: Vec<_> = self
+            .entities
+            .values()
+            .filter(|e| e.entity_type == "IFCSLAB")
+            .cloned()
+            .collect();
+
+        for entity in slab_entities {
+            match self.parse_floor(&entity) {
+                Some(floor) => elements.push(floor),
+                None => {
+                    error_log.push(format!("#{}: failed to parse floor - skipped", entity.id));
+                    skipped += 1;
+                }
+            }
+        }
+
+        self.statistics.floors_imported = elements.len();
+        self.statistics.skipped_entities += skipped;
+
+        HealingImportResult {
+            elements,
+            skipped_count: skipped,
+            repaired_count: repaired,
+            error_log,
+        }
     }
 }
 

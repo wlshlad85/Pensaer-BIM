@@ -20,7 +20,7 @@ import {
 // CONFIGURATION
 // ============================================
 
-const DEBOUNCE_MS = 1000; // Wait 1 second after last change before saving
+const DEBOUNCE_MS = 500; // Wait 500ms after last change before saving
 const PROJECT_ID = "default-project"; // Single project for now
 
 // ============================================

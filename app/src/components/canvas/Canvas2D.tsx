@@ -11,6 +11,7 @@ import {
   useUIStore,
   useHistoryStore,
 } from "../../stores";
+import { useSelection } from "../../hooks/useSelection";
 import type { Element } from "../../types";
 import { snapPoint, type SnapResult } from "../../utils/snap";
 
@@ -229,6 +230,9 @@ export function Canvas2D() {
   const clearSelection = useSelectionStore((s) => s.clearSelection);
   const setHovered = useSelectionStore((s) => s.setHovered);
 
+  // Box selection hook
+  const { completeBoxSelection } = useSelection();
+
   const activeTool = useUIStore((s) => s.activeTool);
   const zoom = useUIStore((s) => s.zoom);
   const panX = useUIStore((s) => s.panX);
@@ -238,6 +242,8 @@ export function Canvas2D() {
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const hideContextMenu = useUIStore((s) => s.hideContextMenu);
   const addToast = useUIStore((s) => s.addToast);
+  const hiddenLayers = useUIStore((s) => s.hiddenLayers);
+  const lockedLayers = useUIStore((s) => s.lockedLayers);
 
   // Local state
   const [isPanning, setIsPanning] = useState(false);
@@ -674,7 +680,8 @@ export function Canvas2D() {
 
       if (isBoxSelecting) {
         setIsBoxSelecting(false);
-        // TODO: Find elements within box and add to selection
+        // Complete box selection - find elements within box and add to selection
+        completeBoxSelection(boxStart.x, boxStart.y, boxEnd.x, boxEnd.y, false, "intersect");
         return;
       }
     },
@@ -689,10 +696,13 @@ export function Canvas2D() {
       activeTool,
       drawStart,
       drawEnd,
+      boxStart,
+      boxEnd,
       addElement,
       updateElement,
       addToast,
       recordAction,
+      completeBoxSelection,
     ],
   );
 
@@ -712,11 +722,20 @@ export function Canvas2D() {
       if (activeTool !== "select" || e.button !== 0) return;
       e.stopPropagation();
 
-      // Select the element
+      // Check if layer is locked
+      const isLocked = lockedLayers.has(element.type);
+
+      // Select the element (even if locked)
       if (!e.shiftKey) {
         select(element.id);
       } else {
         addToSelection(element.id);
+      }
+
+      // Don't allow drag if layer is locked
+      if (isLocked) {
+        addToast("info", `${element.type} layer is locked`);
+        return;
       }
 
       // Initialize drag
@@ -726,7 +745,7 @@ export function Canvas2D() {
       setDragOffset({ x: point.x - element.x, y: point.y - element.y });
       setDragStartPos({ x: element.x, y: element.y });
     },
-    [activeTool, select, addToSelection, getCanvasPoint],
+    [activeTool, select, addToSelection, getCanvasPoint, lockedLayers, addToast],
   );
 
   // Element click handler (for selection only, drag is handled by mousedown/mouseup)
@@ -777,13 +796,21 @@ export function Canvas2D() {
     }
   };
 
+  // Filter visible elements (respect layer visibility)
+  const visibleElements = elements.filter((el) => !hiddenLayers.has(el.type));
+
   // Sort elements: rooms first (background), then walls, then doors/windows
-  const sortedElements = [...elements].sort((a, b) => {
+  const sortedElements = [...visibleElements].sort((a, b) => {
     const order: Record<string, number> = {
       room: 0,
+      floor: 0,
       wall: 1,
+      column: 1,
+      beam: 1,
       door: 2,
       window: 2,
+      roof: 3,
+      stair: 2,
     };
     return (order[a.type] ?? 3) - (order[b.type] ?? 3);
   });
@@ -791,6 +818,7 @@ export function Canvas2D() {
   return (
     <svg
       ref={svgRef}
+      data-canvas="2d"
       className="w-full h-full canvas-bg"
       viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
       onMouseDown={handleMouseDown}

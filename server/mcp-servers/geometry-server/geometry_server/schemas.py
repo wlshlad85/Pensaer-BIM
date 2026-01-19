@@ -8,7 +8,7 @@ Conversion can be applied at the API boundary if needed.
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # =============================================================================
@@ -311,6 +311,27 @@ class ModifyParameterParams(BaseModel):
     reasoning: str | None = Field(None, description="AI agent reasoning")
 
 
+class ModifyElementParams(BaseModel):
+    """Parameters for modifying an element (properties and/or geometry)."""
+
+    element_id: str = Field(..., description="UUID of the element to modify")
+    properties: dict[str, Any] | None = Field(
+        None, description="Properties to update (partial update)"
+    )
+    geometry: dict[str, Any] | None = Field(
+        None,
+        description="Geometry parameters to update (e.g., start_point, end_point for walls)",
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+    @model_validator(mode="after")
+    def validate_has_changes(self) -> "ModifyElementParams":
+        """Ensure at least one modification is provided."""
+        if self.properties is None and self.geometry is None:
+            raise ValueError("At least one of 'properties' or 'geometry' must be provided")
+        return self
+
+
 # =============================================================================
 # Mesh Tool Schemas
 # =============================================================================
@@ -336,6 +357,28 @@ class ValidateMeshParams(BaseModel):
     """Parameters for validating a mesh."""
 
     element_id: str = Field(..., description="UUID of the element")
+
+
+class ComputeMeshParams(BaseModel):
+    """Parameters for computing a mesh with full features."""
+
+    element_id: str = Field(..., description="UUID of the element to mesh")
+    include_normals: bool = Field(True, description="Include vertex normals for lighting")
+    include_uvs: bool = Field(False, description="Include UV coordinates for texturing")
+    lod_level: int = Field(
+        0, description="Level of detail: 0=full, 1=medium, 2=low", ge=0, le=2
+    )
+    format: str = Field(
+        "gltf", description="Output format: gltf (glTF-compatible JSON), json, obj"
+    )
+
+    @field_validator("format")
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        valid_formats = {"gltf", "json", "obj"}
+        if v.lower() not in valid_formats:
+            raise ValueError(f"format must be one of: {valid_formats}")
+        return v.lower()
 
 
 # =============================================================================

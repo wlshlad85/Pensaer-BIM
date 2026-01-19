@@ -10,6 +10,29 @@ export {
   initializeHistory,
   handleUndoRedo,
 } from "./historyStore";
+export { useTokenStore } from "./tokenStore";
+export { useMacroStore } from "./macroStore";
+
+// Self-healing utilities
+export {
+  validateElement,
+  sanitizeNumber,
+  sanitizeCoordinate,
+  sanitizeDimension,
+  safeFilter,
+  safeFind,
+  dedupeStrings,
+  removeByIds,
+  checkElementIntegrity,
+  repairElementRelationships,
+  safeJsonParse,
+  safeJsonStringify,
+  safeDeepClone,
+  logHealing,
+  getHealingLog,
+  clearHealingLog,
+  type HealingLogEntry,
+} from "./selfHealing";
 
 // Expose stores globally for testing/debugging (development only)
 if (typeof window !== "undefined") {

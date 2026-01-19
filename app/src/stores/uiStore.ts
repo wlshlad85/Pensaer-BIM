@@ -22,6 +22,10 @@ interface UIState {
   panY: number;
   activeLevel: string;
 
+  // Layer Visibility - tracks which element types are hidden
+  hiddenLayers: Set<string>;
+  lockedLayers: Set<string>;
+
   // Panel State
   showCommandPalette: boolean;
   showPropertiesPanel: boolean;
@@ -63,6 +67,15 @@ interface UIActions {
   togglePropertiesPanel: () => void;
   toggleLayersPanel: () => void;
 
+  // Layer Visibility Actions
+  toggleLayerVisibility: (layerType: string) => void;
+  showAllLayers: () => void;
+  hideAllLayers: () => void;
+  toggleLayerLock: (layerType: string) => void;
+  unlockAllLayers: () => void;
+  isLayerVisible: (layerType: string) => boolean;
+  isLayerLocked: (layerType: string) => boolean;
+
   // Context Menu Actions
   showContextMenu: (x: number, y: number, targetId: string | null) => void;
   hideContextMenu: () => void;
@@ -88,6 +101,9 @@ export const useUIStore = create<UIStore>()(
     panX: 0,
     panY: 0,
     activeLevel: "Level 1",
+
+    hiddenLayers: new Set(),
+    lockedLayers: new Set(),
 
     showCommandPalette: false,
     showPropertiesPanel: true,
@@ -203,6 +219,58 @@ export const useUIStore = create<UIStore>()(
       set((state) => {
         state.showLayersPanel = !state.showLayersPanel;
       }),
+
+    // Layer Visibility Actions
+    toggleLayerVisibility: (layerType) =>
+      set((state) => {
+        const newHidden = new Set(state.hiddenLayers);
+        if (newHidden.has(layerType)) {
+          newHidden.delete(layerType);
+        } else {
+          newHidden.add(layerType);
+        }
+        state.hiddenLayers = newHidden;
+      }),
+
+    showAllLayers: () =>
+      set((state) => {
+        state.hiddenLayers = new Set();
+      }),
+
+    hideAllLayers: () =>
+      set((state) => {
+        state.hiddenLayers = new Set([
+          "wall",
+          "door",
+          "window",
+          "room",
+          "floor",
+          "roof",
+          "column",
+          "beam",
+          "stair",
+        ]);
+      }),
+
+    toggleLayerLock: (layerType) =>
+      set((state) => {
+        const newLocked = new Set(state.lockedLayers);
+        if (newLocked.has(layerType)) {
+          newLocked.delete(layerType);
+        } else {
+          newLocked.add(layerType);
+        }
+        state.lockedLayers = newLocked;
+      }),
+
+    unlockAllLayers: () =>
+      set((state) => {
+        state.lockedLayers = new Set();
+      }),
+
+    isLayerVisible: (layerType) => !get().hiddenLayers.has(layerType),
+
+    isLayerLocked: (layerType) => get().lockedLayers.has(layerType),
 
     // Context Menu Actions
     showContextMenu: (x, y, targetId) =>

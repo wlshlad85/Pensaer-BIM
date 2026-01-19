@@ -8,6 +8,8 @@ Tests cover:
 - export_csv: CSV data export
 - door_schedule: Specialized door schedules with fire rating
 - window_schedule: Specialized window schedules with glazing and U-value
+- room_schedule: Specialized room schedules with area and finishes
+- export_bcf: BCF export for issues and clashes
 """
 
 import pytest
@@ -20,6 +22,8 @@ from documentation_server.server import (
     _export_csv,
     _door_schedule,
     _window_schedule,
+    _room_schedule,
+    _export_bcf,
     get_element_property,
     format_value,
 )
@@ -994,6 +998,473 @@ class TestWindowSchedule:
         assert "Total Windows: **2**" in result["data"]["schedule"]
         assert "Total Glazing Area:" in result["data"]["schedule"]
         assert "Average U-Value:" in result["data"]["schedule"]
+
+
+class TestRoomSchedule:
+    """Tests for room_schedule tool."""
+
+    @pytest.mark.asyncio
+    async def test_basic_room_schedule_table(self):
+        """Test basic room schedule generation in table format."""
+        rooms = [
+            {"id": "R01", "name": "Living Room", "number": "101", "area": 35.0, "floor_finish": "hardwood", "ceiling_height": 2.7},
+            {"id": "R02", "name": "Kitchen", "number": "102", "area": 15.0, "floor_finish": "tile", "ceiling_height": 2.7},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["room_count"] == 2
+        assert result["data"]["format"] == "table"
+        assert "# Room Schedule" in result["data"]["schedule"]
+        assert "R01" in result["data"]["schedule"]
+        assert "Living Room" in result["data"]["schedule"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_csv_format(self):
+        """Test room schedule generation in CSV format."""
+        rooms = [
+            {"id": "R01", "name": "Bedroom", "number": "201", "area": 20.0},
+            {"id": "R02", "name": "Bathroom", "number": "202", "area": 8.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "format": "csv",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["format"] == "csv"
+        lines = result["data"]["schedule"].strip().split("\n")
+        assert len(lines) >= 3  # header + 2 data rows
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_json_format(self):
+        """Test room schedule generation in JSON format."""
+        rooms = [
+            {"id": "R01", "name": "Office", "number": "301", "area": 25.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        assert result["data"]["format"] == "json"
+        import json
+        output = json.loads(result["data"]["schedule"])
+        assert output["schedule_type"] == "room"
+        assert output["total_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_with_area(self):
+        """Test room schedule includes area column."""
+        rooms = [
+            {"id": "R01", "name": "Conference", "number": "401", "area": 45.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "include_area": True,
+        })
+
+        assert result["success"] is True
+        assert "area" in result["data"]["columns"]
+        assert result["data"]["total_area"] == 45.0
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_without_area(self):
+        """Test room schedule excludes area column."""
+        rooms = [
+            {"id": "R01", "name": "Storage", "number": "B01", "area": 10.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "include_area": False,
+        })
+
+        assert result["success"] is True
+        assert "area" not in result["data"]["columns"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_with_finishes(self):
+        """Test room schedule includes finish columns."""
+        rooms = [
+            {"id": "R01", "name": "Hall", "number": "001", "floor_finish": "marble", "ceiling_height": 3.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "include_finishes": True,
+        })
+
+        assert result["success"] is True
+        assert "floor_finish" in result["data"]["columns"]
+        assert "ceiling_height" in result["data"]["columns"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_without_finishes(self):
+        """Test room schedule excludes finish columns."""
+        rooms = [
+            {"id": "R01", "name": "Lobby", "number": "G01", "floor_finish": "carpet"},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "include_finishes": False,
+        })
+
+        assert result["success"] is True
+        assert "floor_finish" not in result["data"]["columns"]
+        assert "ceiling_height" not in result["data"]["columns"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_sorting(self):
+        """Test room schedule sorting by property."""
+        rooms = [
+            {"id": "R03", "name": "Room C", "number": "103"},
+            {"id": "R01", "name": "Room A", "number": "101"},
+            {"id": "R02", "name": "Room B", "number": "102"},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "sort_by": "id",
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        room_ids = [r["id"] for r in output["groups"]["All Rooms"]]
+        assert room_ids == ["R01", "R02", "R03"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_grouping_by_level(self):
+        """Test room schedule grouping by level."""
+        rooms = [
+            {"id": "R01", "name": "Living", "number": "101", "level": "Level 1"},
+            {"id": "R02", "name": "Master", "number": "201", "level": "Level 2"},
+            {"id": "R03", "name": "Guest", "number": "202", "level": "Level 2"},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "group_by": "level",
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert "Level: Level 1" in result["data"]["schedule"]
+        assert "Level: Level 2" in result["data"]["schedule"]
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_grouping_by_department(self):
+        """Test room schedule grouping by department."""
+        rooms = [
+            {"id": "R01", "name": "Open Office", "number": "A01", "department": "Engineering"},
+            {"id": "R02", "name": "Meeting Room", "number": "A02", "department": "Engineering"},
+            {"id": "R03", "name": "Reception", "number": "B01", "department": "Admin"},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "group_by": "department",
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        assert "Engineering" in output["groups"]
+        assert "Admin" in output["groups"]
+        assert len(output["groups"]["Engineering"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_empty_rooms(self):
+        """Test room schedule with no rooms."""
+        result = await _room_schedule({
+            "rooms": [],
+        })
+
+        assert result["success"] is False
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_default_values(self):
+        """Test room schedule fills in default values."""
+        rooms = [
+            {"id": "R01"},  # minimal room, should get defaults
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "format": "json",
+        })
+
+        assert result["success"] is True
+        import json
+        output = json.loads(result["data"]["schedule"])
+        room = output["groups"]["All Rooms"][0]
+        assert room["name"] == "Unnamed"  # default name
+        assert room["number"] == "-"  # default number
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_total_area(self):
+        """Test room schedule calculates total area."""
+        rooms = [
+            {"id": "R01", "name": "Room 1", "number": "101", "area": 25.0},
+            {"id": "R02", "name": "Room 2", "number": "102", "area": 35.0},
+            {"id": "R03", "name": "Room 3", "number": "103", "area": 40.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["total_area"] == 100.0  # 25 + 35 + 40
+
+    @pytest.mark.asyncio
+    async def test_room_schedule_summary_section(self):
+        """Test room schedule includes summary section in table format."""
+        rooms = [
+            {"id": "R01", "name": "Test Room", "number": "001", "area": 50.0},
+        ]
+        result = await _room_schedule({
+            "rooms": rooms,
+            "format": "table",
+        })
+
+        assert result["success"] is True
+        assert "## Summary" in result["data"]["schedule"]
+        assert "Total Rooms: **1**" in result["data"]["schedule"]
+        assert "Total Floor Area:" in result["data"]["schedule"]
+
+
+class TestExportBcf:
+    """Tests for export_bcf tool."""
+
+    @pytest.mark.asyncio
+    async def test_basic_bcf_export(self):
+        """Test basic BCF export with minimal issue."""
+        issues = [
+            {"message": "Door clearance too small", "severity": "critical"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["topic_count"] == 1
+        assert result["data"]["bcf_version"] == "2.1"
+        assert "bcf_structure" in result["data"]
+        assert "bcf_xml_sample" in result["data"]
+
+    @pytest.mark.asyncio
+    async def test_bcf_export_with_elements(self):
+        """Test BCF export with element references."""
+        issues = [
+            {
+                "message": "Clash detected",
+                "severity": "critical",
+                "element_a_id": "wall-001",
+                "element_b_id": "door-001",
+            },
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        topic = result["data"]["bcf_structure"]["topics"][0]
+        assert "reference_links" in topic
+        assert len(topic["reference_links"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_bcf_export_with_viewpoints(self):
+        """Test BCF export with viewpoint information."""
+        issues = [
+            {
+                "message": "Issue at location",
+                "severity": "warning",
+                "position": [5.0, 10.0, 2.5],
+                "element_id": "wall-001",
+            },
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+            "include_viewpoints": True,
+        })
+
+        assert result["success"] is True
+        topic = result["data"]["bcf_structure"]["topics"][0]
+        assert "viewpoints" in topic
+        viewpoint = topic["viewpoints"][0]
+        assert "camera_view_point" in viewpoint
+        assert viewpoint["camera_view_point"]["x"] == 5.0
+        assert viewpoint["camera_view_point"]["y"] == 10.0
+
+    @pytest.mark.asyncio
+    async def test_bcf_export_without_viewpoints(self):
+        """Test BCF export without viewpoint information."""
+        issues = [
+            {"message": "Simple issue", "severity": "low"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+            "include_viewpoints": False,
+        })
+
+        assert result["success"] is True
+        topic = result["data"]["bcf_structure"]["topics"][0]
+        assert "viewpoints" not in topic
+
+    @pytest.mark.asyncio
+    async def test_bcf_versions(self):
+        """Test different BCF versions."""
+        issues = [{"message": "Test issue"}]
+
+        for version in ["2.0", "2.1", "3.0"]:
+            result = await _export_bcf({
+                "issues": issues,
+                "bcf_version": version,
+            })
+            assert result["success"] is True
+            assert result["data"]["bcf_version"] == version
+
+    @pytest.mark.asyncio
+    async def test_bcf_priority_mapping(self):
+        """Test BCF priority mapping from severity."""
+        issues = [
+            {"message": "Critical issue", "severity": "critical"},
+            {"message": "High issue", "severity": "high"},
+            {"message": "Medium issue", "severity": "medium"},
+            {"message": "Low issue", "severity": "low"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        topics = result["data"]["bcf_structure"]["topics"]
+        priorities = [t["priority"] for t in topics]
+        assert priorities == ["critical", "high", "normal", "low"]
+
+    @pytest.mark.asyncio
+    async def test_bcf_type_mapping(self):
+        """Test BCF topic type mapping from issue type."""
+        issues = [
+            {"message": "Clash", "type": "clash"},
+            {"message": "Warning", "type": "warning"},
+            {"message": "Fire issue", "type": "fire"},
+            {"message": "ADA issue", "type": "accessibility"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        topics = result["data"]["bcf_structure"]["topics"]
+        types = [t["topic_type"] for t in topics]
+        assert "Clash" in types
+        assert "Warning" in types
+        assert "Fire Safety" in types
+        assert "Accessibility" in types
+
+    @pytest.mark.asyncio
+    async def test_bcf_with_comments(self):
+        """Test BCF export with comments."""
+        issues = [
+            {
+                "message": "Issue with discussion",
+                "severity": "medium",
+                "comments": [
+                    "First comment",
+                    {"text": "Second comment"},
+                ],
+            },
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        topic = result["data"]["bcf_structure"]["topics"][0]
+        assert "comments" in topic
+        assert len(topic["comments"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_bcf_project_info(self):
+        """Test BCF export with project information."""
+        issues = [{"message": "Test"}]
+        result = await _export_bcf({
+            "issues": issues,
+            "project_name": "My BIM Project",
+            "author": "Test Author",
+        })
+
+        assert result["success"] is True
+        project = result["data"]["bcf_structure"]["project"]
+        assert project["name"] == "My BIM Project"
+        topics = result["data"]["bcf_structure"]["topics"]
+        assert topics[0]["creation_author"] == "Test Author"
+
+    @pytest.mark.asyncio
+    async def test_bcf_xml_sample(self):
+        """Test BCF XML sample is generated."""
+        issues = [
+            {"message": "XML test issue", "severity": "high", "type": "clash"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        xml = result["data"]["bcf_xml_sample"]
+        assert '<?xml version="1.0"' in xml
+        assert "<Markup" in xml
+        assert "<Topic" in xml
+        assert "<Title>XML test issue</Title>" in xml
+        assert "<Priority>high</Priority>" in xml
+        assert "</Markup>" in xml
+
+    @pytest.mark.asyncio
+    async def test_bcf_empty_issues(self):
+        """Test BCF export with no issues."""
+        result = await _export_bcf({
+            "issues": [],
+        })
+
+        assert result["success"] is False
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_bcf_multiple_issues(self):
+        """Test BCF export with multiple issues."""
+        issues = [
+            {"message": f"Issue {i}", "severity": "medium"}
+            for i in range(5)
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        assert result["data"]["topic_count"] == 5
+        topics = result["data"]["bcf_structure"]["topics"]
+        # Check indices are sequential
+        indices = [t["index"] for t in topics]
+        assert indices == [1, 2, 3, 4, 5]
+
+    @pytest.mark.asyncio
+    async def test_bcf_guid_uniqueness(self):
+        """Test BCF export generates unique GUIDs."""
+        issues = [
+            {"message": "Issue 1"},
+            {"message": "Issue 2"},
+        ]
+        result = await _export_bcf({
+            "issues": issues,
+        })
+
+        assert result["success"] is True
+        topics = result["data"]["bcf_structure"]["topics"]
+        guids = [t["guid"] for t in topics]
+        assert len(set(guids)) == 2  # All unique
 
 
 class TestValidationErrors:

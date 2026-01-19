@@ -8,3 +8,5 @@ export { PropertiesPanel } from "./PropertiesPanel";
 export { CommandPalette } from "./CommandPalette";
 export { Terminal } from "./Terminal";
 export { LevelPanel } from "./LevelPanel";
+export { LayerPanel } from "./LayerPanel";
+export { StatusBar } from "./StatusBar";

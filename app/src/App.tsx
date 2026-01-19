@@ -6,13 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import {
-  useUIStore,
-  useModelStore,
-  useSelectionStore,
-  initializeHistory,
-  useHistoryStore,
-} from "./stores";
+import { useUIStore, initializeHistory } from "./stores";
 import { useKeyboardShortcuts, usePersistence } from "./hooks";
 import { Canvas2D, Canvas3D } from "./components/canvas";
 import {
@@ -22,7 +16,10 @@ import {
   CommandPalette,
   Terminal,
   LevelPanel,
+  LayerPanel,
+  StatusBar,
 } from "./components/layout";
+import { PerformanceMonitor } from "./components/debug";
 import clsx from "clsx";
 
 function App() {
@@ -42,22 +39,13 @@ function App() {
     isAvailable: dbAvailable,
   } = usePersistence();
 
-  // Get history count for status bar
-  const historyCount = useHistoryStore((s) => s.entries.length);
-
   // Store state
   const viewMode = useUIStore((s) => s.viewMode);
   const showCommandPalette = useUIStore((s) => s.showCommandPalette);
   const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const zoom = useUIStore((s) => s.zoom);
-  const activeLevel = useUIStore((s) => s.activeLevel);
-  const activeTool = useUIStore((s) => s.activeTool);
   const toasts = useUIStore((s) => s.toasts);
   const removeToast = useUIStore((s) => s.removeToast);
-
-  const elements = useModelStore((s) => s.elements);
-  const selectedIds = useSelectionStore((s) => s.selectedIds);
 
   // Terminal state
   const [terminalExpanded, setTerminalExpanded] = useState(false);
@@ -77,17 +65,12 @@ function App() {
           <div className="flex-1 relative">
             {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
 
-            {/* Level Panel (floating, top-left) */}
-            <div className="absolute top-4 left-4 w-48 z-10">
+            {/* Level & Layer Panels (floating, top-left) */}
+            <div className="absolute top-4 left-4 w-52 z-10 flex flex-col gap-2">
               <LevelPanel />
+              <LayerPanel />
             </div>
 
-            {/* Zoom indicator (2D only) */}
-            {viewMode === "2d" && (
-              <div className="absolute bottom-4 left-4 px-2 py-1 rounded bg-gray-900/80 text-xs text-gray-400">
-                {Math.round(zoom * 100)}%
-              </div>
-            )}
           </div>
 
           {/* Right Properties Panel */}
@@ -102,44 +85,18 @@ function App() {
       </main>
 
       {/* Status Bar */}
-      <footer className="h-6 flex items-center justify-between px-4 text-xs text-gray-500 border-t border-gray-700/50 bg-gray-900/50">
-        <div className="flex items-center gap-4">
-          <span>{activeLevel}</span>
-          <span className="text-gray-600">•</span>
-          <span className="capitalize">Tool: {activeTool}</span>
-          <span className="text-gray-600">•</span>
-          <span>Grid: 50mm</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>{elements.length} elements</span>
-          <span className="text-gray-600">•</span>
-          <span>{selectedIds.length} selected</span>
-          <span className="text-gray-600">•</span>
-          <span title="Undo history">{historyCount} history</span>
-          <span className="text-gray-600">•</span>
-          {isLoading ? (
-            <span className="text-yellow-400">● Loading...</span>
-          ) : isSaving ? (
-            <span className="text-blue-400">● Saving...</span>
-          ) : dbAvailable ? (
-            <span
-              className="text-green-400"
-              title={
-                lastSaved
-                  ? `Last saved: ${lastSaved.toLocaleTimeString()}`
-                  : "Auto-save enabled"
-              }
-            >
-              ● Saved
-            </span>
-          ) : (
-            <span className="text-orange-400">● No persistence</span>
-          )}
-        </div>
-      </footer>
+      <StatusBar
+        isLoading={isLoading}
+        isSaving={isSaving}
+        lastSaved={lastSaved}
+        dbAvailable={dbAvailable}
+      />
 
       {/* Command Palette Modal */}
       {showCommandPalette && <CommandPalette onClose={closeCommandPalette} />}
+
+      {/* Performance Monitor (F3 to toggle) */}
+      <PerformanceMonitor position="top-right" showGraph={true} />
 
       {/* Toast Container */}
       <div className="fixed top-16 right-4 z-50 flex flex-col gap-2">

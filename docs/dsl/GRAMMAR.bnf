@@ -53,13 +53,16 @@
 ; =============================================================================
 
 <command>        ::= <wall-command>
+                   | <floor-command>
+                   | <roof-command>
+                   | <room-command>
                    | <door-command>
                    | <window-command>
                    | <opening-command>
                    | <help-command>
 
 <help-command>   ::= "help" [ <command-name> ]
-<command-name>   ::= "wall" | "door" | "window" | "opening"
+<command-name>   ::= "wall" | "floor" | "roof" | "room" | "door" | "window" | "opening"
 
 ; =============================================================================
 ; WALL COMMANDS
@@ -298,6 +301,127 @@
 <opening-dims>   ::= <dimension> <ws> "x" <ws> <dimension>
                    | "width" <ws> <dimension> <ws> "height" <ws> <dimension>
                    | <dimension> <ws> "by" <ws> <dimension>
+
+; =============================================================================
+; FLOOR COMMAND
+; =============================================================================
+; Creates a floor slab from a boundary polygon or bounding box.
+;
+; Required: boundary points (--points) or bounding box (--min/--max)
+; Optional: thickness (default: 0.15m), level, type
+; =============================================================================
+
+<floor-command>  ::= "floor" <ws> <floor-boundary> [ <floor-options> ]
+                   | "create" <ws> "floor" <ws> <floor-boundary> [ <floor-options> ]
+
+<floor-boundary> ::= "--points" <ws> <point-list>
+                   | "--min" <ws> <point2d> <ws> "--max" <ws> <point2d>
+
+<point-list>     ::= <point2d> { <ws> <point2d> }
+
+<floor-options>  ::= { <ws> <floor-option> }
+
+<floor-option>   ::= <floor-thickness-opt>
+                   | <floor-level-opt>
+                   | <floor-type-opt>
+
+<floor-thickness-opt> ::= "thickness" <ws> <dimension>
+                        | "-t" <ws> <dimension>
+                        | "--thickness" <ws> <dimension>
+                        | "--thickness=" <dimension>
+
+<floor-level-opt> ::= "level" <ws> <dimension>
+                    | "level" <ws> <identifier>
+                    | "--level" <ws> <dimension>
+                    | "--level" <ws> <identifier>
+
+<floor-type-opt> ::= "type" <ws> <identifier>
+                   | "--type" <ws> <identifier>
+
+; =============================================================================
+; ROOF COMMAND
+; =============================================================================
+; Creates a roof from a boundary polygon with slope and overhang.
+;
+; Required: boundary points (--points) or bounding box (--min/--max)
+; Optional: type (default: gable), slope (default: 30°), overhang (default: 0.5m)
+; =============================================================================
+
+<roof-command>   ::= "roof" <ws> [ <roof-type-opt> <ws> ] <roof-boundary> [ <roof-options> ]
+                   | "create" <ws> "roof" <ws> [ <roof-type-opt> <ws> ] <roof-boundary> [ <roof-options> ]
+
+<roof-boundary>  ::= "--points" <ws> <point-list>
+                   | "--min" <ws> <point2d> <ws> "--max" <ws> <point2d>
+
+<roof-options>   ::= { <ws> <roof-option> }
+
+<roof-option>    ::= <roof-type-opt>
+                   | <roof-slope-opt>
+                   | <roof-overhang-opt>
+                   | <roof-level-opt>
+
+<roof-type-opt>  ::= "type" <ws> <roof-type>
+                   | "--type" <ws> <roof-type>
+                   | "--type=" <roof-type>
+
+<roof-type>      ::= "flat" | "gable" | "hip" | "shed" | "mansard"
+
+<roof-slope-opt> ::= "slope" <ws> <dimension>
+                   | "--slope" <ws> <dimension>
+                   | "--slope=" <dimension>
+
+<roof-overhang-opt> ::= "overhang" <ws> <dimension>
+                      | "--overhang" <ws> <dimension>
+                      | "--overhang=" <dimension>
+
+<roof-level-opt> ::= "level" <ws> <identifier>
+                   | "--level" <ws> <identifier>
+
+; =============================================================================
+; ROOM COMMAND
+; =============================================================================
+; Creates a room space from a boundary polygon.
+;
+; Required: boundary points (--points) or bounding box (--min/--max)
+; Optional: name, number, type, height (default: 3.0m), level
+; =============================================================================
+
+<room-command>   ::= "room" <ws> <room-boundary> [ <room-options> ]
+                   | "create" <ws> "room" <ws> <room-boundary> [ <room-options> ]
+
+<room-boundary>  ::= "--points" <ws> <point-list>
+                   | "--min" <ws> <point2d> <ws> "--max" <ws> <point2d>
+
+<room-options>   ::= { <ws> <room-option> }
+
+<room-option>    ::= <room-name-opt>
+                   | <room-number-opt>
+                   | <room-type-opt>
+                   | <room-height-opt>
+                   | <room-level-opt>
+
+<room-name-opt>  ::= "name" <ws> <string>
+                   | "--name" <ws> <string>
+                   | "--name=" <string>
+
+<room-number-opt> ::= "number" <ws> <string>
+                    | "--number" <ws> <string>
+                    | "--number=" <string>
+
+<room-type-opt>  ::= "type" <ws> <room-type>
+                   | "--type" <ws> <room-type>
+                   | "--type=" <room-type>
+
+<room-type>      ::= "bedroom" | "bathroom" | "kitchen" | "living"
+                   | "dining" | "office" | "storage" | "generic"
+
+<room-height-opt> ::= "height" <ws> <dimension>
+                    | "-h" <ws> <dimension>
+                    | "--height" <ws> <dimension>
+                    | "--height=" <dimension>
+
+<room-level-opt> ::= "level" <ws> <identifier>
+                   | "--level" <ws> <identifier>
 
 ; =============================================================================
 ; END OF GRAMMAR
