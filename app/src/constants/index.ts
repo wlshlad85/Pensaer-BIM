@@ -10,3 +10,12 @@ export {
   type ViewType,
   type CameraPreset,
 } from "./camera";
+
+export {
+  TYPE_ICONS,
+  TYPE_COLORS,
+  SEVERITY_STYLES,
+  getTypeIcon,
+  getTypeColor,
+  getSeverityStyles,
+} from "./elementStyles";
