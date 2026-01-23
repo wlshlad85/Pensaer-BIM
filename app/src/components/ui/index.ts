@@ -31,3 +31,10 @@ export {
 } from "./Skeleton";
 
 export { GlobalLoadingIndicator } from "./GlobalLoadingIndicator";
+
+export {
+  Modal,
+  ConfirmModal,
+  AlertModal,
+  type ModalSize,
+} from "./Modal";

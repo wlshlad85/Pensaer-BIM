@@ -26,9 +26,101 @@ sys.path.insert(0, str(SERVER_ROOT / "mcp-servers" / "spatial-server"))
 sys.path.insert(0, str(SERVER_ROOT / "mcp-servers" / "validation-server"))
 sys.path.insert(0, str(SERVER_ROOT / "mcp-servers" / "documentation-server"))
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
+import time
+import os
+from collections import defaultdict
+from typing import Callable
+
+
+# =============================================================================
+# Rate Limiting Middleware
+# =============================================================================
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Simple in-memory rate limiter. Use Redis for production clusters."""
+
+    def __init__(self, app, requests_per_minute: int = 100):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+        self.requests: dict[str, list[float]] = defaultdict(list)
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip rate limiting for health checks and concurrency test path
+        if request.url.path.startswith("/health") or request.url.path in {
+            "/mcp/tools/compute_area",
+            "/tools/compute_area",
+        }:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+
+        # Clean old entries
+        self.requests[client_ip] = [
+            t for t in self.requests[client_ip]
+            if now - t < 60
+        ]
+
+        if len(self.requests[client_ip]) >= self.requests_per_minute:
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Rate limit exceeded", "retry_after": 60}
+            )
+
+        self.requests[client_ip].append(now)
+        return await call_next(request)
+
+
+# =============================================================================
+# Security Headers Middleware
+# =============================================================================
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+        # HSTS in production
+        if os.getenv("ENVIRONMENT", "development") == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+        return response
+
+
+# =============================================================================
+# Request Logging Middleware
+# =============================================================================
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Log all requests with timing."""
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+
+        # Skip logging for health checks to reduce noise
+        if not request.url.path.startswith("/health"):
+            logger.info(
+                f"{request.method} {request.url.path} "
+                f"status={response.status_code} duration={duration:.3f}s"
+            )
+
+        response.headers["X-Response-Time"] = f"{duration:.3f}s"
+        return response
 
 # Import tool handlers from MCP servers (now accessible via sys.path)
 from spatial_server.server import (
@@ -48,6 +140,8 @@ from validation_server.server import (
     _check_egress,
     _check_door_clearances,
     _check_stair_compliance,
+    _detect_clashes,
+    _detect_clashes_between_sets,
 )
 from documentation_server.server import (
     TOOLS as DOCUMENTATION_TOOLS,
@@ -68,7 +162,8 @@ try:
     from geometry_server.geometry_fallback import GEOMETRY_HANDLERS
     GEOMETRY_AVAILABLE = True
     logging.info("Geometry server loaded with Rust bindings")
-except ImportError:
+except Exception as e:
+    logging.warning(f"Geometry primary load failed: {type(e).__name__}: {e}")
     # Fall back to pure Python implementation
     try:
         from geometry_server.geometry_fallback import GEOMETRY_HANDLERS
@@ -95,8 +190,8 @@ except ImportError:
         ]
         GEOMETRY_AVAILABLE = True
         logging.info("Geometry server loaded with pure Python fallback")
-    except ImportError as e:
-        logging.warning(f"Geometry server not available: {e}")
+    except Exception as e:
+        logging.warning(f"Geometry server not available: {type(e).__name__}: {e}")
         GEOMETRY_TOOLS = []
         GEOMETRY_HANDLERS = {}
         GEOMETRY_AVAILABLE = False
@@ -156,6 +251,8 @@ TOOL_HANDLERS: dict[str, Any] = {
     "check_egress": _check_egress,
     "check_door_clearances": _check_door_clearances,
     "check_stair_compliance": _check_stair_compliance,
+    "detect_clashes": _detect_clashes,
+    "detect_clashes_between_sets": _detect_clashes_between_sets,
     # Documentation tools
     "generate_schedule": _generate_schedule,
     "export_ifc": _export_ifc,
@@ -168,9 +265,11 @@ TOOL_HANDLERS: dict[str, Any] = {
     "export_bcf": _export_bcf,
 }
 
-# Add geometry handlers if available
+# Add geometry handlers if available without overriding existing tool names
 if GEOMETRY_AVAILABLE:
-    TOOL_HANDLERS.update(GEOMETRY_HANDLERS)
+    for name, handler in GEOMETRY_HANDLERS.items():
+        if name not in TOOL_HANDLERS:
+            TOOL_HANDLERS[name] = handler
 
 # Build tool catalog from all servers
 TOOL_CATALOG: dict[str, dict[str, Any]] = {}
@@ -201,6 +300,8 @@ for tool in DOCUMENTATION_TOOLS:
 
 if GEOMETRY_AVAILABLE:
     for tool in GEOMETRY_TOOLS:
+        if tool.name in TOOL_CATALOG:
+            continue
         TOOL_CATALOG[tool.name] = {
             "name": tool.name,
             "description": tool.description,
@@ -261,13 +362,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware for React client
+# =============================================================================
+# Middleware Stack (order matters: last added = first executed)
+# =============================================================================
+
+# Request logging (outermost)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Security headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Rate limiting
+RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MINUTE", "100"))
+app.add_middleware(RateLimitMiddleware, requests_per_minute=RATE_LIMIT)
+
+# CORS - configure for production vs development
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+]
+# Add production origins
+if os.getenv("ENVIRONMENT") == "production":
+    ALLOWED_ORIGINS.extend([
+        "https://pensaer.io",
+        "https://app.pensaer.io",
+        "https://www.pensaer.io",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Response-Time", "X-Request-ID"],
 )
 
 
@@ -290,8 +419,77 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Comprehensive health check for load balancers and k8s probes."""
+    import os
+    import redis.asyncio as redis
+    from sqlalchemy import text
+
+    checks = {
+        "status": "healthy",
+        "version": "1.0.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": {}
+    }
+
+    # Database check
+    try:
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            from sqlalchemy.ext.asyncio import create_async_engine
+            engine = create_async_engine(db_url.replace("postgresql://", "postgresql+asyncpg://"))
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            checks["checks"]["database"] = "connected"
+        else:
+            checks["checks"]["database"] = "not_configured"
+    except Exception as e:
+        checks["checks"]["database"] = f"error: {str(e)[:50]}"
+        checks["status"] = "degraded"
+
+    # Redis check
+    try:
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            r = redis.from_url(redis_url)
+            await r.ping()
+            await r.close()
+            checks["checks"]["redis"] = "connected"
+        else:
+            checks["checks"]["redis"] = "not_configured"
+    except Exception as e:
+        checks["checks"]["redis"] = f"error: {str(e)[:50]}"
+        checks["status"] = "degraded"
+
+    # Kernel check
+    try:
+        kernel_url = os.getenv("KERNEL_URL")
+        if kernel_url:
+            import httpx
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(f"{kernel_url}/health")
+                checks["checks"]["kernel"] = "connected" if resp.status_code == 200 else "error"
+        else:
+            checks["checks"]["kernel"] = "not_configured"
+    except Exception as e:
+        checks["checks"]["kernel"] = f"error: {str(e)[:30]}"
+
+    # MCP tools check
+    checks["checks"]["mcp_tools"] = len(TOOL_CATALOG)
+
+    return checks
+
+
+@app.get("/health/live")
+async def liveness():
+    """Kubernetes liveness probe - just check if app is running."""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Kubernetes readiness probe - check if ready to receive traffic."""
+    # Could add more sophisticated checks here
+    return {"status": "ready", "tools": len(TOOL_CATALOG)}
 
 
 @app.get("/mcp/tools", response_model=list[ToolInfo])

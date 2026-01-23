@@ -99,6 +99,15 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes highlightPulse {
   0%,
   100% {
@@ -131,6 +140,9 @@ body {
 }
 .animate-modal-in {
   animation: modalIn 0.2s ease-out;
+}
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out;
 }
 .animate-highlight-pulse {
   animation: highlightPulse 1s ease-in-out infinite;
@@ -262,4 +274,93 @@ textarea:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   ACCESSIBILITY STYLES
+   ============================================ */
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Make element visible when focused */
+.sr-only.focus\:not-sr-only:focus,
+.focus\:not-sr-only:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: revert;
+  margin: revert;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Enhanced focus visible indicator */
+.focus-visible-ring:focus-visible,
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-pensaer-primary);
+  outline-offset: 2px;
+}
+
+/* Subtle focus ring for toolbar buttons */
+.toolbar-button:focus-visible {
+  outline: 2px solid var(--color-pensaer-primary);
+  outline-offset: 1px;
+  border-radius: 8px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  :root {
+    --color-pensaer-primary: #60a5fa;
+    --color-pensaer-secondary: #c084fc;
+    --color-pensaer-accent: #4ade80;
+  }
+
+  button,
+  a,
+  [role="button"] {
+    border: 1px solid currentColor;
+  }
+
+  .model-element.selected {
+    stroke-width: 4;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-slide-up,
+  .animate-context-pop,
+  .animate-toast-in,
+  .animate-modal-in,
+  .animate-fade-in,
+  .animate-highlight-pulse {
+    animation: none;
+  }
 }

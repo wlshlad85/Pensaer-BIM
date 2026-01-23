@@ -6,7 +6,7 @@
 
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { ToolType, ViewMode, Toast, ToastType } from "../types";
+import type { ToolType, ViewMode, Toast, ToastType, SnapSettings } from "../types";
 
 interface UIState {
   // Tool State
@@ -30,6 +30,12 @@ interface UIState {
   showCommandPalette: boolean;
   showPropertiesPanel: boolean;
   showLayersPanel: boolean;
+  showSnapSettings: boolean;
+  showKeyboardShortcuts: boolean;
+  showTerminal: boolean;
+
+  // Snap Settings
+  snap: SnapSettings;
 
   // Context Menu
   contextMenu: {
@@ -41,6 +47,18 @@ interface UIState {
 
   // Toasts
   toasts: Toast[];
+
+  // Loading State
+  loadingOperations: Array<{
+    id: string;
+    label: string;
+    progress: number;
+    cancellable: boolean;
+  }>;
+  isGlobalLoading: boolean;
+
+  // Demo trigger (increments to signal demo should start)
+  demoTrigger: number;
 }
 
 interface UIActions {
@@ -66,6 +84,9 @@ interface UIActions {
   closeCommandPalette: () => void;
   togglePropertiesPanel: () => void;
   toggleLayersPanel: () => void;
+  toggleKeyboardShortcuts: () => void;
+  closeKeyboardShortcuts: () => void;
+  toggleTerminal: () => void;
 
   // Layer Visibility Actions
   toggleLayerVisibility: (layerType: string) => void;
@@ -84,12 +105,32 @@ interface UIActions {
   addToast: (type: ToastType, message: string) => void;
   removeToast: (id: string) => void;
   clearToasts: () => void;
+
+  // Snap Actions
+  toggleSnapEnabled: () => void;
+  toggleGridSnap: () => void;
+  toggleObjectSnap: () => void;
+  togglePerpendicularSnap: () => void;
+  setSnapSettings: (settings: Partial<SnapSettings>) => void;
+  toggleSnapSettings: () => void;
+  closeSnapSettings: () => void;
+
+  // Loading Actions
+  startLoading: (id: string, label: string, cancellable?: boolean) => void;
+  updateLoadingProgress: (id: string, progress: number) => void;
+  stopLoading: (id: string) => void;
+  stopAllLoading: () => void;
+  setGlobalLoading: (loading: boolean) => void;
+
+  // Demo Actions
+  triggerDemo: () => void;
+  clearDemoTrigger: () => void;
 }
 
 type UIStore = UIState & UIActions;
 
 export const useUIStore = create<UIStore>()(
-  immer((set) => ({
+  immer((set, get) => ({
     // Initial State
     activeTool: "select",
     isDrawing: false,
@@ -108,6 +149,18 @@ export const useUIStore = create<UIStore>()(
     showCommandPalette: false,
     showPropertiesPanel: true,
     showLayersPanel: false,
+    showSnapSettings: false,
+    showKeyboardShortcuts: false,
+    showTerminal: false,
+
+    snap: {
+      enabled: true,
+      grid: true,
+      endpoint: true,
+      midpoint: false,
+      perpendicular: false,
+      threshold: 10,
+    },
 
     contextMenu: {
       visible: false,
@@ -117,6 +170,13 @@ export const useUIStore = create<UIStore>()(
     },
 
     toasts: [],
+
+    // Loading State
+    loadingOperations: [],
+    isGlobalLoading: false,
+
+    // Demo trigger
+    demoTrigger: 0,
 
     // Tool Actions
     setTool: (tool) =>
@@ -220,6 +280,21 @@ export const useUIStore = create<UIStore>()(
         state.showLayersPanel = !state.showLayersPanel;
       }),
 
+    toggleKeyboardShortcuts: () =>
+      set((state) => {
+        state.showKeyboardShortcuts = !state.showKeyboardShortcuts;
+      }),
+
+    closeKeyboardShortcuts: () =>
+      set((state) => {
+        state.showKeyboardShortcuts = false;
+      }),
+
+    toggleTerminal: () =>
+      set((state) => {
+        state.showTerminal = !state.showTerminal;
+      }),
+
     // Layer Visibility Actions
     toggleLayerVisibility: (layerType) =>
       set((state) => {
@@ -315,6 +390,91 @@ export const useUIStore = create<UIStore>()(
     clearToasts: () =>
       set((state) => {
         state.toasts = [];
+      }),
+
+    // Snap Actions
+    toggleSnapEnabled: () =>
+      set((state) => {
+        state.snap.enabled = !state.snap.enabled;
+      }),
+
+    toggleGridSnap: () =>
+      set((state) => {
+        state.snap.grid = !state.snap.grid;
+      }),
+
+    toggleObjectSnap: () =>
+      set((state) => {
+        // Object snap toggles endpoint and midpoint together
+        const newValue = !(state.snap.endpoint || state.snap.midpoint);
+        state.snap.endpoint = newValue;
+        state.snap.midpoint = newValue;
+      }),
+
+    togglePerpendicularSnap: () =>
+      set((state) => {
+        state.snap.perpendicular = !state.snap.perpendicular;
+      }),
+
+    setSnapSettings: (settings) =>
+      set((state) => {
+        Object.assign(state.snap, settings);
+      }),
+
+    toggleSnapSettings: () =>
+      set((state) => {
+        state.showSnapSettings = !state.showSnapSettings;
+      }),
+
+    closeSnapSettings: () =>
+      set((state) => {
+        state.showSnapSettings = false;
+      }),
+
+    // Loading Actions
+    startLoading: (id, label, cancellable = false) =>
+      set((state) => {
+        // Don't add duplicate operations
+        if (!state.loadingOperations.some((op) => op.id === id)) {
+          state.loadingOperations.push({ id, label, progress: 0, cancellable });
+        }
+      }),
+
+    updateLoadingProgress: (id, progress) =>
+      set((state) => {
+        const op = state.loadingOperations.find((o) => o.id === id);
+        if (op) {
+          op.progress = Math.max(0, Math.min(100, progress));
+        }
+      }),
+
+    stopLoading: (id) =>
+      set((state) => {
+        state.loadingOperations = state.loadingOperations.filter(
+          (op) => op.id !== id
+        );
+      }),
+
+    stopAllLoading: () =>
+      set((state) => {
+        state.loadingOperations = [];
+        state.isGlobalLoading = false;
+      }),
+
+    setGlobalLoading: (loading) =>
+      set((state) => {
+        state.isGlobalLoading = loading;
+      }),
+
+    // Demo Actions
+    triggerDemo: () =>
+      set((state) => {
+        state.demoTrigger += 1;
+      }),
+
+    clearDemoTrigger: () =>
+      set((state) => {
+        state.demoTrigger = 0;
       }),
   })),
 );

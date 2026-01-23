@@ -126,13 +126,13 @@ describe("historyStore", () => {
     });
 
     it("should enforce maximum history size", () => {
-      // Record more than MAX_HISTORY_SIZE (50) actions
-      for (let i = 0; i < 55; i++) {
+      // Record more than MAX_HISTORY_SIZE (100) actions
+      for (let i = 0; i < 105; i++) {
         useModelStore.getState().addElement(createTestElement(`wall-${i}`, `Wall ${i}`));
         useHistoryStore.getState().recordAction(`Added wall ${i}`);
       }
 
-      expect(useHistoryStore.getState().entries.length).toBeLessThanOrEqual(50);
+      expect(useHistoryStore.getState().entries.length).toBeLessThanOrEqual(100);
     });
   });
 

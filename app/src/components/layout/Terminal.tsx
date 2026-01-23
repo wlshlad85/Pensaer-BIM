@@ -23,10 +23,16 @@ import {
   type ResultFormatterOptions,
   dispatchCommand,
   type CommandResult,
+  runDemo,
+  stopDemo,
+  toggleDemoPause,
+  useDemoStore,
+  type DemoCallbacks,
 } from "../../services";
 import { getAllCommands } from "../../commands";
-import { useTokenStore } from "../../stores";
-import { useTerminalInput } from "../Terminal";
+import { useTokenStore, useUIStore, useSelectionStore } from "../../stores";
+import { executeDsl, type ExecutionContext } from "../../lib/dsl";
+import { useTerminalInput, useTabComplete } from "../Terminal";
 
 interface TerminalProps {
   /** Whether the terminal panel is expanded */
@@ -39,34 +45,10 @@ interface TerminalProps {
   minHeight?: number;
   /** Maximum height in pixels */
   maxHeight?: number;
+  /** Compact mode for mobile - reduced font size and padding */
+  compact?: boolean;
 }
 
-// Available commands for autocomplete
-const AVAILABLE_COMMANDS = [
-  "help",
-  "clear",
-  "status",
-  "version",
-  "echo",
-  "list",
-  "wall",
-  "floor",
-  "room",
-  "roof",
-  "door",
-  "window",
-  "detect-rooms",
-  "analyze",
-  "clash",
-  "clash-between",
-  "delete",
-  "get",
-  "adjacency",
-  "nearest",
-  "area",
-  "clearance",
-  "macro",
-];
 
 // Macro type definition
 interface Macro {
@@ -157,6 +139,7 @@ export function Terminal({
   initialHeight = 200,
   minHeight = 100,
   maxHeight = 500,
+  compact = false,
 }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerminal | null>(null);
@@ -185,10 +168,14 @@ export function Terminal({
     saveCommandHistory(commandHistory);
   }, [commandHistory]);
 
-  // Tab completion cycling state
-  const [tabMatches, setTabMatches] = useState<string[]>([]);
-  const [tabIndex, setTabIndex] = useState(-1);
-  const [tabPrefix, setTabPrefix] = useState("");
+  // Tab completion hook
+  const {
+    matches: tabMatches,
+    matchIndex: tabIndex,
+    handleTab,
+    resetCompletion,
+    showAllMatches,
+  } = useTabComplete();
 
   // Macro recording state
   const [macros, setMacros] = useState<Map<string, Macro>>(loadMacros);
@@ -198,6 +185,11 @@ export function Terminal({
   );
   const [recordingCommands, setRecordingCommands] = useState<string[]>([]);
   const [isPlayingMacro, setIsPlayingMacro] = useState(false);
+
+  // Demo trigger state from UI store
+  const demoTrigger = useUIStore((s) => s.demoTrigger);
+  const clearDemoTrigger = useUIStore((s) => s.clearDemoTrigger);
+  const isDemoRunning = useDemoStore((s) => s.isRunning);
 
   // Initialize terminal
   useEffect(() => {
@@ -227,7 +219,7 @@ export function Terminal({
         brightCyan: "#33ddff",
         brightWhite: "#ffffff",
       },
-      fontSize: 13,
+      fontSize: compact ? 11 : 13,
       fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
       cursorBlink: true,
       cursorStyle: "bar",
@@ -276,7 +268,8 @@ export function Terminal({
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact]);
 
   // Fit terminal on expand/collapse
   useEffect(() => {
@@ -304,6 +297,53 @@ export function Terminal({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Demo automation - triggered via Ctrl+Shift+D
+  useEffect(() => {
+    if (demoTrigger > 0 && terminalRef.current && !isDemoRunning) {
+      clearDemoTrigger();
+      const terminal = terminalRef.current;
+
+      // Create demo callbacks
+      const callbacks: DemoCallbacks = {
+        writeToTerminal: (text: string) => terminal.write(text),
+        writeLineToTerminal: (text: string) => terminal.writeln(text),
+        executeCommand: async (command: string) => {
+          // Use the command dispatcher
+          const [cmd, ...args] = command.trim().split(/\s+/);
+          const parsed = parseArgsForDemo(args);
+          const result = await dispatchCommand(cmd, parsed);
+          if (result.success) {
+            terminal.writeln(`\x1b[32m✓ ${result.message}\x1b[0m`);
+          } else {
+            terminal.writeln(`\x1b[31m✗ ${result.message}\x1b[0m`);
+          }
+        },
+        clearTerminal: () => terminal.clear(),
+      };
+
+      // Run the demo
+      runDemo(callbacks);
+    }
+  }, [demoTrigger, isDemoRunning, clearDemoTrigger]);
+
+  // Demo keyboard controls (Escape to stop, Space to pause/resume)
+  useEffect(() => {
+    const handleDemoKeyboard = (e: KeyboardEvent) => {
+      if (!isDemoRunning) return;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        stopDemo();
+      } else if (e.key === " ") {
+        e.preventDefault();
+        toggleDemoPause();
+      }
+    };
+
+    window.addEventListener("keydown", handleDemoKeyboard);
+    return () => window.removeEventListener("keydown", handleDemoKeyboard);
+  }, [isDemoRunning]);
+
   const writePrompt = useCallback(
     (terminal: XTerminal) => {
       if (isRecording) {
@@ -330,14 +370,12 @@ export function Terminal({
     [],
   );
 
-  // Find autocomplete matches
-  const findAutocompleteMatches = useCallback((prefix: string): string[] => {
-    if (!prefix) return [];
-    const lowerPrefix = prefix.toLowerCase();
-    return AVAILABLE_COMMANDS.filter((cmd) =>
-      cmd.toLowerCase().startsWith(lowerPrefix),
-    );
-  }, []);
+  // Get prompt string for redrawing
+  const getPromptString = useCallback(() => {
+    return isRecording
+      ? "\x1b[31m●\x1b[0m \x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ "
+      : "\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ";
+  }, [isRecording]);
 
   // Track escape sequence state for history navigation (Up/Down arrows)
   const escapeBufferRef = useRef("");
@@ -352,11 +390,9 @@ export function Terminal({
 
       if (handled) {
         // Input was handled by the hook (cursor movement, typing, backspace, etc.)
-        // Reset tab cycling state when user types or edits
+        // Reset tab completion state when user types or edits
         if (tabMatches.length > 0) {
-          setTabMatches([]);
-          setTabIndex(-1);
-          setTabPrefix("");
+          resetCompletion();
         }
         return;
       }
@@ -459,52 +495,18 @@ export function Terminal({
         return;
       }
 
-      // Tab - autocomplete with cycling support
+      // Tab - autocomplete with cycling and double-tab support
       if (code === 9) {
-        const words = commandBuffer.split(/\s+/);
-        const lastWord = words[words.length - 1];
+        // Use the tab completion hook
+        const completedInput = handleTab(terminal, commandBuffer);
 
-        // Check if we're continuing a tab cycle (same prefix as before)
-        if (tabMatches.length > 1 && lastWord === tabMatches[tabIndex]) {
-          // Cycle to next match
-          const nextIndex = (tabIndex + 1) % tabMatches.length;
-          const nextMatch = tabMatches[nextIndex];
-          clearLineAndWrite(terminal, commandBuffer, nextMatch);
-          setCommandBuffer(nextMatch);
-          setTabIndex(nextIndex);
-          return;
-        }
-
-        // Only autocomplete the first word (command name) for now
-        if (words.length === 1) {
-          const matches = findAutocompleteMatches(lastWord);
-
-          if (matches.length === 1) {
-            // Single match - complete it and reset tab state
-            const completed = matches[0] + " ";
-            clearLineAndWrite(terminal, commandBuffer, completed);
-            setCommandBuffer(completed);
-            setTabMatches([]);
-            setTabIndex(-1);
-            setTabPrefix("");
-          } else if (matches.length > 1) {
-            // Multiple matches - start cycling
-            // First Tab: complete to first match
-            const firstMatch = matches[0];
-            clearLineAndWrite(terminal, commandBuffer, firstMatch);
-            setCommandBuffer(firstMatch);
-            setTabMatches(matches);
-            setTabIndex(0);
-            setTabPrefix(lastWord);
-
-            // Also show all matches for user awareness
-            terminal.writeln("");
-            terminal.writeln(
-              `\x1b[33mMatches: ${matches.join(", ")}\x1b[0m`,
-            );
-            writePrompt(terminal);
-            terminal.write(firstMatch);
-          }
+        if (completedInput !== null) {
+          // Completion occurred - update the buffer
+          clearLineAndWrite(terminal, commandBuffer, completedInput);
+          setCommandBuffer(completedInput);
+        } else if (tabMatches.length > 1) {
+          // Double-tab detected with multiple matches - show all
+          showAllMatches(terminal, getPromptString(), commandBuffer);
         }
         return;
       }
@@ -542,9 +544,11 @@ export function Terminal({
       submitBuffer,
       clearBuffer,
       clearLineAndWrite,
-      findAutocompleteMatches,
+      handleTab,
+      showAllMatches,
+      resetCompletion,
+      getPromptString,
       tabMatches,
-      tabIndex,
     ],
   );
 
@@ -679,6 +683,29 @@ export function Terminal({
     if (v === "true") return true;
     if (v === "false") return false;
     return v;
+  };
+
+  // Parse arguments for demo commands (simplified version)
+  const parseArgsForDemo = (args: string[]): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    let i = 0;
+    while (i < args.length) {
+      const arg = args[i];
+      if (arg.startsWith("--")) {
+        const key = arg.slice(2);
+        if (key.includes("=")) {
+          const [k, v] = key.split("=", 2);
+          result[k] = parseValue(v);
+        } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+          result[key] = parseValue(args[i + 1]);
+          i++;
+        } else {
+          result[key] = true;
+        }
+      }
+      i++;
+    }
+    return result;
   };
 
   const processCommand = async (terminal: XTerminal, cmd: string) => {
@@ -1576,9 +1603,45 @@ export function Terminal({
         break;
       }
 
-      default:
-        terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
-        terminal.writeln("Type 'help' for available commands.");
+      default: {
+        // Try DSL parser for natural command syntax (e.g., "wall (0, 0) (5, 0)")
+        terminal.writeln("\x1b[33mParsing as DSL command...\x1b[0m");
+
+        // Get execution context from selection store
+        const selectedIds = useSelectionStore.getState().selectedIds;
+        const context: ExecutionContext = {
+          selectedIds,
+          // lastElementId and wallId are tracked within executor during execution
+        };
+
+        const dslResult = await executeDsl(trimmed, context);
+
+        if (dslResult.success && dslResult.commandResults.length > 0) {
+          // Write terminal output from executor
+          dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
+
+          // Show summary if multiple elements created
+          if (dslResult.createdElementIds.length > 1) {
+            terminal.writeln(
+              `\x1b[36mCreated ${dslResult.createdElementIds.length} element(s)\x1b[0m`
+            );
+          }
+        } else if (!dslResult.success) {
+          // Show parse/execution errors
+          dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
+
+          // If no specific errors, show generic help
+          if (dslResult.terminalOutput.length === 0) {
+            terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
+            terminal.writeln("Type 'help' for available commands.");
+          }
+        } else {
+          // No commands parsed (empty result)
+          terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
+          terminal.writeln("Type 'help' for available commands.");
+        }
+        break;
+      }
     }
 
     // Record command if recording (but not macro commands or empty)
@@ -1624,12 +1687,16 @@ export function Terminal({
   );
 
   return (
-    <div
+    <section
+      id="terminal-area"
       className={clsx(
         "flex flex-col border-t border-gray-700/50 bg-gray-900/95",
         !isExpanded && "h-8",
       )}
       style={{ height: isExpanded ? height : 32 }}
+      role="region"
+      aria-label="Command terminal"
+      aria-expanded={isExpanded}
     >
       {/* Header */}
       <div
@@ -1639,9 +1706,11 @@ export function Terminal({
         )}
         onMouseDown={isExpanded ? handleMouseDown : undefined}
         onDoubleClick={onToggle}
+        role="toolbar"
+        aria-label="Terminal controls"
       >
         <div className="flex items-center gap-2">
-          <i className="fa-solid fa-terminal text-green-400 text-xs"></i>
+          <i className="fa-solid fa-terminal text-green-400 text-xs" aria-hidden="true"></i>
           <span className="text-xs font-medium text-gray-300">Terminal</span>
           {isRecording && (
             <span className="flex items-center gap-1 text-xs bg-red-600/30 text-red-400 px-2 py-0.5 rounded-full animate-pulse">
@@ -1663,20 +1732,25 @@ export function Terminal({
               onClick={() => terminalRef.current?.clear()}
               className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
               title="Clear terminal"
+              aria-label="Clear terminal output"
             >
-              <i className="fa-solid fa-trash-can text-xs"></i>
+              <i className="fa-solid fa-trash-can text-xs" aria-hidden="true"></i>
             </button>
           )}
           <button
             onClick={onToggle}
             className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
             title={isExpanded ? "Collapse" : "Expand"}
+            aria-label={isExpanded ? "Collapse terminal panel" : "Expand terminal panel"}
+            aria-expanded={isExpanded}
+            aria-controls="terminal-content"
           >
             <i
               className={clsx(
                 "fa-solid text-xs",
                 isExpanded ? "fa-chevron-down" : "fa-chevron-up",
               )}
+              aria-hidden="true"
             ></i>
           </button>
         </div>
@@ -1684,18 +1758,23 @@ export function Terminal({
 
       {/* Terminal container */}
       <div
+        id="terminal-content"
         ref={containerRef}
         data-terminal-state={isExpanded ? "expanded" : "collapsed"}
+        data-testid="terminal-output"
         className={clsx(
           "flex-1 overflow-hidden",
           !isExpanded && "hidden",
         )}
         style={isExpanded ? { padding: "4px 8px" } : undefined}
+        role="log"
+        aria-live="polite"
+        aria-label="Terminal output"
       />
 
       {/* Resize indicator */}
       {isResizing && <div className="fixed inset-0 z-50 cursor-ns-resize" />}
-    </div>
+    </section>
   );
 }
 

@@ -13,11 +13,18 @@ import {
 } from "../../stores";
 import { useSelection } from "../../hooks/useSelection";
 import type { Element } from "../../types";
-import { snapPoint, type SnapResult } from "../../utils/snap";
+import {
+  snapPoint,
+  snapPointWithPerpendicular,
+  type SnapResult,
+  type SnapOptions,
+  type PerpendicularSnapResult,
+} from "../../utils/snap";
 
 import { Grid } from "./Grid";
 import { SelectionBox } from "./SelectionBox";
 import { SnapIndicator } from "./SnapIndicator";
+import { GuideLine } from "./GuideLine";
 import { DrawingPreview } from "./DrawingPreview";
 import {
   WallElement,
@@ -227,6 +234,7 @@ export function Canvas2D() {
 
   const select = useSelectionStore((s) => s.select);
   const addToSelection = useSelectionStore((s) => s.addToSelection);
+  const toggleSelection = useSelectionStore((s) => s.toggleSelection);
   const clearSelection = useSelectionStore((s) => s.clearSelection);
   const setHovered = useSelectionStore((s) => s.setHovered);
 
@@ -244,6 +252,7 @@ export function Canvas2D() {
   const addToast = useUIStore((s) => s.addToast);
   const hiddenLayers = useUIStore((s) => s.hiddenLayers);
   const lockedLayers = useUIStore((s) => s.lockedLayers);
+  const snap = useUIStore((s) => s.snap);
 
   // Local state
   const [isPanning, setIsPanning] = useState(false);
@@ -254,7 +263,7 @@ export function Canvas2D() {
   const [isBoxSelecting, setIsBoxSelecting] = useState(false);
   const [boxStart, setBoxStart] = useState({ x: 0, y: 0 });
   const [boxEnd, setBoxEnd] = useState({ x: 0, y: 0 });
-  const [snapResult, setSnapResult] = useState<SnapResult | null>(null);
+  const [snapResult, setSnapResult] = useState<PerpendicularSnapResult | null>(null);
 
   // Door/Window placement preview
   const [placementPreview, setPlacementPreview] = useState<{
@@ -271,6 +280,27 @@ export function Canvas2D() {
   const [dragElement, setDragElement] = useState<Element | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+
+  // Convert UI snap settings to snap options for the snap utility
+  // Base options without perpendicular reference (set dynamically during drawing)
+  const getSnapOptions = useCallback(
+    (perpendicularReference?: { x: number; y: number }): Partial<SnapOptions> => ({
+      gridSize: 50,
+      tolerance: snap.threshold,
+      enableGrid: snap.enabled && snap.grid,
+      enableEndpoint: snap.enabled && snap.endpoint,
+      enableMidpoint: snap.enabled && snap.midpoint,
+      enableCenter: snap.enabled && snap.endpoint, // Center follows endpoint setting
+      enableEdge: snap.enabled,
+      enablePerpendicular: snap.enabled && snap.perpendicular,
+      perpendicularReference,
+      perpendicularTolerance: 5,
+    }),
+    [snap],
+  );
+
+  // For backward compatibility
+  const snapOptions = getSnapOptions();
 
   // Get canvas coordinates from mouse event
   // Accounts for: 1) SVG viewBox scaling, 2) pan translation, 3) zoom scale
@@ -330,7 +360,7 @@ export function Canvas2D() {
       } else if (["wall", "room"].includes(activeTool)) {
         // Start drawing - clamp to boundary
         const clampedPoint = clampToBoundary(point);
-        const snapped = snapPoint(clampedPoint, elements);
+        const snapped = snapPoint(clampedPoint, elements, snapOptions);
         const boundedSnap = clampToBoundary(snapped.point);
         setIsDrawing(true);
         setDrawStart(boundedSnap);
@@ -455,6 +485,7 @@ export function Canvas2D() {
       updateElement,
       recordAction,
       addToast,
+      snapOptions,
     ],
   );
 
@@ -490,15 +521,17 @@ export function Canvas2D() {
       if (isDrawing) {
         // Clamp to boundary during drawing
         const clampedPoint = clampToBoundary(point);
-        const snapped = snapPoint(clampedPoint, elements);
+        // Use perpendicular-aware snapping when drawing (reference = drawStart)
+        const opts = getSnapOptions(drawStart);
+        const snapped = snapPointWithPerpendicular(clampedPoint, elements, opts);
         const boundedSnap = clampToBoundary(snapped.point);
         setDrawEnd(boundedSnap);
         setSnapResult({ ...snapped, point: boundedSnap });
       } else if (isBoxSelecting) {
         setBoxEnd(point);
       } else if (["wall", "room"].includes(activeTool)) {
-        // Show snap preview while moving
-        const snapped = snapPoint(point, elements);
+        // Show snap preview while moving (no perpendicular reference yet)
+        const snapped = snapPoint(point, elements, snapOptions);
         setSnapResult(snapped.snapped ? snapped : null);
       } else if (["door", "window"].includes(activeTool)) {
         // Show placement preview when hovering over walls
@@ -540,6 +573,9 @@ export function Canvas2D() {
       panY,
       pan,
       updateElement,
+      snapOptions,
+      getSnapOptions,
+      drawStart,
     ],
   );
 
@@ -726,10 +762,15 @@ export function Canvas2D() {
       const isLocked = lockedLayers.has(element.type);
 
       // Select the element (even if locked)
-      if (!e.shiftKey) {
-        select(element.id);
-      } else {
+      // Ctrl/Cmd+click toggles selection
+      // Shift+click adds to selection
+      // Normal click replaces selection
+      if (e.ctrlKey || e.metaKey) {
+        toggleSelection(element.id);
+      } else if (e.shiftKey) {
         addToSelection(element.id);
+      } else {
+        select(element.id);
       }
 
       // Don't allow drag if layer is locked
@@ -745,7 +786,7 @@ export function Canvas2D() {
       setDragOffset({ x: point.x - element.x, y: point.y - element.y });
       setDragStartPos({ x: element.x, y: element.y });
     },
-    [activeTool, select, addToSelection, getCanvasPoint, lockedLayers, addToast],
+    [activeTool, select, addToSelection, toggleSelection, getCanvasPoint, lockedLayers, addToast],
   );
 
   // Element click handler (for selection only, drag is handled by mousedown/mouseup)
@@ -882,6 +923,16 @@ export function Canvas2D() {
             startY={boxStart.y}
             endX={boxEnd.x}
             endY={boxEnd.y}
+          />
+        )}
+
+        {/* Perpendicular guide line */}
+        {isDrawing && snapResult?.guideLine && snapResult.snapType === "perpendicular" && (
+          <GuideLine
+            start={snapResult.guideLine.start}
+            end={snapResult.guideLine.end}
+            visible={true}
+            label="90°"
           />
         )}
 

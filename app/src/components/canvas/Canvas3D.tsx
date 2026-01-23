@@ -11,6 +11,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Evaluator, Brush, SUBTRACTION } from "three-bvh-csg";
 import { useModelStore, useSelectionStore } from "../../stores";
 import { ViewCube } from "./ViewCube";
+import { FPSCounter } from "../FPSCounter";
 import type { Element } from "../../types";
 import { getWallEndpoints, distance } from "../../utils/geometry";
 
@@ -394,6 +395,8 @@ export function Canvas3D() {
   const elements = useModelStore((s) => s.elements);
   const selectedIds = useSelectionStore((s) => s.selectedIds);
   const select = useSelectionStore((s) => s.select);
+  const addToSelection = useSelectionStore((s) => s.addToSelection);
+  const toggleSelection = useSelectionStore((s) => s.toggleSelection);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -1356,11 +1359,21 @@ export function Canvas3D() {
       if (intersects.length > 0) {
         const clicked = intersects[0].object;
         if (clicked.userData.element) {
-          select(clicked.userData.element.id);
+          const elementId = clicked.userData.element.id;
+          // Ctrl/Cmd+click toggles selection
+          // Shift+click for additive selection
+          // Normal click replaces selection
+          if (event.ctrlKey || event.metaKey) {
+            toggleSelection(elementId);
+          } else if (event.shiftKey) {
+            addToSelection(elementId);
+          } else {
+            select(elementId);
+          }
         }
       }
     },
-    [select],
+    [select, addToSelection, toggleSelection],
   );
 
   return (
@@ -1483,6 +1496,9 @@ export function Canvas3D() {
           <i className="fa-solid fa-minus text-xs"></i>
         </button>
       </div>
+
+      {/* FPS Counter (F8 to toggle, dev mode only) */}
+      <FPSCounter position="top-left" />
     </div>
   );
 }

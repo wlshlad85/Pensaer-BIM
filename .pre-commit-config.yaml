@@ -1,0 +1,99 @@
+# =============================================================================
+# Pre-commit hooks for Pensaer-BIM
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ==========================================================================
+  # General hooks
+  # ==========================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'master']
+
+  # ==========================================================================
+  # Python (server/)
+  # ==========================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
+    hooks:
+      - id: ruff
+        args: ['--fix']
+        files: ^server/
+      - id: ruff-format
+        files: ^server/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        files: ^server/
+        args: ['--ignore-missing-imports']
+        additional_dependencies:
+          - pydantic
+          - fastapi
+
+  # ==========================================================================
+  # TypeScript/JavaScript (app/)
+  # ==========================================================================
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd app && pnpm lint'
+        language: system
+        files: ^app/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      - id: typecheck
+        name: typecheck
+        entry: bash -c 'cd app && pnpm typecheck'
+        language: system
+        files: ^app/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # ==========================================================================
+  # Rust (kernel/)
+  # ==========================================================================
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: bash -c 'cd kernel && cargo fmt --check'
+        language: system
+        files: ^kernel/.*\.rs$
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: bash -c 'cd kernel && cargo clippy -- -D warnings'
+        language: system
+        files: ^kernel/.*\.rs$
+        pass_filenames: false
+
+  # ==========================================================================
+  # Commit message
+  # ==========================================================================
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.15.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+# Configuration for specific hooks
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'

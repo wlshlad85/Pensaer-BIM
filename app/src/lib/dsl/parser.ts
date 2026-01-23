@@ -784,8 +784,22 @@ export class Parser {
     const startToken = this.advance(); // consume 'help'
 
     let topic: string | undefined;
-    if (this.match(TokenType.IDENTIFIER, TokenType.STRING)) {
-      topic = String(this.advance().value);
+    // Accept identifiers, strings, or command keywords as topic
+    if (
+      this.match(
+        TokenType.IDENTIFIER,
+        TokenType.STRING,
+        TokenType.WALL,
+        TokenType.FLOOR,
+        TokenType.ROOF,
+        TokenType.ROOM,
+        TokenType.DOOR,
+        TokenType.WINDOW,
+        TokenType.OPENING
+      )
+    ) {
+      const topicToken = this.advance();
+      topic = String(topicToken.value ?? topicToken.raw);
     }
 
     return {

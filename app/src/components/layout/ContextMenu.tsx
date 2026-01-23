@@ -271,6 +271,8 @@ export function ContextMenu() {
   const deleteElements = useModelStore((s) => s.deleteElements);
   const addElement = useModelStore((s) => s.addElement);
   const getRelatedElements = useModelStore((s) => s.getRelatedElements);
+  const bringToFront = useModelStore((s) => s.bringToFront);
+  const sendToBack = useModelStore((s) => s.sendToBack);
 
   const selectedIds = useSelectionStore((s) => s.selectedIds);
   const select = useSelectionStore((s) => s.select);
@@ -431,35 +433,106 @@ export function ContextMenu() {
     hideContextMenu();
   }, [zoomToFit, hideContextMenu]);
 
+  // Get snap state for grid toggle
+  const snapEnabled = useUIStore((s) => s.snap.grid);
+  const toggleGridSnap = useUIStore((s) => s.toggleGridSnap);
+
   const handleToggleGrid = useCallback(() => {
-    addToast("info", "Grid toggle not yet implemented");
+    toggleGridSnap();
+    addToast("info", snapEnabled ? "Grid snap disabled" : "Grid snap enabled");
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [toggleGridSnap, snapEnabled, addToast, hideContextMenu]);
 
   const handleBringToFront = useCallback(() => {
-    addToast("info", "Bring to front not yet implemented");
+    if (targetElement) {
+      bringToFront(targetElement.id);
+      recordAction(`Bring ${targetElement.name} to front`);
+      addToast("success", `Brought ${targetElement.name} to front`);
+    }
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [targetElement, bringToFront, recordAction, addToast, hideContextMenu]);
 
   const handleSendToBack = useCallback(() => {
-    addToast("info", "Send to back not yet implemented");
+    if (targetElement) {
+      sendToBack(targetElement.id);
+      recordAction(`Send ${targetElement.name} to back`);
+      addToast("success", `Sent ${targetElement.name} to back`);
+    }
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [targetElement, sendToBack, recordAction, addToast, hideContextMenu]);
+
+  // Get updateElement for alignment operations
+  const updateElement = useModelStore((s) => s.updateElement);
 
   const handleAlignLeft = useCallback(() => {
-    addToast("info", "Align left not yet implemented");
+    if (selectedIds.length < 2) {
+      addToast("warning", "Select at least 2 elements to align");
+      hideContextMenu();
+      return;
+    }
+
+    // Find the minimum x coordinate among selected elements
+    const selectedElements = elements.filter((el) => selectedIds.includes(el.id));
+    const minX = Math.min(...selectedElements.map((el) => el.x));
+
+    // Align all selected elements to the leftmost x
+    selectedElements.forEach((el) => {
+      if (el.x !== minX) {
+        updateElement(el.id, { x: minX });
+      }
+    });
+
+    recordAction(`Align ${selectedIds.length} elements left`);
+    addToast("success", `Aligned ${selectedIds.length} elements to the left`);
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [selectedIds, elements, updateElement, recordAction, addToast, hideContextMenu]);
 
   const handleAlignTop = useCallback(() => {
-    addToast("info", "Align top not yet implemented");
+    if (selectedIds.length < 2) {
+      addToast("warning", "Select at least 2 elements to align");
+      hideContextMenu();
+      return;
+    }
+
+    // Find the minimum y coordinate among selected elements
+    const selectedElements = elements.filter((el) => selectedIds.includes(el.id));
+    const minY = Math.min(...selectedElements.map((el) => el.y));
+
+    // Align all selected elements to the topmost y
+    selectedElements.forEach((el) => {
+      if (el.y !== minY) {
+        updateElement(el.id, { y: minY });
+      }
+    });
+
+    recordAction(`Align ${selectedIds.length} elements top`);
+    addToast("success", `Aligned ${selectedIds.length} elements to the top`);
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [selectedIds, elements, updateElement, recordAction, addToast, hideContextMenu]);
 
   const handleGroupSelect = useCallback(() => {
-    addToast("info", "Group selection not yet implemented");
+    // Group selection means selecting all elements that overlap with the selection box
+    // For now, we'll select all elements of the same type as the first selected element
+    if (selectedIds.length === 0) {
+      addToast("warning", "Select at least one element first");
+      hideContextMenu();
+      return;
+    }
+
+    const firstElement = elements.find((el) => el.id === selectedIds[0]);
+    if (!firstElement) {
+      hideContextMenu();
+      return;
+    }
+
+    const sameTypeIds = elements
+      .filter((el) => el.type === firstElement.type)
+      .map((el) => el.id);
+
+    selectMultiple(sameTypeIds);
+    addToast("info", `Selected all ${sameTypeIds.length} ${firstElement.type}(s)`);
     hideContextMenu();
-  }, [addToast, hideContextMenu]);
+  }, [selectedIds, elements, selectMultiple, addToast, hideContextMenu]);
 
   // Determine which menu items to show
   const menuItems = useMemo(() => {

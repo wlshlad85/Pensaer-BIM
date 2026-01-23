@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pensaer
+  labels:
+    app.kubernetes.io/name: pensaer
+    app.kubernetes.io/part-of: pensaer-bim

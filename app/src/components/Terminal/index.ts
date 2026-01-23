@@ -8,3 +8,10 @@ export type {
   UseTerminalInputResult,
   TerminalInputState,
 } from "./useTerminalInput";
+
+export { useTabComplete } from "./useTabComplete";
+export type {
+  UseTabCompleteOptions,
+  UseTabCompleteResult,
+  TabCompleteState,
+} from "./useTabComplete";

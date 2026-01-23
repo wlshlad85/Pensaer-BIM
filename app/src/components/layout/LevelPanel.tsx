@@ -66,7 +66,7 @@ export function LevelPanel({
   };
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg overflow-hidden">
+    <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg overflow-hidden" data-testid="level-panel">
       {/* Header */}
       <button
         onClick={toggleCollapse}

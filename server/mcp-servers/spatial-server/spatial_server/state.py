@@ -6,7 +6,7 @@ In production, this will read from the shared event store.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -36,7 +36,7 @@ class RoomRecord:
     height: float = 2.7
     function: str = ""
     adjacent_room_ids: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class SpatialState:

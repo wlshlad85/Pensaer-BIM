@@ -19,7 +19,7 @@ import asyncio
 import json
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -130,7 +130,8 @@ class DetectClashesParams(BaseModel):
     """Parameters for detect_clashes tool."""
 
     elements: list[dict[str, Any]] = Field(
-        ..., description="List of elements to check for clashes"
+        default_factory=list,
+        description="List of elements to check for clashes",
     )
     tolerance: float = Field(
         0.001, description="Tolerance for clash detection in meters (default 1mm)"
@@ -139,7 +140,17 @@ class DetectClashesParams(BaseModel):
         None, description="Filter by element types to check (e.g., ['wall', 'door'])"
     )
     severity_threshold: str = Field(
-        "hard", description="Minimum severity: hard (penetration), soft (touch), clearance"
+        "soft", description="Minimum severity: hard (penetration), soft (touch), clearance"
+    )
+    severity_levels: dict[str, str] | None = Field(
+        None,
+        description=(
+            "Custom severity by type pair, e.g. {'wall-beam': 'info'} "
+            "(values: info, warning, error)"
+        ),
+    )
+    batch_size: int | None = Field(
+        None, description="Optional batch size for pair checks"
     )
     clearance_distance: float = Field(
         0.0, description="Clearance distance for soft clash detection (meters)"
@@ -218,7 +229,7 @@ def make_response(
     return {
         "success": True,
         "data": data,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "audit": {"reasoning": reasoning},
     }
 
@@ -228,7 +239,7 @@ def make_error(code: int, message: str) -> dict[str, Any]:
     return {
         "success": False,
         "error": {"code": code, "message": message},
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -1116,6 +1127,7 @@ class ClashResult:
         element_b_id: str,
         element_a_type: str,
         element_b_type: str,
+        clash_type: str,
         severity: str,
         penetration_depth: float,
         location: list[float] | None = None,
@@ -1125,6 +1137,7 @@ class ClashResult:
         self.element_b_id = element_b_id
         self.element_a_type = element_a_type
         self.element_b_type = element_b_type
+        self.clash_type = clash_type
         self.severity = severity
         self.penetration_depth = penetration_depth
         self.location = location
@@ -1136,7 +1149,9 @@ class ClashResult:
             "element_b_id": self.element_b_id,
             "element_a_type": self.element_a_type,
             "element_b_type": self.element_b_type,
+            "clash_type": self.clash_type,
             "severity": self.severity,
+            "overlap_distance": round(self.penetration_depth, 4),
             "penetration_depth": round(self.penetration_depth, 4),
             "location": self.location,
         }
@@ -1158,12 +1173,15 @@ async def _detect_clashes(args: dict[str, Any]) -> dict[str, Any]:
     if params.element_types:
         elements = [
             e for e in elements
-            if e.get("type", e.get("element_type", "")) in params.element_types
+            if e.get("type", e.get("element_type", "")).lower() in {
+                t.lower() for t in params.element_types
+            }
         ]
 
     # Build bounding box cache
     bbox_cache: dict[str, dict[str, list[float]]] = {}
     valid_elements: list[dict[str, Any]] = []
+    skipped_no_bbox = 0
 
     for element in elements:
         eid = element.get("id", str(uuid4()))
@@ -1171,36 +1189,51 @@ async def _detect_clashes(args: dict[str, Any]) -> dict[str, Any]:
         if bbox:
             bbox_cache[eid] = bbox
             valid_elements.append(element)
+        else:
+            skipped_no_bbox += 1
 
-    # Severity order for filtering
+    # Severity order for filtering (by clash type)
     severity_order = {"clearance": 0, "soft": 1, "hard": 2}
-    threshold = severity_order.get(params.severity_threshold, 2)
+    threshold = severity_order.get(params.severity_threshold, 1)
+    severity_levels = params.severity_levels or {}
+    severity_map = {"hard": "error", "soft": "warning", "clearance": "info"}
 
     # Check all pairs
     clashes: list[ClashResult] = []
+    counts_by_clash_type = {"hard": 0, "soft": 0, "clearance": 0}
+    counts_by_severity = {"error": 0, "warning": 0, "info": 0}
+    counts_by_type: dict[str, int] = {}
     n = len(valid_elements)
 
     for i in range(n):
         elem_a = valid_elements[i]
         aid = elem_a.get("id", f"element_{i}")
         atype = elem_a.get("type", elem_a.get("element_type", "unknown"))
+        atype_norm = str(atype).lower()
         bbox_a = bbox_cache[aid]
 
         for j in range(i + 1, n):
             elem_b = valid_elements[j]
             bid = elem_b.get("id", f"element_{j}")
             btype = elem_b.get("type", elem_b.get("element_type", "unknown"))
+            btype_norm = str(btype).lower()
             bbox_b = bbox_cache[bid]
 
             # Check intersection
-            intersects, severity, penetration = bboxes_intersect(
+            intersects, clash_type, penetration = bboxes_intersect(
                 bbox_a,
                 bbox_b,
                 tolerance=params.tolerance,
                 clearance=params.clearance_distance,
             )
 
-            if intersects and severity_order.get(severity, 0) >= threshold:
+            if intersects and severity_order.get(clash_type, 0) >= threshold:
+                pair_key = f"{atype_norm}-{btype_norm}"
+                reverse_key = f"{btype_norm}-{atype_norm}"
+                severity_level = severity_levels.get(pair_key) or severity_levels.get(reverse_key)
+                if not severity_level:
+                    severity_level = severity_map.get(clash_type, "warning")
+
                 # Calculate clash location (center of overlap region)
                 loc_x = (max(bbox_a["min"][0], bbox_b["min"][0]) +
                         min(bbox_a["max"][0], bbox_b["max"][0])) / 2
@@ -1214,24 +1247,27 @@ async def _detect_clashes(args: dict[str, Any]) -> dict[str, Any]:
                     element_b_id=bid,
                     element_a_type=atype,
                     element_b_type=btype,
-                    severity=severity,
+                    clash_type=clash_type,
+                    severity=severity_level,
                     penetration_depth=penetration,
                     location=[round(loc_x, 4), round(loc_y, 4), round(loc_z, 4)],
                 ))
 
-    # Count by severity
-    counts = {
-        "hard": sum(1 for c in clashes if c.severity == "hard"),
-        "soft": sum(1 for c in clashes if c.severity == "soft"),
-        "clearance": sum(1 for c in clashes if c.severity == "clearance"),
-    }
+                counts_by_clash_type[clash_type] = counts_by_clash_type.get(clash_type, 0) + 1
+                counts_by_severity[severity_level] = counts_by_severity.get(severity_level, 0) + 1
+                normalized_pair = "-".join(sorted([atype_norm, btype_norm]))
+                counts_by_type[normalized_pair] = counts_by_type.get(normalized_pair, 0) + 1
 
     return make_response(
         {
             "clashes": [c.to_dict() for c in clashes],
             "clash_count": len(clashes),
-            "counts": counts,
+            "clash_free": len(clashes) == 0,
+            "counts": counts_by_clash_type,
+            "counts_by_severity": counts_by_severity,
+            "counts_by_type": counts_by_type,
             "elements_checked": len(valid_elements),
+            "elements_skipped_no_bbox": skipped_no_bbox,
             "pairs_checked": n * (n - 1) // 2,
             "tolerance": params.tolerance,
             "clearance_distance": params.clearance_distance,
@@ -1274,18 +1310,24 @@ async def _detect_clashes_between_sets(args: dict[str, Any]) -> dict[str, Any]:
 
     # Check all pairs between sets
     clashes: list[ClashResult] = []
+    counts_by_clash_type = {"hard": 0, "soft": 0, "clearance": 0}
+    counts_by_severity = {"error": 0, "warning": 0, "info": 0}
+    counts_by_type: dict[str, int] = {}
+    severity_map = {"hard": "error", "soft": "warning", "clearance": "info"}
 
     for elem_a in valid_a:
         aid = elem_a.get("id")
         atype = elem_a.get("type", elem_a.get("element_type", "unknown"))
+        atype_norm = str(atype).lower()
         bbox_a = bbox_cache_a[aid]
 
         for elem_b in valid_b:
             bid = elem_b.get("id")
             btype = elem_b.get("type", elem_b.get("element_type", "unknown"))
+            btype_norm = str(btype).lower()
             bbox_b = bbox_cache_b[bid]
 
-            intersects, severity, penetration = bboxes_intersect(
+            intersects, clash_type, penetration = bboxes_intersect(
                 bbox_a,
                 bbox_b,
                 tolerance=params.tolerance,
@@ -1293,6 +1335,7 @@ async def _detect_clashes_between_sets(args: dict[str, Any]) -> dict[str, Any]:
             )
 
             if intersects:
+                severity_level = severity_map.get(clash_type, "warning")
                 # Calculate clash location
                 loc_x = (max(bbox_a["min"][0], bbox_b["min"][0]) +
                         min(bbox_a["max"][0], bbox_b["max"][0])) / 2
@@ -1306,22 +1349,25 @@ async def _detect_clashes_between_sets(args: dict[str, Any]) -> dict[str, Any]:
                     element_b_id=bid,
                     element_a_type=atype,
                     element_b_type=btype,
-                    severity=severity,
+                    clash_type=clash_type,
+                    severity=severity_level,
                     penetration_depth=penetration,
                     location=[round(loc_x, 4), round(loc_y, 4), round(loc_z, 4)],
                 ))
 
-    counts = {
-        "hard": sum(1 for c in clashes if c.severity == "hard"),
-        "soft": sum(1 for c in clashes if c.severity == "soft"),
-        "clearance": sum(1 for c in clashes if c.severity == "clearance"),
-    }
+                counts_by_clash_type[clash_type] = counts_by_clash_type.get(clash_type, 0) + 1
+                counts_by_severity[severity_level] = counts_by_severity.get(severity_level, 0) + 1
+                normalized_pair = "-".join(sorted([atype_norm, btype_norm]))
+                counts_by_type[normalized_pair] = counts_by_type.get(normalized_pair, 0) + 1
 
     return make_response(
         {
             "clashes": [c.to_dict() for c in clashes],
             "clash_count": len(clashes),
-            "counts": counts,
+            "clash_free": len(clashes) == 0,
+            "counts": counts_by_clash_type,
+            "counts_by_severity": counts_by_severity,
+            "counts_by_type": counts_by_type,
             "set_a_count": len(valid_a),
             "set_b_count": len(valid_b),
             "pairs_checked": len(valid_a) * len(valid_b),
@@ -1375,7 +1421,7 @@ TOOLS = [
                 },
                 "reasoning": {"type": "string"},
             },
-            "required": ["elements"],
+            "required": [],
         },
     ),
     Tool(
@@ -1547,6 +1593,14 @@ TOOLS = [
                     "type": "string",
                     "enum": ["hard", "soft", "clearance"],
                     "description": "Minimum severity to report",
+                },
+                "severity_levels": {
+                    "type": "object",
+                    "description": "Custom severity by type pair (e.g., {'wall-beam': 'info'})",
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "description": "Optional batch size for pair checks",
                 },
                 "clearance_distance": {
                     "type": "number",

@@ -1,4 +1,8 @@
 /**
+ * @vitest-environment jsdom
+ */
+
+/**
  * Pensaer BIM Platform - Virtualization Hook Tests
  *
  * Tests for viewport culling, spatial indexing, and LOD utilities.
@@ -159,10 +163,10 @@ describe("useVirtualization", () => {
       // Should find elements in that region
       expect(found.length).toBeGreaterThan(0);
 
-      // All found elements should actually be in the region
+      // All found elements should actually be in/intersect the region
       found.forEach((el) => {
-        expect(el.x).toBeLessThan(200);
-        expect(el.y).toBeLessThan(200);
+        expect(el.x).toBeLessThanOrEqual(200);
+        expect(el.y).toBeLessThanOrEqual(200);
       });
     });
 

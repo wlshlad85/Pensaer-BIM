@@ -23,7 +23,7 @@ Usage:
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -105,7 +105,7 @@ def make_response(
         "success": True,
         "data": data,
         "event_id": event_id or str(uuid4()),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "warnings": warnings or [],
         "audit": {
             "user_id": None,  # Set by auth layer in production
@@ -123,7 +123,7 @@ def make_error(
         "success": False,
         "error": {"code": code, "message": message, "data": data or {}},
         "event_id": None,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -167,6 +167,11 @@ TOOLS = [
                     "type": "string",
                     "enum": ["basic", "structural", "curtain", "retaining"],
                     "description": "Wall type",
+                },
+                "material": {
+                    "type": "string",
+                    "enum": ["concrete", "brick", "timber", "steel", "masonry", "drywall"],
+                    "description": "Wall material (optional)",
                 },
                 "level_id": {"type": "string", "description": "UUID of hosting level"},
                 "reasoning": {
@@ -1256,7 +1261,19 @@ async def _dispatch_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
 async def _create_wall(
     state: GeometryState, args: dict[str, Any], reasoning: str | None
 ) -> dict[str, Any]:
-    """Create a wall element."""
+    """Create a wall element.
+
+    Creates a wall between two points with configurable height, thickness,
+    type, and material. The wall geometry is validated for minimum length.
+
+    Args:
+        state: The geometry state manager
+        args: Tool arguments including start, end, height, thickness, wall_type, material
+        reasoning: Optional AI agent reasoning for audit trail
+
+    Returns:
+        Response with wall_id, geometry properties, and material info
+    """
     params = CreateWallParams(**args)
 
     wall = pg.create_wall(
@@ -1269,16 +1286,26 @@ async def _create_wall(
 
     element_id = state.add_element(wall, "wall", params.level_id)
 
-    return make_response(
-        {
-            "wall_id": element_id,
-            "length": wall.length(),
-            "height": params.height,
-            "thickness": params.thickness,
-            "wall_type": params.wall_type or "basic",
-        },
-        reasoning=reasoning,
-    )
+    # Build response with all wall properties
+    response_data = {
+        "wall_id": element_id,
+        "start": list(params.start),
+        "end": list(params.end),
+        "length": wall.length(),
+        "height": params.height,
+        "thickness": params.thickness,
+        "wall_type": params.wall_type or "basic",
+    }
+
+    # Include material if specified
+    if params.material:
+        response_data["material"] = params.material
+
+    # Include level if specified
+    if params.level_id:
+        response_data["level_id"] = params.level_id
+
+    return make_response(response_data, reasoning=reasoning)
 
 
 async def _create_rectangular_walls(

@@ -5,7 +5,7 @@ The documentation uses mm, but the Rust kernel uses meters.
 Conversion can be applied at the API boundary if needed.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -48,10 +48,16 @@ class CreateWallParams(BaseModel):
     wall_type: str | None = Field(
         None, description="Wall type: basic, structural, curtain, retaining"
     )
+    material: str | None = Field(
+        None, description="Wall material: concrete, brick, timber, steel, masonry, drywall"
+    )
     level_id: str | None = Field(None, description="UUID of hosting level")
     reasoning: str | None = Field(
         None, description="AI agent reasoning for this action"
     )
+
+    # Minimum wall length constant (in meters)
+    MIN_WALL_LENGTH: float = 0.1  # 100mm minimum
 
     @field_validator("wall_type")
     @classmethod
@@ -62,6 +68,30 @@ class CreateWallParams(BaseModel):
                 raise ValueError(f"wall_type must be one of: {valid_types}")
             return v.lower()
         return v
+
+    @field_validator("material")
+    @classmethod
+    def validate_material(cls, v: str | None) -> str | None:
+        if v is not None:
+            valid_materials = {"concrete", "brick", "timber", "steel", "masonry", "drywall"}
+            if v.lower() not in valid_materials:
+                raise ValueError(f"material must be one of: {valid_materials}")
+            return v.lower()
+        return v
+
+    @model_validator(mode="after")
+    def validate_wall_geometry(self) -> "CreateWallParams":
+        """Validate wall geometry - ensure minimum length."""
+        import math
+        dx = self.end[0] - self.start[0]
+        dy = self.end[1] - self.start[1]
+        length = math.sqrt(dx * dx + dy * dy)
+        if length < self.MIN_WALL_LENGTH:
+            raise ValueError(
+                f"Wall length ({length:.3f}m) is less than minimum ({self.MIN_WALL_LENGTH}m). "
+                f"Start: {self.start}, End: {self.end}"
+            )
+        return self
 
 
 class CreateRectangularWallsParams(BaseModel):
@@ -690,7 +720,7 @@ class MCPResponse(BaseModel):
     success: bool
     data: dict[str, Any] | None = None
     event_id: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     warnings: list[str] = Field(default_factory=list)
     audit: AuditInfo = Field(default_factory=AuditInfo)
 
@@ -701,7 +731,7 @@ class MCPError(BaseModel):
     success: bool = False
     error: dict[str, Any]
     event_id: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Error codes

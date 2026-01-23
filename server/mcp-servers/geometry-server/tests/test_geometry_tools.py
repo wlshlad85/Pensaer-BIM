@@ -140,6 +140,90 @@ class TestCreateWallParams:
         assert params.height == 3.0
         assert params.thickness == 0.2
 
+    def test_valid_materials(self):
+        """Valid material values should be accepted."""
+        for material in ["concrete", "brick", "timber", "steel", "masonry", "drywall"]:
+            params = CreateWallParams(
+                start=(0.0, 0.0),
+                end=(5.0, 0.0),
+                material=material,
+            )
+            assert params.material == material
+
+    def test_invalid_material(self):
+        """Invalid material should be rejected."""
+        with pytest.raises(ValidationError):
+            CreateWallParams(
+                start=(0.0, 0.0),
+                end=(5.0, 0.0),
+                material="invalid_material",
+            )
+
+    def test_material_case_insensitive(self):
+        """Material validation should be case-insensitive."""
+        params = CreateWallParams(
+            start=(0.0, 0.0),
+            end=(5.0, 0.0),
+            material="CONCRETE",
+        )
+        assert params.material == "concrete"
+
+    def test_wall_with_all_parameters(self):
+        """Wall with all parameters should be created correctly."""
+        params = CreateWallParams(
+            start=(0.0, 0.0),
+            end=(10.0, 5.0),
+            height=2.8,
+            thickness=0.3,
+            wall_type="structural",
+            material="concrete",
+            level_id="level-001",
+            reasoning="Creating exterior wall",
+        )
+        assert params.start == (0.0, 0.0)
+        assert params.end == (10.0, 5.0)
+        assert params.height == 2.8
+        assert params.thickness == 0.3
+        assert params.wall_type == "structural"
+        assert params.material == "concrete"
+        assert params.level_id == "level-001"
+        assert params.reasoning == "Creating exterior wall"
+
+    def test_minimum_wall_length_validation(self):
+        """Wall length below minimum should be rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            CreateWallParams(
+                start=(0.0, 0.0),
+                end=(0.05, 0.0),  # 50mm - below 100mm minimum
+            )
+        assert "minimum" in str(exc_info.value).lower()
+
+    def test_wall_length_at_minimum_accepted(self):
+        """Wall length at minimum (100mm) should be accepted."""
+        params = CreateWallParams(
+            start=(0.0, 0.0),
+            end=(0.1, 0.0),  # Exactly 100mm
+        )
+        assert params.start == (0.0, 0.0)
+        assert params.end == (0.1, 0.0)
+
+    def test_diagonal_wall_length_validation(self):
+        """Diagonal wall length should be calculated correctly."""
+        # 3-4-5 triangle: sqrt(0.03^2 + 0.04^2) = 0.05 < 0.1 minimum
+        with pytest.raises(ValidationError):
+            CreateWallParams(
+                start=(0.0, 0.0),
+                end=(0.03, 0.04),  # 50mm diagonal - below minimum
+            )
+
+    def test_zero_length_wall_rejected(self):
+        """Zero-length wall (same start and end) should be rejected."""
+        with pytest.raises(ValidationError):
+            CreateWallParams(
+                start=(5.0, 5.0),
+                end=(5.0, 5.0),  # Same point
+            )
+
 
 class TestPlaceDoorParams:
     """Test PlaceDoorParams validation."""

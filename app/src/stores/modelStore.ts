@@ -28,6 +28,12 @@ interface ModelActions {
   deleteElement: (id: string) => void;
   deleteElements: (ids: string[]) => void;
 
+  // Z-Order Operations
+  bringToFront: (id: string) => void;
+  sendToBack: (id: string) => void;
+  moveForward: (id: string) => void;
+  moveBackward: (id: string) => void;
+
   // Bulk Operations
   setElements: (elements: Element[]) => void;
   clearElements: () => void;
@@ -96,6 +102,47 @@ export const useModelStore = create<ModelStore>()(
     deleteElements: (ids) =>
       set((state) => {
         state.elements = state.elements.filter((el) => !ids.includes(el.id));
+      }),
+
+    // Z-Order Operations - elements at end of array render on top
+    bringToFront: (id) =>
+      set((state) => {
+        const index = state.elements.findIndex((el) => el.id === id);
+        if (index !== -1 && index < state.elements.length - 1) {
+          const [element] = state.elements.splice(index, 1);
+          state.elements.push(element);
+        }
+      }),
+
+    sendToBack: (id) =>
+      set((state) => {
+        const index = state.elements.findIndex((el) => el.id === id);
+        if (index > 0) {
+          const [element] = state.elements.splice(index, 1);
+          state.elements.unshift(element);
+        }
+      }),
+
+    moveForward: (id) =>
+      set((state) => {
+        const index = state.elements.findIndex((el) => el.id === id);
+        if (index !== -1 && index < state.elements.length - 1) {
+          // Swap with element in front
+          const temp = state.elements[index];
+          state.elements[index] = state.elements[index + 1];
+          state.elements[index + 1] = temp;
+        }
+      }),
+
+    moveBackward: (id) =>
+      set((state) => {
+        const index = state.elements.findIndex((el) => el.id === id);
+        if (index > 0) {
+          // Swap with element behind
+          const temp = state.elements[index];
+          state.elements[index] = state.elements[index - 1];
+          state.elements[index - 1] = temp;
+        }
       }),
 
     // Bulk Operations

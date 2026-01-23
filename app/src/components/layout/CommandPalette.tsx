@@ -14,6 +14,7 @@ import {
 } from "../../stores";
 import { commandDefinitions, type CommandDefinition } from "../../lib/commands";
 import { searchCommands } from "../../lib/fuzzySearch";
+import { useRecentCommands } from "../../hooks/useRecentCommands";
 import type { ToolType, ViewMode, CommandCategory } from "../../types";
 
 interface CommandPaletteProps {
@@ -147,6 +148,8 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   const { actionMap } = useCommandsWithActions();
+  const { recentCommands, hasRecentCommands, addRecent, clearRecent } =
+    useRecentCommands();
 
   // Filter commands based on search query
   const filteredCommands = useMemo(() => {
@@ -157,7 +160,15 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const groupedCommands = useMemo(() => {
     const groups = new Map<CommandCategory, CommandDefinition[]>();
 
+    // Get IDs of recent commands to avoid duplicates
+    const recentIds = new Set(recentCommands.map((c) => c.id));
+    const showRecent = !query && hasRecentCommands;
+
     for (const cmd of filteredCommands) {
+      // Skip commands that are in Recent section (when showing Recent)
+      if (showRecent && recentIds.has(cmd.id)) {
+        continue;
+      }
       const existing = groups.get(cmd.category) || [];
       existing.push(cmd);
       groups.set(cmd.category, existing);
@@ -165,9 +176,15 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
     // Sort by category order
     const sorted: {
-      category: CommandCategory;
+      category: CommandCategory | "Recent";
       commands: CommandDefinition[];
     }[] = [];
+
+    // Add recent commands section at top when not filtering
+    if (showRecent) {
+      sorted.push({ category: "Recent", commands: recentCommands });
+    }
+
     for (const category of categoryOrder) {
       const cmds = groups.get(category);
       if (cmds && cmds.length > 0) {
@@ -176,7 +193,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     }
 
     return sorted;
-  }, [filteredCommands]);
+  }, [filteredCommands, query, hasRecentCommands, recentCommands]);
 
   // Flatten for keyboard navigation
   const flatCommands = useMemo(() => {
@@ -189,10 +206,12 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
       const action = actionMap[cmd.id];
       if (action) {
         action();
+        // Track as recent command
+        addRecent(cmd.id);
       }
       onClose();
     },
-    [actionMap, onClose],
+    [actionMap, onClose, addRecent],
   );
 
   // Keyboard navigation
@@ -246,19 +265,26 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   let flatIndex = -1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="command-palette-title"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
       <div className="relative w-[560px] bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl animate-slide-up overflow-hidden">
+        <h2 id="command-palette-title" className="sr-only">Command palette</h2>
         {/* Search Input */}
         <div className="p-4 border-b border-gray-700/50">
           <div className="flex items-center gap-3">
-            <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
+            <i className="fa-solid fa-magnifying-glass text-gray-500" aria-hidden="true"></i>
             <input
               ref={inputRef}
               type="text"
@@ -267,24 +293,52 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
               placeholder="Type command or ask AI..."
               className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               autoFocus
+              role="combobox"
+              aria-expanded={groupedCommands.length > 0}
+              aria-controls="command-list"
+              aria-activedescendant={flatCommands[selectedIndex] ? `cmd-${flatCommands[selectedIndex].id}` : undefined}
+              aria-autocomplete="list"
+              aria-label="Search commands"
             />
-            <kbd className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded">
+            <kbd className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded" aria-hidden="true">
               ESC
             </kbd>
           </div>
         </div>
 
         {/* Commands List */}
-        <div ref={listRef} className="max-h-80 overflow-y-auto p-2">
+        <div
+          ref={listRef}
+          id="command-list"
+          className="max-h-80 overflow-y-auto p-2"
+          role="listbox"
+          aria-label="Available commands"
+        >
           {groupedCommands.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-500 py-8" role="status">
               No commands found for "{query}"
             </div>
           ) : (
             groupedCommands.map(({ category, commands }) => (
-              <div key={category}>
-                <div className="text-xs text-gray-500 uppercase px-3 py-2">
-                  {category}
+              <div key={category} role="group" aria-labelledby={`category-${category}`}>
+                <div
+                  id={`category-${category}`}
+                  className="flex items-center justify-between text-xs text-gray-500 uppercase px-3 py-2"
+                >
+                  <span>{category}</span>
+                  {category === "Recent" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearRecent();
+                      }}
+                      className="text-[10px] normal-case text-gray-600 hover:text-gray-400 transition-colors"
+                      title="Clear recent commands"
+                      aria-label="Clear recent commands"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
                 {commands.map((cmd) => {
                   flatIndex++;
@@ -294,6 +348,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                   return (
                     <button
                       key={cmd.id}
+                      id={`cmd-${cmd.id}`}
                       data-index={currentIndex}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
                         isSelected
@@ -302,16 +357,21 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                       }`}
                       onClick={() => executeCommand(cmd)}
                       onMouseEnter={() => setSelectedIndex(currentIndex)}
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-describedby={cmd.description ? `desc-${cmd.id}` : undefined}
                     >
                       <i
                         className={`fa-solid ${cmd.icon} w-5 text-center ${
                           isSelected ? "text-white" : "text-gray-500"
                         }`}
+                        aria-hidden="true"
                       ></i>
                       <div className="flex-1">
                         <span className="text-sm">{cmd.label}</span>
                         {query && (
                           <span
+                            id={`desc-${cmd.id}`}
                             className={`ml-2 text-xs ${
                               isSelected ? "text-blue-200" : "text-gray-500"
                             }`}
@@ -327,6 +387,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
                               ? "bg-blue-700 text-blue-100"
                               : "bg-gray-800 text-gray-500"
                           }`}
+                          aria-label={`Keyboard shortcut: ${cmd.shortcut}`}
                         >
                           {cmd.shortcut}
                         </kbd>

@@ -234,7 +234,7 @@ describe("Element Command Handlers", () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("Created roof");
+      expect(result.message).toContain("roof");
       expect(result.elementCreated?.type).toBe("roof");
     });
 

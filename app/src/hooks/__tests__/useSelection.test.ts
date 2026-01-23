@@ -1,4 +1,8 @@
 /**
+ * @vitest-environment jsdom
+ */
+
+/**
  * Pensaer BIM Platform - Selection Hook Tests
  *
  * Tests for the useSelection hook and box selection logic.

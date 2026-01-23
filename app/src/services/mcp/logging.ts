@@ -503,6 +503,13 @@ export class MCPToolLogger {
     for (const [key, value] of Object.entries(data)) {
       if (this.shouldRedact(key)) {
         redacted[key] = "[REDACTED]";
+      } else if (Array.isArray(value)) {
+        // Preserve arrays as arrays
+        redacted[key] = value.map((item) =>
+          typeof item === "object" && item !== null
+            ? this.redactSensitiveData(item as Record<string, unknown>)
+            : item
+        );
       } else if (typeof value === "object" && value !== null) {
         redacted[key] = this.redactSensitiveData(
           value as Record<string, unknown>

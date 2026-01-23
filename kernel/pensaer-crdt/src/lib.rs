@@ -208,7 +208,7 @@ impl<T: Clone> LWWRegister<T> {
 
     /// Get the timestamp of the current value.
     pub fn timestamp(&self) -> u64 {
-        &self.timestamp
+        self.timestamp
     }
 
     /// Set a new value with the given replica and clock.

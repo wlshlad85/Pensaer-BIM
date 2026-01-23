@@ -6,3 +6,4 @@
 
 export { PerformanceMonitor } from './PerformanceMonitor';
 export { SelfHealingMonitor } from './SelfHealingMonitor';
+export { MCPDebugPanel } from './MCPDebugPanel';

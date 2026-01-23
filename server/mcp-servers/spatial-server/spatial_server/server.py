@@ -18,7 +18,7 @@ import asyncio
 import json
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -146,7 +146,7 @@ def make_response(
     return {
         "success": True,
         "data": data,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "audit": {"reasoning": reasoning},
     }
 
@@ -156,7 +156,7 @@ def make_error(code: int, message: str) -> dict[str, Any]:
     return {
         "success": False,
         "error": {"code": code, "message": message},
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -911,6 +911,7 @@ async def _detect_rooms(args: dict[str, Any]) -> dict[str, Any]:
                 "area": room_dict.get("area", 0.0),
                 "centroid": list(room_dict.get("centroid", (0, 0))),
                 "boundary_count": room_dict.get("boundary_count", 0),
+                "boundary_wall_ids": room_dict.get("boundary_wall_ids", []),
                 "is_exterior": room_dict.get("is_exterior", False),
             })
 

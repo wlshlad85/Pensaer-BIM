@@ -20,9 +20,21 @@ describe("uiStore", () => {
       panX: 0,
       panY: 0,
       activeLevel: "Level 1",
+      hiddenLayers: new Set(),
+      lockedLayers: new Set(),
       showCommandPalette: false,
       showPropertiesPanel: true,
       showLayersPanel: false,
+      showSnapSettings: false,
+      showKeyboardShortcuts: false,
+      snap: {
+        enabled: true,
+        grid: true,
+        endpoint: true,
+        midpoint: false,
+        perpendicular: false,
+        threshold: 10,
+      },
       contextMenu: {
         visible: false,
         x: 0,
@@ -32,6 +44,7 @@ describe("uiStore", () => {
       toasts: [],
       loadingOperations: [],
       isGlobalLoading: false,
+      demoTrigger: 0,
     });
 
     // Mock timers for toast auto-dismiss
@@ -383,6 +396,220 @@ describe("uiStore", () => {
 
       const op = useUIStore.getState().loadingOperations[0];
       expect(op.cancellable).toBe(true);
+    });
+  });
+
+  describe("Layer Visibility", () => {
+    beforeEach(() => {
+      // Reset layer state
+      useUIStore.setState({
+        hiddenLayers: new Set(),
+        lockedLayers: new Set(),
+      });
+    });
+
+    it("should toggle layer visibility", () => {
+      expect(useUIStore.getState().isLayerVisible("wall")).toBe(true);
+
+      useUIStore.getState().toggleLayerVisibility("wall");
+      expect(useUIStore.getState().isLayerVisible("wall")).toBe(false);
+
+      useUIStore.getState().toggleLayerVisibility("wall");
+      expect(useUIStore.getState().isLayerVisible("wall")).toBe(true);
+    });
+
+    it("should show all layers", () => {
+      useUIStore.getState().toggleLayerVisibility("wall");
+      useUIStore.getState().toggleLayerVisibility("door");
+      useUIStore.getState().toggleLayerVisibility("window");
+
+      useUIStore.getState().showAllLayers();
+
+      expect(useUIStore.getState().isLayerVisible("wall")).toBe(true);
+      expect(useUIStore.getState().isLayerVisible("door")).toBe(true);
+      expect(useUIStore.getState().isLayerVisible("window")).toBe(true);
+    });
+
+    it("should hide all layers", () => {
+      useUIStore.getState().hideAllLayers();
+
+      expect(useUIStore.getState().isLayerVisible("wall")).toBe(false);
+      expect(useUIStore.getState().isLayerVisible("door")).toBe(false);
+      expect(useUIStore.getState().isLayerVisible("window")).toBe(false);
+      expect(useUIStore.getState().isLayerVisible("room")).toBe(false);
+    });
+
+    it("should toggle layer lock", () => {
+      expect(useUIStore.getState().isLayerLocked("wall")).toBe(false);
+
+      useUIStore.getState().toggleLayerLock("wall");
+      expect(useUIStore.getState().isLayerLocked("wall")).toBe(true);
+
+      useUIStore.getState().toggleLayerLock("wall");
+      expect(useUIStore.getState().isLayerLocked("wall")).toBe(false);
+    });
+
+    it("should unlock all layers", () => {
+      useUIStore.getState().toggleLayerLock("wall");
+      useUIStore.getState().toggleLayerLock("door");
+      useUIStore.getState().toggleLayerLock("window");
+
+      useUIStore.getState().unlockAllLayers();
+
+      expect(useUIStore.getState().isLayerLocked("wall")).toBe(false);
+      expect(useUIStore.getState().isLayerLocked("door")).toBe(false);
+      expect(useUIStore.getState().isLayerLocked("window")).toBe(false);
+    });
+  });
+
+  describe("Snap Settings", () => {
+    beforeEach(() => {
+      // Reset snap settings to default
+      useUIStore.setState({
+        snap: {
+          enabled: true,
+          grid: true,
+          endpoint: true,
+          midpoint: false,
+          perpendicular: false,
+          threshold: 10,
+        },
+        showSnapSettings: false,
+      });
+    });
+
+    it("should toggle snap enabled", () => {
+      expect(useUIStore.getState().snap.enabled).toBe(true);
+
+      useUIStore.getState().toggleSnapEnabled();
+      expect(useUIStore.getState().snap.enabled).toBe(false);
+
+      useUIStore.getState().toggleSnapEnabled();
+      expect(useUIStore.getState().snap.enabled).toBe(true);
+    });
+
+    it("should toggle grid snap", () => {
+      expect(useUIStore.getState().snap.grid).toBe(true);
+
+      useUIStore.getState().toggleGridSnap();
+      expect(useUIStore.getState().snap.grid).toBe(false);
+
+      useUIStore.getState().toggleGridSnap();
+      expect(useUIStore.getState().snap.grid).toBe(true);
+    });
+
+    it("should toggle object snap (endpoint and midpoint together)", () => {
+      // Initially endpoint is true, midpoint is false
+      expect(useUIStore.getState().snap.endpoint).toBe(true);
+      expect(useUIStore.getState().snap.midpoint).toBe(false);
+
+      // Toggling should turn both off (since one is already true)
+      useUIStore.getState().toggleObjectSnap();
+      expect(useUIStore.getState().snap.endpoint).toBe(false);
+      expect(useUIStore.getState().snap.midpoint).toBe(false);
+
+      // Toggling again should turn both on
+      useUIStore.getState().toggleObjectSnap();
+      expect(useUIStore.getState().snap.endpoint).toBe(true);
+      expect(useUIStore.getState().snap.midpoint).toBe(true);
+    });
+
+    it("should toggle perpendicular snap", () => {
+      expect(useUIStore.getState().snap.perpendicular).toBe(false);
+
+      useUIStore.getState().togglePerpendicularSnap();
+      expect(useUIStore.getState().snap.perpendicular).toBe(true);
+
+      useUIStore.getState().togglePerpendicularSnap();
+      expect(useUIStore.getState().snap.perpendicular).toBe(false);
+    });
+
+    it("should set snap settings partially", () => {
+      useUIStore.getState().setSnapSettings({ threshold: 20 });
+
+      const snap = useUIStore.getState().snap;
+      expect(snap.threshold).toBe(20);
+      // Other settings should remain unchanged
+      expect(snap.enabled).toBe(true);
+      expect(snap.grid).toBe(true);
+    });
+
+    it("should set multiple snap settings at once", () => {
+      useUIStore.getState().setSnapSettings({
+        enabled: false,
+        grid: false,
+        threshold: 15,
+      });
+
+      const snap = useUIStore.getState().snap;
+      expect(snap.enabled).toBe(false);
+      expect(snap.grid).toBe(false);
+      expect(snap.threshold).toBe(15);
+      // Others unchanged
+      expect(snap.endpoint).toBe(true);
+    });
+
+    it("should toggle snap settings panel", () => {
+      expect(useUIStore.getState().showSnapSettings).toBe(false);
+
+      useUIStore.getState().toggleSnapSettings();
+      expect(useUIStore.getState().showSnapSettings).toBe(true);
+
+      useUIStore.getState().toggleSnapSettings();
+      expect(useUIStore.getState().showSnapSettings).toBe(false);
+    });
+
+    it("should close snap settings panel", () => {
+      useUIStore.getState().toggleSnapSettings();
+      expect(useUIStore.getState().showSnapSettings).toBe(true);
+
+      useUIStore.getState().closeSnapSettings();
+      expect(useUIStore.getState().showSnapSettings).toBe(false);
+    });
+  });
+
+  describe("Keyboard Shortcuts Panel", () => {
+    it("should toggle keyboard shortcuts panel", () => {
+      expect(useUIStore.getState().showKeyboardShortcuts).toBe(false);
+
+      useUIStore.getState().toggleKeyboardShortcuts();
+      expect(useUIStore.getState().showKeyboardShortcuts).toBe(true);
+
+      useUIStore.getState().toggleKeyboardShortcuts();
+      expect(useUIStore.getState().showKeyboardShortcuts).toBe(false);
+    });
+
+    it("should close keyboard shortcuts panel", () => {
+      useUIStore.getState().toggleKeyboardShortcuts();
+      expect(useUIStore.getState().showKeyboardShortcuts).toBe(true);
+
+      useUIStore.getState().closeKeyboardShortcuts();
+      expect(useUIStore.getState().showKeyboardShortcuts).toBe(false);
+    });
+  });
+
+  describe("Demo Trigger", () => {
+    beforeEach(() => {
+      useUIStore.setState({ demoTrigger: 0 });
+    });
+
+    it("should trigger demo", () => {
+      expect(useUIStore.getState().demoTrigger).toBe(0);
+
+      useUIStore.getState().triggerDemo();
+      expect(useUIStore.getState().demoTrigger).toBe(1);
+
+      useUIStore.getState().triggerDemo();
+      expect(useUIStore.getState().demoTrigger).toBe(2);
+    });
+
+    it("should clear demo trigger", () => {
+      useUIStore.getState().triggerDemo();
+      useUIStore.getState().triggerDemo();
+      expect(useUIStore.getState().demoTrigger).toBe(2);
+
+      useUIStore.getState().clearDemoTrigger();
+      expect(useUIStore.getState().demoTrigger).toBe(0);
     });
   });
 });

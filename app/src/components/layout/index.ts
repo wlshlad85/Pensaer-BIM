@@ -9,4 +9,7 @@ export { CommandPalette } from "./CommandPalette";
 export { Terminal } from "./Terminal";
 export { LevelPanel } from "./LevelPanel";
 export { LayerPanel } from "./LayerPanel";
+export { HistoryPanel } from "./HistoryPanel";
 export { StatusBar } from "./StatusBar";
+export { SnapSettingsDropdown } from "./SnapSettingsDropdown";
+export { ContextMenu } from "./ContextMenu";

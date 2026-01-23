@@ -107,17 +107,71 @@ Every change goes through the event log. Views are derived, never stored.
 - Don't add new dependencies without checking `TECH_STACK.md`
 - Don't modify `kernel/` without Rust expertise
 
+## Task Orchestration Workflow
+
+> Tasks are the primary coordination mechanism for all non-trivial work.
+
+### When to Use Tasks
+
+| Scope | Use Tasks? | Approach |
+|-------|-----------|----------|
+| Single-file fix, bug, refactor | No | Just do it directly |
+| Multi-file feature (3+ files) | Yes | Create task list with dependencies |
+| Cross-component work (app + server) | Yes | Tasks + subagents |
+| Multi-session / EPIC work | Yes | Shared task list via `CLAUDE_CODE_TASK_LIST_ID` |
+
+### Task Workflow
+
+1. **Break down** the project into tasks with `TaskCreate`
+2. **Define dependencies** with `TaskUpdate` (addBlockedBy / addBlocks)
+3. **Claim and start** tasks by setting `status: "in_progress"`
+4. **Complete** tasks by setting `status: "completed"` only when fully done
+5. **Check for next work** with `TaskList` after each completion
+
+### Task Rules
+
+- **Never mark a task completed if:** tests fail, implementation is partial, or errors are unresolved
+- **Always set `activeForm`** (present continuous) for spinner display (e.g., "Building auth system")
+- **Dependencies are enforced:** don't start a task if its `blockedBy` list has open items
+- **Tasks persist on disk:** they survive session restarts — pick up where you left off
+
+### Multi-Session Coordination
+
+For COMPOUND/EPIC work spanning multiple sessions or subagents:
+
+```bash
+# All sessions sharing the same task list:
+CLAUDE_CODE_TASK_LIST_ID=pensaer-feature-xyz
+```
+
+- Each subagent works in its own context but sees the same task list
+- When one session completes a task, others see the update immediately
+- Prevents duplicate work and agents stepping on each other
+
+### Subagent Division Strategy
+
+```
+Session 1 (app):    UI components, stores, hooks
+Session 2 (server): MCP tools, API endpoints, migrations
+Session 3 (kernel): Rust geometry, CRDT, IFC parsing
+```
+
+Each session claims tasks from the shared list relevant to its domain.
+
+### Task Sizing
+
+- ATOMIC: 1-2 files, <100 lines — single task, no subagents
+- MOLECULAR: 2-4 files, 100-300 lines — 2-3 tasks with dependencies
+- COMPOUND: 4-8 files, 300-800 lines — task tree + parallel subagents
+- EPIC: **DECOMPOSE into COMPOUND chunks first** — never assign directly
+
+---
+
 ## AI Code Automation System
 
 **Read `docs/CODE_AUTOMATION_SYSTEM.md` for the complete system.**
 
 ### Quick Reference
-
-**Task Sizing:**
-- ATOMIC: 1-2 files, <100 lines, 15-30 min
-- MOLECULAR: 2-4 files, 100-300 lines, 30-60 min
-- COMPOUND: 4-8 files, 300-800 lines, 1-2 hours
-- EPIC: **DECOMPOSE FIRST** - never assign directly
 
 **Before Every Commit:**
 ```bash
@@ -136,6 +190,7 @@ ai/server-[feature]   # Server work
 - One session per component (kernel, app, server)
 - No two sessions editing the same file
 - Rebase from main before starting
+- Use shared `CLAUDE_CODE_TASK_LIST_ID` for cross-session coordination
 
 ## Related CLAUDE.md Files
 

@@ -103,6 +103,15 @@ export {
   KNOWN_VARIABLES,
 } from "./errors";
 
+// Executor
+export {
+  executeCommand,
+  executeCommands,
+  executeDsl,
+  type ExecutionContext,
+  type ExecutionResult,
+} from "./executor";
+
 // Error formatter
 export {
   // Main formatting functions

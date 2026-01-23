@@ -111,3 +111,54 @@ export type {
   ResultFormatterOptions,
   PaginationState,
 } from "./mcp";
+
+// Demo Automation
+export {
+  useDemoStore,
+  runDemo,
+  stopDemo,
+  pauseDemo,
+  resumeDemo,
+  toggleDemoPause,
+  DEMO_COMMANDS,
+} from "./demo";
+export type { DemoCallbacks } from "./demo";
+
+// MCP Logger (convenience wrapper)
+export {
+  mcpLogger,
+  enableDebugLogging,
+  enableInfoLogging,
+  disableLogging,
+  createJsonLogTarget,
+  addLogTarget,
+  getLogLevel,
+  setLogLevel,
+  exportLogs,
+  getFilteredLogs,
+  downloadLogs,
+  getLoggingStats,
+} from "./mcpLogger";
+export type {
+  MCPLoggerConfig as MCPLogConfig,
+  MCPToolLogger,
+  ToolCallLogEntry,
+  LogOutputTarget,
+} from "./mcpLogger";
+export { LogLevel, ConsoleLogTarget, JsonLogTarget } from "./mcpLogger";
+
+// Model Import/Export
+export {
+  exportModel,
+  downloadModel,
+  importModel,
+  importModelFromFile,
+  promptImportModel,
+  validateModelExport,
+  getModelStats,
+} from "./modelIO";
+export type {
+  ModelExport,
+  ImportOptions,
+  ImportResult,
+} from "./modelIO";

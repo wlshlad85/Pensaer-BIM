@@ -14,9 +14,10 @@
  * - Token usage (optional)
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useUIStore, useModelStore, useSelectionStore, useHistoryStore } from "../../stores";
 import { useTokenStore } from "../../stores/tokenStore";
+import type { Element } from "../../types";
 
 interface StatusBarProps {
   /** Loading state from persistence */
@@ -54,6 +55,41 @@ export function StatusBar({
 
   // Cursor coordinates (tracked via mouse move)
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Selection details popup state
+  const [showSelectionDetails, setShowSelectionDetails] = useState(false);
+
+  // Get selected elements from store
+  const selectedElements = useMemo(() => {
+    return elements.filter((el) => selectedIds.has(el.id));
+  }, [elements, selectedIds]);
+
+  // Group selected elements by type for summary
+  const selectionByType = useMemo(() => {
+    return selectedElements.reduce((acc, el) => {
+      acc[el.type] = (acc[el.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [selectedElements]);
+
+  // Format selection info based on count
+  const selectionInfo = useMemo(() => {
+    const count = selectedIds.size;
+    if (count === 0) {
+      return { text: "Nothing selected", icon: "fa-object-group", color: "text-gray-500" };
+    }
+    if (count === 1) {
+      const el = selectedElements[0];
+      const typeName = el?.type ? el.type.charAt(0).toUpperCase() + el.type.slice(1) : "Element";
+      const name = el?.name || el?.id || "Unknown";
+      return { text: `${typeName}: ${name}`, icon: getElementIcon(el?.type || ""), color: "text-yellow-400" };
+    }
+    // Multiple selection - show count with type breakdown in tooltip
+    const typeBreakdown = Object.entries(selectionByType)
+      .map(([type, count]) => `${count} ${type}${count > 1 ? "s" : ""}`)
+      .join(", ");
+    return { text: `${count} elements selected`, icon: "fa-object-group", color: "text-yellow-400", tooltip: typeBreakdown };
+  }, [selectedIds, selectedElements, selectionByType]);
 
   // Track cursor position on canvas
   useEffect(() => {
@@ -190,14 +226,33 @@ export function StatusBar({
 
         <Separator />
 
-        {/* Selection Count */}
-        <span
-          className={selectedIds.length > 0 ? "text-yellow-400" : ""}
-          title={selectedIds.length > 0 ? selectedIds.join(", ") : "No selection"}
-        >
-          <i className="fa-solid fa-object-group mr-1.5 text-gray-500" />
-          {selectedIds.length} selected
-        </span>
+        {/* Selection Info */}
+        <div className="relative">
+          <button
+            type="button"
+            className={`flex items-center gap-1.5 hover:text-white transition-colors ${selectionInfo.color}`}
+            title={selectionInfo.tooltip || selectionInfo.text}
+            onClick={() => selectedIds.size > 0 && setShowSelectionDetails(!showSelectionDetails)}
+            disabled={selectedIds.size === 0}
+            aria-expanded={showSelectionDetails}
+            aria-haspopup="true"
+          >
+            <i className={`fa-solid ${selectionInfo.icon} text-gray-500`} />
+            <span className="max-w-[150px] truncate">{selectionInfo.text}</span>
+            {selectedIds.size > 0 && (
+              <i className={`fa-solid fa-chevron-${showSelectionDetails ? "up" : "down"} text-[8px] text-gray-500`} />
+            )}
+          </button>
+
+          {/* Selection Details Popup */}
+          {showSelectionDetails && selectedIds.size > 0 && (
+            <SelectionDetailsPopup
+              selectedElements={selectedElements}
+              selectionByType={selectionByType}
+              onClose={() => setShowSelectionDetails(false)}
+            />
+          )}
+        </div>
 
         <Separator />
 
@@ -296,6 +351,145 @@ function SaveStatusIndicator({
       <i className="fa-solid fa-circle text-[6px] mr-1.5" />
       Saved
     </span>
+  );
+}
+
+/**
+ * Get icon class for element type
+ */
+function getElementIcon(type: string): string {
+  switch (type) {
+    case "wall":
+      return "fa-grip-lines";
+    case "door":
+      return "fa-door-open";
+    case "window":
+      return "fa-window-maximize";
+    case "room":
+      return "fa-vector-square";
+    case "floor":
+      return "fa-layer-group";
+    case "roof":
+      return "fa-home";
+    case "column":
+      return "fa-h";
+    case "beam":
+      return "fa-minus";
+    case "stair":
+      return "fa-stairs";
+    default:
+      return "fa-cube";
+  }
+}
+
+/**
+ * Selection details popup showing breakdown of selected elements
+ */
+interface SelectionDetailsPopupProps {
+  selectedElements: Element[];
+  selectionByType: Record<string, number>;
+  onClose: () => void;
+}
+
+function SelectionDetailsPopup({
+  selectedElements,
+  selectionByType,
+  onClose,
+}: SelectionDetailsPopupProps) {
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".selection-details-popup")) {
+        onClose();
+      }
+    };
+
+    // Close on Escape
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="selection-details-popup absolute bottom-full right-0 mb-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50"
+      role="dialog"
+      aria-label="Selection details"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+        <span className="text-sm font-medium text-white">
+          Selection Details
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-gray-500 hover:text-white transition-colors"
+          aria-label="Close"
+        >
+          <i className="fa-solid fa-times" />
+        </button>
+      </div>
+
+      {/* Type breakdown */}
+      <div className="px-3 py-2 border-b border-gray-700/50">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-1.5">
+          By Type
+        </div>
+        <div className="space-y-1">
+          {Object.entries(selectionByType).map(([type, count]) => (
+            <div key={type} className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1.5 text-gray-300">
+                <i className={`fa-solid ${getElementIcon(type)} text-gray-500 w-4`} />
+                <span className="capitalize">{type}</span>
+              </span>
+              <span className="text-gray-400">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Element list (scrollable) */}
+      <div className="max-h-40 overflow-y-auto">
+        <div className="px-3 py-2">
+          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1.5">
+            Elements ({selectedElements.length})
+          </div>
+          <div className="space-y-0.5">
+            {selectedElements.slice(0, 20).map((el) => (
+              <div
+                key={el.id}
+                className="flex items-center gap-1.5 text-xs text-gray-400 py-0.5"
+                title={el.id}
+              >
+                <i className={`fa-solid ${getElementIcon(el.type)} w-3 text-gray-600`} />
+                <span className="truncate">{el.name || el.id}</span>
+              </div>
+            ))}
+            {selectedElements.length > 20 && (
+              <div className="text-xs text-gray-500 italic pt-1">
+                +{selectedElements.length - 20} more...
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-gray-700/50 text-xs text-gray-500">
+        Press <kbd className="px-1 py-0.5 bg-gray-700 rounded">Esc</kbd> to clear selection
+      </div>
+    </div>
   );
 }
 
