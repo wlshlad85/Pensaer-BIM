@@ -5,10 +5,10 @@ The documentation uses mm, but the Rust kernel uses meters.
 Conversion can be applied at the API boundary if needed.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # =============================================================================
@@ -48,10 +48,16 @@ class CreateWallParams(BaseModel):
     wall_type: str | None = Field(
         None, description="Wall type: basic, structural, curtain, retaining"
     )
+    material: str | None = Field(
+        None, description="Wall material: concrete, brick, timber, steel, masonry, drywall"
+    )
     level_id: str | None = Field(None, description="UUID of hosting level")
     reasoning: str | None = Field(
         None, description="AI agent reasoning for this action"
     )
+
+    # Minimum wall length constant (in meters)
+    MIN_WALL_LENGTH: float = 0.1  # 100mm minimum
 
     @field_validator("wall_type")
     @classmethod
@@ -62,6 +68,30 @@ class CreateWallParams(BaseModel):
                 raise ValueError(f"wall_type must be one of: {valid_types}")
             return v.lower()
         return v
+
+    @field_validator("material")
+    @classmethod
+    def validate_material(cls, v: str | None) -> str | None:
+        if v is not None:
+            valid_materials = {"concrete", "brick", "timber", "steel", "masonry", "drywall"}
+            if v.lower() not in valid_materials:
+                raise ValueError(f"material must be one of: {valid_materials}")
+            return v.lower()
+        return v
+
+    @model_validator(mode="after")
+    def validate_wall_geometry(self) -> "CreateWallParams":
+        """Validate wall geometry - ensure minimum length."""
+        import math
+        dx = self.end[0] - self.start[0]
+        dy = self.end[1] - self.start[1]
+        length = math.sqrt(dx * dx + dy * dy)
+        if length < self.MIN_WALL_LENGTH:
+            raise ValueError(
+                f"Wall length ({length:.3f}m) is less than minimum ({self.MIN_WALL_LENGTH}m). "
+                f"Start: {self.start}, End: {self.end}"
+            )
+        return self
 
 
 class CreateRectangularWallsParams(BaseModel):
@@ -311,6 +341,27 @@ class ModifyParameterParams(BaseModel):
     reasoning: str | None = Field(None, description="AI agent reasoning")
 
 
+class ModifyElementParams(BaseModel):
+    """Parameters for modifying an element (properties and/or geometry)."""
+
+    element_id: str = Field(..., description="UUID of the element to modify")
+    properties: dict[str, Any] | None = Field(
+        None, description="Properties to update (partial update)"
+    )
+    geometry: dict[str, Any] | None = Field(
+        None,
+        description="Geometry parameters to update (e.g., start_point, end_point for walls)",
+    )
+    reasoning: str | None = Field(None, description="AI agent reasoning")
+
+    @model_validator(mode="after")
+    def validate_has_changes(self) -> "ModifyElementParams":
+        """Ensure at least one modification is provided."""
+        if self.properties is None and self.geometry is None:
+            raise ValueError("At least one of 'properties' or 'geometry' must be provided")
+        return self
+
+
 # =============================================================================
 # Mesh Tool Schemas
 # =============================================================================
@@ -336,6 +387,28 @@ class ValidateMeshParams(BaseModel):
     """Parameters for validating a mesh."""
 
     element_id: str = Field(..., description="UUID of the element")
+
+
+class ComputeMeshParams(BaseModel):
+    """Parameters for computing a mesh with full features."""
+
+    element_id: str = Field(..., description="UUID of the element to mesh")
+    include_normals: bool = Field(True, description="Include vertex normals for lighting")
+    include_uvs: bool = Field(False, description="Include UV coordinates for texturing")
+    lod_level: int = Field(
+        0, description="Level of detail: 0=full, 1=medium, 2=low", ge=0, le=2
+    )
+    format: str = Field(
+        "gltf", description="Output format: gltf (glTF-compatible JSON), json, obj"
+    )
+
+    @field_validator("format")
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        valid_formats = {"gltf", "json", "obj"}
+        if v.lower() not in valid_formats:
+            raise ValueError(f"format must be one of: {valid_formats}")
+        return v.lower()
 
 
 # =============================================================================
@@ -647,7 +720,7 @@ class MCPResponse(BaseModel):
     success: bool
     data: dict[str, Any] | None = None
     event_id: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     warnings: list[str] = Field(default_factory=list)
     audit: AuditInfo = Field(default_factory=AuditInfo)
 
@@ -658,7 +731,7 @@ class MCPError(BaseModel):
     success: bool = False
     error: dict[str, Any]
     event_id: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Error codes

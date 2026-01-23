@@ -148,7 +148,7 @@ export function PropertiesPanel() {
   const issueElements = elements.filter((e) => e.issues.length > 0);
 
   return (
-    <div className="w-72 bg-gray-900/50 border-l border-gray-700/50 flex flex-col overflow-hidden">
+    <div className="w-72 bg-gray-900/50 border-l border-gray-700/50 flex flex-col overflow-hidden" data-testid="properties-panel">
       {selectedElement ? (
         <SelectedElementView
           element={selectedElement}

@@ -1,0 +1,46 @@
+====================================================
+PENSAER-BIM DEMO COMMANDS - COPY/PASTE READY
+Goldman Sachs Investor Demo (2 minutes)
+====================================================
+
+--- STEP 1: Show status ---
+status
+
+--- STEP 2: Create a wall ---
+wall --start 0,0 --end 8,0 --height 3
+
+--- STEP 3: Create more walls (a simple room) ---
+wall --start 8,0 --end 8,6 --height 3
+wall --start 8,6 --end 0,6 --height 3
+wall --start 0,6 --end 0,0 --height 3
+
+--- STEP 4: Detect rooms from walls ---
+detect-rooms
+
+--- STEP 5: Add a door ---
+door --wall wall-south --position 4
+
+--- STEP 6: Clash detection ---
+clash --clearance 0.1
+
+--- STEP 7: Analyze topology ---
+analyze
+
+--- STEP 8: List all elements ---
+list
+
+====================================================
+KEYBOARD SHORTCUTS DURING DEMO:
+- 3 = Toggle 3D view
+- V = Select tool
+- Ctrl+L = Clear terminal
+- Mouse drag = Rotate 3D view
+====================================================
+
+RECORDING CHECKLIST:
+[ ] Browser fullscreen (F11)
+[ ] Hide bookmarks bar
+[ ] Terminal expanded
+[ ] 3D view with rotation ON
+[ ] Start with fresh page (Ctrl+Shift+R)
+====================================================

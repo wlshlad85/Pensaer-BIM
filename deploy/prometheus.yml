@@ -1,0 +1,59 @@
+# =============================================================================
+# Pensaer-BIM Prometheus Configuration
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+  # Attach these labels to any time series or alerts
+  external_labels:
+    monitor: 'pensaer-bim'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Rule files
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Server metrics
+  - job_name: 'pensaer-server'
+    static_configs:
+      - targets: ['pensaer-server:8000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Kernel metrics (if exposed)
+  - job_name: 'pensaer-kernel'
+    static_configs:
+      - targets: ['pensaer-kernel:50051']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # PostgreSQL (with postgres_exporter)
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis (with redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Node metrics (system-level)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']

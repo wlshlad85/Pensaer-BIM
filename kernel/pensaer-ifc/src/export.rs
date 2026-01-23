@@ -597,6 +597,203 @@ impl IfcExporter {
         std::fs::write(path, content)?;
         Ok(())
     }
+
+    // =========================================================================
+    // Self-Healing Export Methods
+    // =========================================================================
+
+    /// Validate an element before adding to export.
+    ///
+    /// Returns Ok(()) if valid, or Err with details if invalid.
+    pub fn validate_element(&self, element: &ElementValidation) -> Result<()> {
+        match element {
+            ElementValidation::Wall(wall) => self.validate_wall(wall),
+            ElementValidation::Room(room) => self.validate_room(room),
+            ElementValidation::Floor(floor) => self.validate_floor(floor),
+        }
+    }
+
+    /// Validate a wall for export.
+    fn validate_wall(&self, wall: &WallExportData) -> Result<()> {
+        const MAX_DIMENSION: f64 = 10_000.0; // 10km sanity limit
+        const MIN_LENGTH: f64 = 0.001; // 1mm minimum
+
+        // Check coordinates are finite
+        if !wall.start.x.is_finite() || !wall.start.y.is_finite() {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' has invalid start coordinates", wall.name),
+            ));
+        }
+        if !wall.end.x.is_finite() || !wall.end.y.is_finite() {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' has invalid end coordinates", wall.name),
+            ));
+        }
+
+        // Check dimensions are within reasonable limits
+        let dx = wall.end.x - wall.start.x;
+        let dy = wall.end.y - wall.start.y;
+        let length = (dx * dx + dy * dy).sqrt();
+
+        if length < MIN_LENGTH {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' is too short: {:.6}m", wall.name, length),
+            ));
+        }
+
+        if length > MAX_DIMENSION {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' exceeds maximum length: {:.2}m", wall.name, length),
+            ));
+        }
+
+        if wall.height <= 0.0 || wall.height > MAX_DIMENSION {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' has invalid height: {:.2}m", wall.name, wall.height),
+            ));
+        }
+
+        if wall.thickness <= 0.0 || wall.thickness > 10.0 {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Wall '{}' has invalid thickness: {:.3}m", wall.name, wall.thickness),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate a room for export.
+    fn validate_room(&self, room: &RoomExportData) -> Result<()> {
+        if room.height <= 0.0 || room.height > 100.0 {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Room '{}' has invalid height: {:.2}m", room.name, room.height),
+            ));
+        }
+
+        if room.area < 0.0 {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Room '{}' has negative area: {:.2}m²", room.name, room.area),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate a floor for export.
+    fn validate_floor(&self, floor: &FloorExportData) -> Result<()> {
+        if floor.thickness <= 0.0 || floor.thickness > 10.0 {
+            return Err(crate::error::IfcError::InvalidGeometry(
+                format!("Floor '{}' has invalid thickness: {:.3}m", floor.name, floor.thickness),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Export with validation and error recovery.
+    ///
+    /// Returns (IFC content, warnings) where warnings list any issues
+    /// that were encountered but recovered from.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let (content, warnings) = exporter.export_healing()?;
+    /// if !warnings.is_empty() {
+    ///     eprintln!("Export completed with {} warnings:", warnings.len());
+    ///     for warning in &warnings {
+    ///         eprintln!("  - {}", warning);
+    ///     }
+    /// }
+    /// ```
+    pub fn export_healing(&self) -> Result<(String, Vec<String>)> {
+        let mut warnings = Vec::new();
+
+        // Validate all walls
+        for wall in &self.walls {
+            if let Err(e) = self.validate_wall(wall) {
+                warnings.push(format!("Wall '{}': {}", wall.name, e));
+            }
+        }
+
+        // Validate all rooms
+        for room in &self.rooms {
+            if let Err(e) = self.validate_room(room) {
+                warnings.push(format!("Room '{}': {}", room.name, e));
+            }
+        }
+
+        // Validate all floors
+        for floor in &self.floors {
+            if let Err(e) = self.validate_floor(floor) {
+                warnings.push(format!("Floor '{}': {}", floor.name, e));
+            }
+        }
+
+        // Proceed with export even if there are warnings
+        let content = self.export()?;
+
+        Ok((content, warnings))
+    }
+
+    /// Add a wall with automatic validation and repair.
+    ///
+    /// Returns Ok(true) if added successfully, Ok(false) if repaired then added,
+    /// or Err if unrecoverable.
+    pub fn add_wall_healing(&mut self, mut wall: WallExportData) -> Result<bool> {
+        let was_clean = self.validate_wall(&wall).is_ok();
+
+        if !was_clean {
+            // Attempt repairs
+            wall = self.repair_wall(wall)?;
+        }
+
+        self.walls.push(wall);
+        Ok(was_clean)
+    }
+
+    /// Attempt to repair a wall's geometry issues.
+    fn repair_wall(&self, mut wall: WallExportData) -> Result<WallExportData> {
+        const SNAP_THRESHOLD: f64 = 1e-10;
+        const MIN_LENGTH: f64 = 0.1; // 100mm minimum after repair
+
+        // Sanitize coordinates
+        let sanitize = |v: f64| -> f64 {
+            if !v.is_finite() {
+                0.0
+            } else if v.abs() < SNAP_THRESHOLD {
+                0.0
+            } else {
+                v.clamp(-10_000.0, 10_000.0)
+            }
+        };
+
+        wall.start = Point2::new(sanitize(wall.start.x), sanitize(wall.start.y));
+        wall.end = Point2::new(sanitize(wall.end.x), sanitize(wall.end.y));
+
+        // Ensure minimum length
+        let dx = wall.end.x - wall.start.x;
+        let dy = wall.end.y - wall.start.y;
+        let length = (dx * dx + dy * dy).sqrt();
+
+        if length < MIN_LENGTH {
+            // Extend wall in X direction
+            wall.end = Point2::new(wall.start.x + MIN_LENGTH, wall.start.y);
+        }
+
+        // Clamp height and thickness
+        wall.height = wall.height.clamp(0.1, 100.0);
+        wall.thickness = wall.thickness.clamp(0.01, 2.0);
+
+        Ok(wall)
+    }
+}
+
+/// Enum for validating different element types.
+pub enum ElementValidation<'a> {
+    Wall(&'a WallExportData),
+    Room(&'a RoomExportData),
+    Floor(&'a FloorExportData),
 }
 
 /// Generate an IFC GlobalId (base64-ish 22-character string).

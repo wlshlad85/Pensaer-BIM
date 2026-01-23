@@ -169,17 +169,21 @@ export class Lexer {
       // Extract numeric part and unit
       const unitMatch = UNIT_EXTRACT_PATTERN.exec(raw);
       let value: number;
+      let hasUnit = false;
 
       if (unitMatch) {
         const numStr = raw.slice(0, unitMatch.index);
         const unit = unitMatch[1].toLowerCase();
         value = this.convertToMeters(parseFloat(numStr), unit);
+        hasUnit = true;
       } else {
         value = raw.includes(".") ? parseFloat(raw) : parseInt(raw, 10);
       }
 
+      // Unit-converted values are always FLOAT (value was transformed)
+      // Otherwise, check if the value is an integer
       const tokenType =
-        typeof value === "number" && !Number.isInteger(value)
+        hasUnit || !Number.isInteger(value)
           ? TokenType.FLOAT
           : TokenType.INTEGER;
 

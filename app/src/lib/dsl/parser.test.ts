@@ -95,6 +95,74 @@ describe("Parser", () => {
         expect(cmd.end).toEqual({ x: 5, y: 0 });
       }
     });
+
+    it("parses wall command with --start and --end flags", () => {
+      const result = parse("wall --start 0,0 --end 5,0");
+      expect(result.success).toBe(true);
+      expect(result.commands).toHaveLength(1);
+
+      const cmd = result.commands[0];
+      expect(cmd.type).toBe("CreateWall");
+      if (cmd.type === "CreateWall") {
+        expect(cmd.start).toEqual({ x: 0, y: 0 });
+        expect(cmd.end).toEqual({ x: 5, y: 0 });
+      }
+    });
+
+    it("parses wall command with --start --end and --height", () => {
+      const result = parse("wall --start 0,0 --end 5,0 --height 4");
+      expect(result.success).toBe(true);
+
+      const cmd = result.commands[0];
+      if (cmd.type === "CreateWall") {
+        expect(cmd.start).toEqual({ x: 0, y: 0 });
+        expect(cmd.end).toEqual({ x: 5, y: 0 });
+        expect(cmd.height).toBe(4);
+      }
+    });
+
+    it("parses wall command with all parameters", () => {
+      const result = parse("wall --start 0,0 --end 5,0 --height 3.5 --thickness 0.25 --level level-1 --material concrete");
+      expect(result.success).toBe(true);
+
+      const cmd = result.commands[0];
+      if (cmd.type === "CreateWall") {
+        expect(cmd.start).toEqual({ x: 0, y: 0 });
+        expect(cmd.end).toEqual({ x: 5, y: 0 });
+        expect(cmd.height).toBe(3.5);
+        expect(cmd.thickness).toBe(0.25);
+        expect(cmd.levelId).toBe("level-1");
+      }
+    });
+
+    it("parses wall command with units in coordinates", () => {
+      const result = parse("wall 0m,0m 5000mm,0m");
+      expect(result.success).toBe(true);
+
+      const cmd = result.commands[0];
+      if (cmd.type === "CreateWall") {
+        expect(cmd.start).toEqual({ x: 0, y: 0 });
+        expect(cmd.end).toEqual({ x: 5, y: 0 }); // 5000mm = 5m
+      }
+    });
+
+    it("rejects wall with same start and end", () => {
+      const result = parse("wall --start 0,0 --end 0,0");
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toContain("same");
+    });
+
+    it("rejects wall that is too short", () => {
+      const result = parse("wall --start 0,0 --end 0.05,0");
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toContain("too short");
+    });
+
+    it("reports error when --end is missing", () => {
+      const result = parse("wall --start 0,0 --height 3");
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toContain("--end");
+    });
   });
 
   describe("walls rect commands", () => {

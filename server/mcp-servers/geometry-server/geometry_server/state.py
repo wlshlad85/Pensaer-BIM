@@ -6,7 +6,7 @@ and reconstructed from the event log.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -18,8 +18,8 @@ class ElementRecord:
     id: str
     element_type: str
     element: Any  # The actual PyO3 object
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    modified_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    modified_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     level_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -92,7 +92,7 @@ class GeometryState:
             return False
 
         self._elements[element_id].element = element
-        self._elements[element_id].modified_at = datetime.utcnow()
+        self._elements[element_id].modified_at = datetime.now(timezone.utc)
         self._record_event("element_modified", {"element_id": element_id})
         return True
 
@@ -273,7 +273,7 @@ class GeometryState:
             "id": group_id,
             "name": name,
             "element_ids": set(valid_ids),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "metadata": metadata or {},
         }
 
@@ -389,7 +389,7 @@ class GeometryState:
             "id": event_id,
             "type": event_type,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self._events.append(event)
         return event_id

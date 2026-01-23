@@ -6,14 +6,8 @@
  */
 
 import { useEffect, useState } from "react";
-import {
-  useUIStore,
-  useModelStore,
-  useSelectionStore,
-  initializeHistory,
-  useHistoryStore,
-} from "./stores";
-import { useKeyboardShortcuts, usePersistence } from "./hooks";
+import { useUIStore, initializeHistory } from "./stores";
+import { useKeyboardShortcuts, usePersistence, useBreakpoints } from "./hooks";
 import { Canvas2D, Canvas3D } from "./components/canvas";
 import {
   Header,
@@ -22,7 +16,14 @@ import {
   CommandPalette,
   Terminal,
   LevelPanel,
+  LayerPanel,
+  HistoryPanel,
+  StatusBar,
 } from "./components/layout";
+import { PerformanceMonitor } from "./components/debug";
+import { KeyboardShortcutsPanel } from "./components/KeyboardShortcutsPanel";
+import { SkipLinks } from "./components/accessibility/SkipLinks";
+import { ScreenReaderAnnouncer } from "./components/accessibility/ScreenReaderAnnouncer";
 import clsx from "clsx";
 
 function App() {
@@ -42,107 +43,210 @@ function App() {
     isAvailable: dbAvailable,
   } = usePersistence();
 
-  // Get history count for status bar
-  const historyCount = useHistoryStore((s) => s.entries.length);
-
   // Store state
   const viewMode = useUIStore((s) => s.viewMode);
   const showCommandPalette = useUIStore((s) => s.showCommandPalette);
   const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const zoom = useUIStore((s) => s.zoom);
-  const activeLevel = useUIStore((s) => s.activeLevel);
-  const activeTool = useUIStore((s) => s.activeTool);
+  const showKeyboardShortcuts = useUIStore((s) => s.showKeyboardShortcuts);
+  const closeKeyboardShortcuts = useUIStore((s) => s.closeKeyboardShortcuts);
   const toasts = useUIStore((s) => s.toasts);
   const removeToast = useUIStore((s) => s.removeToast);
 
-  const elements = useModelStore((s) => s.elements);
-  const selectedIds = useSelectionStore((s) => s.selectedIds);
+  // Terminal state (from store, toggleable via Ctrl+`)
+  const showTerminal = useUIStore((s) => s.showTerminal);
+  const toggleTerminal = useUIStore((s) => s.toggleTerminal);
 
-  // Terminal state
-  const [terminalExpanded, setTerminalExpanded] = useState(false);
+  // Responsive breakpoints
+  const { isMobile, isTablet, isMobileOrTablet } = useBreakpoints();
+
+  // State for mobile panel visibility
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState<"properties" | "levels" | null>(null);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden" data-testid="app-container">
+      {/* Skip Links for keyboard navigation */}
+      <SkipLinks />
+
+      {/* Screen Reader Announcer */}
+      <ScreenReaderAnnouncer />
+
       {/* Header */}
       <Header onOpenPalette={openCommandPalette} />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main id="main-content" className="flex-1 flex flex-col overflow-hidden" role="main" aria-label="BIM workspace">
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Toolbar */}
-          <Toolbar />
+          {/* Left Toolbar - hidden on mobile, icon-only on tablet */}
+          {!isMobile && <Toolbar compact={isTablet} />}
 
           {/* Canvas Area */}
-          <div className="flex-1 relative">
+          <div id="canvas-area" className="flex-1 relative" role="region" aria-label="Building model canvas" data-testid="canvas-container">
             {viewMode === "3d" ? <Canvas3D /> : <Canvas2D />}
 
-            {/* Level Panel (floating, top-left) */}
-            <div className="absolute top-4 left-4 w-48 z-10">
-              <LevelPanel />
-            </div>
+            {/* Level, Layer & History Panels (floating, top-left) - hidden on mobile */}
+            {!isMobileOrTablet && (
+              <div className="absolute top-4 left-4 w-52 z-10 flex flex-col gap-2">
+                <LevelPanel />
+                <LayerPanel />
+                <HistoryPanel />
+              </div>
+            )}
 
-            {/* Zoom indicator (2D only) */}
-            {viewMode === "2d" && (
-              <div className="absolute bottom-4 left-4 px-2 py-1 rounded bg-gray-900/80 text-xs text-gray-400">
-                {Math.round(zoom * 100)}%
+            {/* Mobile floating action button for tools */}
+            {isMobile && (
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className={clsx(
+                  "absolute bottom-20 right-4 z-20 w-14 h-14 rounded-full shadow-lg",
+                  "bg-blue-600 hover:bg-blue-700 text-white",
+                  "flex items-center justify-center text-xl",
+                  "transition-transform",
+                  mobileMenuOpen && "rotate-45",
+                )}
+                aria-label={mobileMenuOpen ? "Close tools menu" : "Open tools menu"}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-tools-menu"
+              >
+                <i className="fa-solid fa-plus" aria-hidden="true"></i>
+              </button>
+            )}
+
+            {/* Mobile tools radial menu */}
+            {isMobile && mobileMenuOpen && (
+              <div
+                id="mobile-tools-menu"
+                className="absolute bottom-36 right-4 z-20 flex flex-col gap-2"
+                role="menu"
+                aria-label="Mobile tools menu"
+              >
+                <button
+                  onClick={() => {
+                    setMobilePanelOpen("properties");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-12 h-12 rounded-full bg-gray-800 shadow-lg flex items-center justify-center"
+                  aria-label="Open properties panel"
+                  role="menuitem"
+                >
+                  <i className="fa-solid fa-sliders" aria-hidden="true"></i>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobilePanelOpen("levels");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-12 h-12 rounded-full bg-gray-800 shadow-lg flex items-center justify-center"
+                  aria-label="Open layers and levels panel"
+                  role="menuitem"
+                >
+                  <i className="fa-solid fa-layer-group" aria-hidden="true"></i>
+                </button>
               </div>
             )}
           </div>
 
-          {/* Right Properties Panel */}
-          <PropertiesPanel />
+          {/* Right Properties Panel - hidden on mobile, shown as modal */}
+          {!isMobileOrTablet && <PropertiesPanel />}
         </div>
 
-        {/* Terminal Panel */}
+        {/* Terminal Panel - reduced height on mobile, toggle with Ctrl+` */}
         <Terminal
-          isExpanded={terminalExpanded}
-          onToggle={() => setTerminalExpanded(!terminalExpanded)}
+          isExpanded={showTerminal}
+          onToggle={toggleTerminal}
+          compact={isMobileOrTablet}
         />
       </main>
 
+      {/* Mobile Properties Panel (slide-in modal) */}
+      {isMobileOrTablet && mobilePanelOpen === "properties" && (
+        <div
+          className="fixed inset-0 z-40 flex justify-end"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-properties-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobilePanelOpen(null)}
+            aria-hidden="true"
+          />
+          <div className="relative w-80 max-w-[90vw] bg-gray-900 shadow-xl overflow-y-auto">
+            <div className="sticky top-0 flex justify-between items-center p-3 bg-gray-900 border-b border-gray-800">
+              <span id="mobile-properties-title" className="font-medium">Properties</span>
+              <button
+                onClick={() => setMobilePanelOpen(null)}
+                className="p-2 hover:bg-gray-800 rounded"
+                aria-label="Close properties panel"
+              >
+                <i className="fa-solid fa-times" aria-hidden="true"></i>
+              </button>
+            </div>
+            <PropertiesPanel />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Levels/Layers Panel (slide-in modal) */}
+      {isMobileOrTablet && mobilePanelOpen === "levels" && (
+        <div
+          className="fixed inset-0 z-40 flex justify-start"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-layers-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobilePanelOpen(null)}
+            aria-hidden="true"
+          />
+          <div className="relative w-64 max-w-[90vw] bg-gray-900 shadow-xl overflow-y-auto">
+            <div className="sticky top-0 flex justify-between items-center p-3 bg-gray-900 border-b border-gray-800">
+              <span id="mobile-layers-title" className="font-medium">Layers & Levels</span>
+              <button
+                onClick={() => setMobilePanelOpen(null)}
+                className="p-2 hover:bg-gray-800 rounded"
+                aria-label="Close layers panel"
+              >
+                <i className="fa-solid fa-times" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div className="p-2 flex flex-col gap-2">
+              <LevelPanel />
+              <LayerPanel />
+              <HistoryPanel />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Bar */}
-      <footer className="h-6 flex items-center justify-between px-4 text-xs text-gray-500 border-t border-gray-700/50 bg-gray-900/50">
-        <div className="flex items-center gap-4">
-          <span>{activeLevel}</span>
-          <span className="text-gray-600">•</span>
-          <span className="capitalize">Tool: {activeTool}</span>
-          <span className="text-gray-600">•</span>
-          <span>Grid: 50mm</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>{elements.length} elements</span>
-          <span className="text-gray-600">•</span>
-          <span>{selectedIds.length} selected</span>
-          <span className="text-gray-600">•</span>
-          <span title="Undo history">{historyCount} history</span>
-          <span className="text-gray-600">•</span>
-          {isLoading ? (
-            <span className="text-yellow-400">● Loading...</span>
-          ) : isSaving ? (
-            <span className="text-blue-400">● Saving...</span>
-          ) : dbAvailable ? (
-            <span
-              className="text-green-400"
-              title={
-                lastSaved
-                  ? `Last saved: ${lastSaved.toLocaleTimeString()}`
-                  : "Auto-save enabled"
-              }
-            >
-              ● Saved
-            </span>
-          ) : (
-            <span className="text-orange-400">● No persistence</span>
-          )}
-        </div>
-      </footer>
+      <StatusBar
+        isLoading={isLoading}
+        isSaving={isSaving}
+        lastSaved={lastSaved}
+        dbAvailable={dbAvailable}
+      />
 
       {/* Command Palette Modal */}
       {showCommandPalette && <CommandPalette onClose={closeCommandPalette} />}
 
+      {/* Keyboard Shortcuts Panel (? to toggle) */}
+      <KeyboardShortcutsPanel
+        isOpen={showKeyboardShortcuts}
+        onClose={closeKeyboardShortcuts}
+      />
+
+      {/* Performance Monitor (F3 to toggle) */}
+      <PerformanceMonitor position="top-right" showGraph={true} />
+
       {/* Toast Container */}
-      <div className="fixed top-16 right-4 z-50 flex flex-col gap-2">
+      <div
+        className="fixed top-16 right-4 z-50 flex flex-col gap-2"
+        role="region"
+        aria-label="Notifications"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -153,6 +257,8 @@ function App() {
               toast.type === "warning" && "bg-yellow-500/90",
               toast.type === "info" && "bg-blue-500/90",
             )}
+            role={toast.type === "error" ? "alert" : "status"}
+            aria-live={toast.type === "error" ? "assertive" : "polite"}
           >
             <i
               className={clsx(
@@ -162,13 +268,15 @@ function App() {
                 toast.type === "warning" && "fa-exclamation-triangle",
                 toast.type === "info" && "fa-info-circle",
               )}
+              aria-hidden="true"
             ></i>
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
               className="opacity-70 hover:opacity-100"
+              aria-label={`Dismiss ${toast.type} notification`}
             >
-              <i className="fa-solid fa-times"></i>
+              <i className="fa-solid fa-times" aria-hidden="true"></i>
             </button>
           </div>
         ))}

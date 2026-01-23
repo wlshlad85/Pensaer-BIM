@@ -11,6 +11,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Evaluator, Brush, SUBTRACTION } from "three-bvh-csg";
 import { useModelStore, useSelectionStore } from "../../stores";
 import { ViewCube } from "./ViewCube";
+import { FPSCounter } from "../FPSCounter";
 import type { Element } from "../../types";
 import { getWallEndpoints, distance } from "../../utils/geometry";
 
@@ -394,6 +395,8 @@ export function Canvas3D() {
   const elements = useModelStore((s) => s.elements);
   const selectedIds = useSelectionStore((s) => s.selectedIds);
   const select = useSelectionStore((s) => s.select);
+  const addToSelection = useSelectionStore((s) => s.addToSelection);
+  const toggleSelection = useSelectionStore((s) => s.toggleSelection);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -476,6 +479,7 @@ export function Canvas3D() {
       if (!containerRef.current || !camera || !renderer) return;
       const newWidth = containerRef.current.clientWidth;
       const newHeight = containerRef.current.clientHeight;
+      if (newWidth === 0 || newHeight === 0) return; // Skip if not laid out
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(newWidth, newHeight);
@@ -483,8 +487,20 @@ export function Canvas3D() {
 
     window.addEventListener("resize", handleResize);
 
+    // Use ResizeObserver to handle initial layout and container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(container);
+
+    // Force initial resize after a short delay to ensure layout is complete
+    requestAnimationFrame(() => {
+      handleResize();
+    });
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -1343,15 +1359,25 @@ export function Canvas3D() {
       if (intersects.length > 0) {
         const clicked = intersects[0].object;
         if (clicked.userData.element) {
-          select(clicked.userData.element.id);
+          const elementId = clicked.userData.element.id;
+          // Ctrl/Cmd+click toggles selection
+          // Shift+click for additive selection
+          // Normal click replaces selection
+          if (event.ctrlKey || event.metaKey) {
+            toggleSelection(elementId);
+          } else if (event.shiftKey) {
+            addToSelection(elementId);
+          } else {
+            select(elementId);
+          }
         }
       }
     },
-    [select],
+    [select, addToSelection, toggleSelection],
   );
 
   return (
-    <div className="w-full h-full relative canvas-bg">
+    <div className="w-full h-full relative canvas-bg" data-canvas="3d">
       <div ref={containerRef} className="w-full h-full" onClick={handleClick} />
 
       {/* View Controls Panel - Matching Prototype */}
@@ -1470,6 +1496,9 @@ export function Canvas3D() {
           <i className="fa-solid fa-minus text-xs"></i>
         </button>
       </div>
+
+      {/* FPS Counter (F8 to toggle, dev mode only) */}
+      <FPSCounter position="top-left" />
     </div>
   );
 }

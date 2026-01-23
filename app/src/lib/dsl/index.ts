@@ -67,3 +67,71 @@ export {
   createElementRefFromVariable,
   commandToMcpArgs,
 } from "./ast";
+
+// Error types and utilities
+export {
+  // Enums
+  DslErrorCode,
+  // Types
+  type DslError,
+  type SourcePosition,
+  type DslResult,
+  // Factory functions
+  createDslError,
+  unexpectedTokenError,
+  unexpectedEndError,
+  unknownCommandError,
+  missingParamError,
+  invalidParamValueError,
+  invalidParamTypeError,
+  unknownVariableError,
+  invalidElementRefError,
+  wallTooShortError,
+  invalidCoordinatesError,
+  negativeDimensionError,
+  openingOutsideWallError,
+  invalidOffsetError,
+  // Result helpers
+  success,
+  failure,
+  // String similarity
+  levenshteinDistance,
+  findSimilar,
+  // Known values for suggestions
+  KNOWN_COMMANDS,
+  KNOWN_OPTIONS,
+  KNOWN_VARIABLES,
+} from "./errors";
+
+// Executor
+export {
+  executeCommand,
+  executeCommands,
+  executeDsl,
+  type ExecutionContext,
+  type ExecutionResult,
+} from "./executor";
+
+// Error formatter
+export {
+  // Main formatting functions
+  formatDslError,
+  formatDslErrors,
+  formatParseErrors,
+  // Terminal writers
+  writeDslErrorToTerminal,
+  writeDslErrorsToTerminal,
+  writeParseErrorsToTerminal,
+  // Quick formatting helpers
+  formatQuickError,
+  formatQuickWarning,
+  formatUnknownCommand,
+  formatMissingParam,
+  formatInvalidValue,
+  // Convert parse errors
+  parseErrorToDslError,
+  // Types
+  type FormattedDslError,
+  // Constants
+  ANSI,
+} from "./errorFormatter";

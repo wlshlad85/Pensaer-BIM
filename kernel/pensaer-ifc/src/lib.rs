@@ -40,9 +40,12 @@ mod export;
 mod import;
 mod mapping;
 
-pub use error::{IfcError, Result};
-pub use export::IfcExporter;
-pub use import::IfcImporter;
+pub use error::{HealingLogEntry, HealingType, IfcError, Result};
+pub use export::{
+    DoorExportData, ElementValidation, FloorExportData, IfcExporter, ProjectMetadata,
+    RoofExportData, RoomExportData, WallExportData, WindowExportData,
+};
+pub use import::{HealingImportResult, IfcImporter, ImportStatistics};
 pub use mapping::{ElementType, IfcEntityType, TypeMapping};
 
 /// IFC schema versions supported

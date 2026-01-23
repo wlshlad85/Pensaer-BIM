@@ -1,0 +1,474 @@
+{
+  "testModules": [
+    {
+      "moduleId": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py",
+      "tests": [
+        {
+          "name": "test_get_element_property_simple",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_get_element_property_simple",
+          "state": "passed"
+        },
+        {
+          "name": "test_get_element_property_nested",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_get_element_property_nested",
+          "state": "passed"
+        },
+        {
+          "name": "test_get_element_property_missing",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_get_element_property_missing",
+          "state": "passed"
+        },
+        {
+          "name": "test_format_value_none",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_format_value_none",
+          "state": "passed"
+        },
+        {
+          "name": "test_format_value_float",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_format_value_float",
+          "state": "passed"
+        },
+        {
+          "name": "test_format_value_bool",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_format_value_bool",
+          "state": "passed"
+        },
+        {
+          "name": "test_format_value_list",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestUtilityFunctions::test_format_value_list",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_schedule_table",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_basic_schedule_table",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_csv_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_schedule_csv_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_json_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_schedule_json_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_with_properties",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_schedule_with_properties",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_grouping",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_schedule_grouping",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_empty_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateSchedule::test_schedule_empty_elements",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_ifc_export",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportIfc::test_basic_ifc_export",
+          "state": "passed"
+        },
+        {
+          "name": "test_ifc_type_mapping",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportIfc::test_ifc_type_mapping",
+          "state": "passed"
+        },
+        {
+          "name": "test_ifc_versions",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportIfc::test_ifc_versions",
+          "state": "passed"
+        },
+        {
+          "name": "test_ifc_with_properties",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportIfc::test_ifc_with_properties",
+          "state": "passed"
+        },
+        {
+          "name": "test_ifc_without_properties",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportIfc::test_ifc_without_properties",
+          "state": "passed"
+        },
+        {
+          "name": "test_model_summary_report",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_model_summary_report",
+          "state": "passed"
+        },
+        {
+          "name": "test_validation_report",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_validation_report",
+          "state": "passed"
+        },
+        {
+          "name": "test_html_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_html_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_markdown_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_markdown_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_fire_safety_report",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_fire_safety_report",
+          "state": "passed"
+        },
+        {
+          "name": "test_accessibility_report",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportReport::test_accessibility_report",
+          "state": "passed"
+        },
+        {
+          "name": "test_wall_quantities",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateQuantities::test_wall_quantities",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_quantities",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateQuantities::test_room_quantities",
+          "state": "passed"
+        },
+        {
+          "name": "test_quantities_with_totals",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateQuantities::test_quantities_with_totals",
+          "state": "passed"
+        },
+        {
+          "name": "test_quantities_grouped",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateQuantities::test_quantities_grouped",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_quantities",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestGenerateQuantities::test_door_quantities",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_csv_export",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportCsv::test_basic_csv_export",
+          "state": "passed"
+        },
+        {
+          "name": "test_csv_with_properties",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportCsv::test_csv_with_properties",
+          "state": "passed"
+        },
+        {
+          "name": "test_csv_without_header",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportCsv::test_csv_without_header",
+          "state": "passed"
+        },
+        {
+          "name": "test_csv_with_header",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportCsv::test_csv_with_header",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_door_schedule_table",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_basic_door_schedule_table",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_csv_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_csv_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_json_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_json_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_with_fire_rating",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_with_fire_rating",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_without_fire_rating",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_without_fire_rating",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_sorting",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_sorting",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_grouping_by_type",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_grouping_by_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_grouping_by_fire_rating",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_grouping_by_fire_rating",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_grouping_by_level",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_grouping_by_level",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_empty_doors",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_empty_doors",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_default_values",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_default_values",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_fire_rated_count",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_fire_rated_count",
+          "state": "passed"
+        },
+        {
+          "name": "test_door_schedule_summary_section",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestDoorSchedule::test_door_schedule_summary_section",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_window_schedule_table",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_basic_window_schedule_table",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_csv_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_csv_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_json_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_json_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_with_glazing",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_with_glazing",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_without_glazing",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_without_glazing",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_with_u_value",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_with_u_value",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_without_u_value",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_without_u_value",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_sorting",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_sorting",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_grouping_by_type",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_grouping_by_type",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_grouping_by_glazing",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_grouping_by_glazing",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_grouping_by_level",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_grouping_by_level",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_empty_windows",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_empty_windows",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_default_values",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_default_values",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_total_glazing_area",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_total_glazing_area",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_average_u_value",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_average_u_value",
+          "state": "passed"
+        },
+        {
+          "name": "test_window_schedule_summary_section",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestWindowSchedule::test_window_schedule_summary_section",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_room_schedule_table",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_basic_room_schedule_table",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_csv_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_csv_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_json_format",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_json_format",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_with_area",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_with_area",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_without_area",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_without_area",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_with_finishes",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_with_finishes",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_without_finishes",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_without_finishes",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_sorting",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_sorting",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_grouping_by_level",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_grouping_by_level",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_grouping_by_department",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_grouping_by_department",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_empty_rooms",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_empty_rooms",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_default_values",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_default_values",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_total_area",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_total_area",
+          "state": "passed"
+        },
+        {
+          "name": "test_room_schedule_summary_section",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestRoomSchedule::test_room_schedule_summary_section",
+          "state": "passed"
+        },
+        {
+          "name": "test_basic_bcf_export",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_basic_bcf_export",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_export_with_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_export_with_elements",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_export_with_viewpoints",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_export_with_viewpoints",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_export_without_viewpoints",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_export_without_viewpoints",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_versions",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_versions",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_priority_mapping",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_priority_mapping",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_type_mapping",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_type_mapping",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_with_comments",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_with_comments",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_project_info",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_project_info",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_xml_sample",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_xml_sample",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_empty_issues",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_empty_issues",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_multiple_issues",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_multiple_issues",
+          "state": "passed"
+        },
+        {
+          "name": "test_bcf_guid_uniqueness",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestExportBcf::test_bcf_guid_uniqueness",
+          "state": "passed"
+        },
+        {
+          "name": "test_schedule_missing_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestValidationErrors::test_schedule_missing_elements",
+          "state": "passed"
+        },
+        {
+          "name": "test_ifc_empty_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestValidationErrors::test_ifc_empty_elements",
+          "state": "passed"
+        },
+        {
+          "name": "test_csv_empty_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestValidationErrors::test_csv_empty_elements",
+          "state": "passed"
+        },
+        {
+          "name": "test_quantities_empty_elements",
+          "fullName": "Pensaer-BIM/server/mcp-servers/documentation-server/tests/test_documentation_tools.py::TestValidationErrors::test_quantities_empty_elements",
+          "state": "passed"
+        }
+      ]
+    }
+  ]
+}

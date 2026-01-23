@@ -29,3 +29,18 @@ venv/
 .mypy_cache/
 .ruff_cache/
 test_roof.py
+
+# Environment
+.env
+
+# Claude Code local state
+**/.claude/tdd-guard/
+
+# Local development
+linear-harness/
+generations/
+nul
+app/test-*.txt
+progress.txt
+ralphy/
+pensaer-bim-scaffold/

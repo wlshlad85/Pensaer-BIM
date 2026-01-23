@@ -43,6 +43,25 @@ export enum SwingDirection {
   NONE = "none",
 }
 
+export enum RoofType {
+  FLAT = "flat",
+  GABLE = "gable",
+  HIP = "hip",
+  SHED = "shed",
+  MANSARD = "mansard",
+}
+
+export enum RoomType {
+  BEDROOM = "bedroom",
+  BATHROOM = "bathroom",
+  KITCHEN = "kitchen",
+  LIVING = "living",
+  DINING = "dining",
+  OFFICE = "office",
+  STORAGE = "storage",
+  GENERIC = "generic",
+}
+
 export enum VariableRef {
   LAST = "$last",
   SELECTED = "$selected",
@@ -103,6 +122,7 @@ export interface CreateWallCommand extends BaseCommand {
   thickness: number;
   wallType?: WallType;
   levelId?: string;
+  material?: string;
 }
 
 export interface CreateRectWallsCommand extends BaseCommand {
@@ -176,6 +196,64 @@ export interface CreateOpeningCommand extends BaseCommand {
 }
 
 // =============================================================================
+// Floor Command
+// =============================================================================
+
+export interface CreateFloorCommand extends BaseCommand {
+  type: "CreateFloor";
+  /** Polygon points defining the floor boundary */
+  points: Point2D[];
+  /** Floor thickness in meters (default 0.15) */
+  thickness: number;
+  /** Level/elevation (default 0) */
+  level: number;
+  /** Level ID string (e.g., "Level 1") */
+  levelId?: string;
+  /** Floor type (slab, deck, etc.) */
+  floorType?: string;
+}
+
+// =============================================================================
+// Roof Command
+// =============================================================================
+
+export interface CreateRoofCommand extends BaseCommand {
+  type: "CreateRoof";
+  /** Polygon points defining the roof boundary */
+  points: Point2D[];
+  /** Roof type (flat, gable, hip, shed, mansard) */
+  roofType: RoofType;
+  /** Slope in degrees (default 30) */
+  slope: number;
+  /** Overhang distance in meters (default 0.5) */
+  overhang: number;
+  /** Ridge direction (optional, for gable roofs) */
+  ridgeDirection?: "x" | "y";
+  /** Level ID string */
+  levelId?: string;
+}
+
+// =============================================================================
+// Room Command
+// =============================================================================
+
+export interface CreateRoomCommand extends BaseCommand {
+  type: "CreateRoom";
+  /** Polygon points defining the room boundary */
+  points: Point2D[];
+  /** Room name (e.g., "Living Room") */
+  name?: string;
+  /** Room number (e.g., "101") */
+  number?: string;
+  /** Room type (bedroom, bathroom, kitchen, etc.) */
+  roomType?: RoomType;
+  /** Room height in meters (default 3.0) */
+  height: number;
+  /** Level ID string */
+  levelId?: string;
+}
+
+// =============================================================================
 // Help Command
 // =============================================================================
 
@@ -192,6 +270,9 @@ export type Command =
   | CreateWallCommand
   | CreateRectWallsCommand
   | ModifyWallCommand
+  | CreateFloorCommand
+  | CreateRoofCommand
+  | CreateRoomCommand
   | PlaceDoorCommand
   | ModifyDoorCommand
   | PlaceWindowCommand
@@ -230,6 +311,7 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
         thickness: cmd.thickness,
         ...(cmd.wallType && { wall_type: cmd.wallType }),
         ...(cmd.levelId && { level_id: cmd.levelId }),
+        ...(cmd.material && { material: cmd.material }),
       };
 
     case "CreateRectWalls":
@@ -289,6 +371,35 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
         height: cmd.height,
         base_height: cmd.baseHeight,
         opening_type: "generic",
+      };
+
+    case "CreateFloor":
+      return {
+        points: cmd.points.map((p) => [p.x, p.y]),
+        thickness: cmd.thickness,
+        level: cmd.level,
+        ...(cmd.levelId && { level_id: cmd.levelId }),
+        ...(cmd.floorType && { floor_type: cmd.floorType }),
+      };
+
+    case "CreateRoof":
+      return {
+        points: cmd.points.map((p) => [p.x, p.y]),
+        roof_type: cmd.roofType,
+        slope_degrees: cmd.slope,
+        overhang: cmd.overhang,
+        ...(cmd.ridgeDirection && { ridge_direction: cmd.ridgeDirection }),
+        ...(cmd.levelId && { level_id: cmd.levelId }),
+      };
+
+    case "CreateRoom":
+      return {
+        points: cmd.points.map((p) => [p.x, p.y]),
+        ...(cmd.name && { name: cmd.name }),
+        ...(cmd.number && { number: cmd.number }),
+        ...(cmd.roomType && { room_type: cmd.roomType }),
+        height: cmd.height,
+        ...(cmd.levelId && { level_id: cmd.levelId }),
       };
 
     case "Help":

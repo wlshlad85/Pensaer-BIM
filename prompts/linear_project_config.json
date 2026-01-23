@@ -1,0 +1,85 @@
+{
+  "project_name": "Pensaer-BIM",
+  "project_description": "Developer-first BIM platform with keyboard-driven workflows and AI agent integration",
+  "team_id": null,
+  "issue_prefix": "PEN",
+  "phases": [
+    {
+      "name": "Phase 1: Foundation",
+      "weeks": "1-12",
+      "milestones": [
+        "v0.1.0-alpha: Core engine",
+        "v0.2.0-alpha: Developer experience",
+        "v0.3.0-alpha: BIM compliance"
+      ],
+      "step_range": [1, 14]
+    },
+    {
+      "name": "Phase 2: Collaboration",
+      "weeks": "13-24",
+      "milestones": [
+        "Cloud infrastructure",
+        "Event store",
+        "CRDT sync",
+        "Collaboration UX"
+      ],
+      "step_range": [15, 18]
+    },
+    {
+      "name": "Phase 3: Agentic AI",
+      "weeks": "25-36",
+      "milestones": [
+        "Tool surface completion",
+        "Governance layer",
+        "Evaluation harness"
+      ],
+      "step_range": [19, 20]
+    }
+  ],
+  "labels": [
+    {"name": "kernel", "color": "#E67E22", "description": "Rust geometry kernel"},
+    {"name": "server", "color": "#3498DB", "description": "Python FastAPI server"},
+    {"name": "app", "color": "#9B59B6", "description": "React client"},
+    {"name": "mcp", "color": "#1ABC9C", "description": "MCP tool servers"},
+    {"name": "terminal", "color": "#2ECC71", "description": "Terminal/DSL"},
+    {"name": "3d", "color": "#F39C12", "description": "Three.js 3D view"},
+    {"name": "ifc", "color": "#E74C3C", "description": "IFC import/export"},
+    {"name": "collab", "color": "#34495E", "description": "Collaboration features"},
+    {"name": "ai", "color": "#8E44AD", "description": "AI agent integration"}
+  ],
+  "priority_rules": {
+    "critical_path": ["kernel", "mcp", "terminal"],
+    "high_priority_steps": [1, 2, 3, 7, 9, 10],
+    "parallel_safe_steps": [4, 5, 11, 12, 13]
+  },
+  "test_commands": {
+    "app": "cd app && npm test -- --run",
+    "server": "cd server && pytest",
+    "kernel": "cd kernel && cargo test",
+    "lint": "cd app && npm run lint && cd ../server && ruff check ."
+  },
+  "puppeteer_base_url": "http://localhost:5173",
+  "puppeteer_tests": [
+    {
+      "name": "create_wall",
+      "commands": ["wall --start 0,0 --end 5,0"],
+      "expected": "wall element visible in canvas"
+    },
+    {
+      "name": "create_room",
+      "commands": [
+        "wall --start 0,0 --end 5,0",
+        "wall --start 5,0 --end 5,5",
+        "wall --start 5,5 --end 0,5",
+        "wall --start 0,5 --end 0,0",
+        "detect-rooms"
+      ],
+      "expected": "room detected with area calculation"
+    },
+    {
+      "name": "demo_mode",
+      "commands": ["Ctrl+Shift+D"],
+      "expected": "demo sequence executes with house model"
+    }
+  ]
+}
