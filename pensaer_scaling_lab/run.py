@@ -9,6 +9,7 @@ from pathlib import Path
 from pensaer_scaling_lab.experiments.b2_1_locality import run_locality_experiment
 from pensaer_scaling_lab.experiments.b2_2_collaboration import run_collaboration_experiment
 from pensaer_scaling_lab.experiments.b2_3_governance import run_governance_experiment
+from pensaer_scaling_lab.experiments.b2_4_gpu_scaling import run_gpu_scaling_experiment
 from pensaer_scaling_lab.reporters.verdict import generate_verdict
 from pensaer_scaling_lab.utils.io import write_csv, write_jsonl
 
@@ -22,7 +23,7 @@ def _write_outputs(out_dir: Path, exp_id: str, results: list[dict], summary: dic
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Pensaer Scaling Lab experiments")
-    parser.add_argument("--exp", default="all", help="b2.1|b2.2|b2.3|all")
+    parser.add_argument("--exp", default="all", help="b2.1|b2.2|b2.3|b2.4|all")
     parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument("--ws-url", default="ws://localhost:8000/mcp/ws")
     parser.add_argument("--out", default="out", help="Output directory")
@@ -78,6 +79,19 @@ def main() -> None:
             base_url=args.base_url,
         )
         _write_outputs(out_dir, "b2.3", results, summary)
+
+
+    if args.exp in {"b2.4", "all"}:
+        out_dir = run_root / "b2.4"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        results, summary = run_gpu_scaling_experiment(
+            out_dir=out_dir,
+            seed=args.seed,
+            simulate=args.simulate,
+            quick=args.quick,
+            runs_per_tier=args.runs_per_tier,
+        )
+        _write_outputs(out_dir, "b2.4", results, summary)
 
 
 if __name__ == "__main__":

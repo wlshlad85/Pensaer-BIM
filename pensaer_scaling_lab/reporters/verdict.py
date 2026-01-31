@@ -35,6 +35,14 @@ def generate_verdict(exp_id: str, summary: dict[str, Any]) -> str:
         lines.append(f"- Rollback rate narrow@1000: {'PASS' if gates.get('rollback_rate_narrow_at_1000') else 'FAIL'}")
         lines.append(f"- RM100 superlinear gate: {'PASS' if gates.get('rm100_superlinear') else 'FAIL'}")
         lines.append(f"- TVC improvement gate: {'PASS' if gates.get('tvc_improvement') else 'FAIL'}")
+    elif exp_id == "b2.4":
+        gates = summary.get("gates", {})
+        lines.append(f"- GPU faster at all tiers: {'PASS' if gates.get('gpu_faster_all_tiers') else 'FAIL'}")
+        lines.append(f"- Speedup scales with N: {'PASS' if gates.get('speedup_scales_with_n') else 'FAIL'}")
+        lines.append(f"- Large tier ≥4× speedup: {'PASS' if gates.get('large_tier_speedup_ge_4x') else 'FAIL'}")
+        speedups = summary.get("speedups", {})
+        for tier, s in speedups.items():
+            lines.append(f"  - N={tier}: CPU p50={s['cpu_p50_ms']}ms, GPU p50={s['gpu_p50_ms']}ms, speedup={s['speedup_ratio']}×")
 
     lines.append("")
     lines.append("## Notes")
