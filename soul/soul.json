@@ -1,0 +1,149 @@
+{
+  "version": "1.0",
+  "date": "2026-01-31",
+  "identity": {
+    "name": "Pensaer-BIM",
+    "name_meaning": "Welsh for architect (pen-SAH-eer)",
+    "entity": "Pensaer-BIM Ltd",
+    "founder": "Richard Maybury",
+    "location": "Cardiff, Wales",
+    "status": "Pre-seed, Alpha",
+    "mission": "Developer-first BIM platform: model server + governed agent runtime",
+    "axioms": [
+      "All users are developers",
+      "All workflows are code",
+      "Agents are first-class users with governance"
+    ]
+  },
+  "sacred_invariant": {
+    "statement": "All outputs must remain consistent projections of a single authoritative model state. Change propagation scales with the size of the change, not the size of the model.",
+    "halves": {
+      "consistency": "All outputs (views, schedules, exports, agent responses) derive from single authoritative state",
+      "proportional_propagation": "Regen cost is O(affected subgraph), not O(model size)"
+    }
+  },
+  "architecture_layers": {
+    "layer_a": {
+      "name": "Model Kernel",
+      "language": "Rust + PyO3",
+      "components": ["element_graph", "constraint_solver", "transaction_manager", "dependency_tracker", "mesh_pipeline", "join_system", "spatial_index", "fixup"],
+      "crates": ["pensaer-geometry", "pensaer-math", "pensaer-crdt", "pensaer-ifc"],
+      "element_types": ["wall", "door", "window", "floor", "room", "roof", "column", "beam", "stair", "opening"]
+    },
+    "layer_b": {
+      "name": "Model Server",
+      "language": "Python 3.12+ / FastAPI",
+      "components": {
+        "event_store": "PostgreSQL 16, append-only log",
+        "snapshot_engine": "Materialized views + Redis cache (full every 1000 events or 1hr)",
+        "branch_manager": "Git-style semantics",
+        "sync_runtime": "Loro CRDT + WebSocket",
+        "compute_scheduler": "Redis Streams + worker pool"
+      }
+    },
+    "layer_c": {
+      "name": "Agent Runtime",
+      "components": {
+        "mcp_servers": "4 servers, 33+ tools, JSON-RPC 2.0",
+        "orchestration": "LangGraph + Claude API",
+        "governance": "Permission gates + audit logs",
+        "evaluation": "Deterministic replay + metrics"
+      }
+    }
+  },
+  "tech_stack": {
+    "kernel": "Rust 1.75+ / PyO3",
+    "application": "Python 3.12+ / FastAPI / Pydantic v2",
+    "cli": "Typer + Rich",
+    "client": "React 18 + TypeScript 5.x + Three.js",
+    "state_management": "Zustand + Immer",
+    "terminal": "xterm.js",
+    "styling": "Tailwind CSS 3.x",
+    "build": "Vite 5.x",
+    "database": "PostgreSQL 16 + PostGIS 3.4+ + pgvector",
+    "cache": "Redis 7.x Streams",
+    "crdt": "Loro (Rust-native, Movable Tree)",
+    "actors": "actix-rs",
+    "llm_primary": "Claude API (sonnet-4-5, opus-4-5)",
+    "llm_fallback": "LiteLLM",
+    "orchestration": "LangGraph",
+    "tool_protocol": "MCP (JSON-RPC 2.0)",
+    "structured_output": "Instructor (Pydantic extraction)",
+    "geometry_v1": "Rust primitives → CGAL",
+    "geometry_v2": "wgpu-rs / WebGPU",
+    "rendering": "Three.js/WebGL (MVP) → wgpu-rs/WebGPU (V2)",
+    "infra": "Docker + Kubernetes + ArgoCD",
+    "observability": "OpenTelemetry + Grafana",
+    "rejections": ["Orleans", "EventStoreDB", "Neo4j", "Elasticsearch", "Yjs", "Automerge", "OCCT", "CrewAI", "Semantic Kernel"]
+  },
+  "agent_governance": {
+    "principle": "All agent mutations flow through MCP tools. Never free-form.",
+    "permission_model": {
+      "scopes": ["categories", "levels", "regions", "branch_patterns"],
+      "permissions": ["read", "create", "modify", "delete", "approve"]
+    },
+    "approval_gates": {
+      "destructive_ops": ["element.deleted", "branch.merged"],
+      "bulk_threshold": 50
+    },
+    "rate_limits": {
+      "max_elements_per_operation": 100,
+      "max_operations_per_session": 1000
+    },
+    "audit_trail": {
+      "fields": ["agent_id", "approval_id", "reasoning"],
+      "storage": "event_store",
+      "immutable": true
+    }
+  },
+  "safety_contract": {
+    "hardcoded": [
+      "No invented geometry, dimensions, or element IDs",
+      "No invented compliance results",
+      "Deterministic: same input + same state = same output",
+      "Destructive actions require confirmation",
+      "Auto-correction must be logged as events",
+      "Ambiguity triggers pause — ask, don't guess",
+      "Model state is truth at runtime"
+    ],
+    "bright_lines": [
+      "Never bypass event sourcing",
+      "Never merge branches without CRDT conflict resolution",
+      "Never expose raw database access to agents",
+      "Never suppress audit trail entries",
+      "Never claim IFC compliance without round-trip validation"
+    ]
+  },
+  "scaling_properties": {
+    "regen_benchmark": {
+      "affected": 10,
+      "total": 1000,
+      "measured_ms": 13.85
+    },
+    "targets": {
+      "query_response_ms": 50,
+      "regen_1000_affected_ms": 100,
+      "sync_latency_ms": 100,
+      "agent_task_completion_pct": 90,
+      "ifc_round_trip": "zero semantic loss",
+      "model_capacity": "1M+ elements"
+    },
+    "gpu_path": "wgpu-rs for Morton sort, broadphase clash detection"
+  },
+  "dsl_commands": {
+    "base_unit": "meters",
+    "units": ["m", "mm", "cm", "ft", "in"],
+    "commands": ["wall", "walls rect", "box", "door", "window", "opening"],
+    "references": ["$last", "$selected", "$wall"],
+    "modes": ["structured (CLI flags)", "NL (# prefix)", "agent (MCP tool)"]
+  },
+  "bright_lines": [
+    "Never bypass event sourcing",
+    "Never merge without CRDT conflict resolution",
+    "Never expose raw DB access to agents",
+    "Never suppress audit entries",
+    "Never claim compliance without validation",
+    "Never invent geometry or dimensions",
+    "Never fabricate element IDs"
+  ]
+}
