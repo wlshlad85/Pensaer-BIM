@@ -1,0 +1,2 @@
+{"exp_id": "b2.2", "scenario": "disjoint_edits", "concurrency": 1, "edit_rate": 10, "offline_duration": 0, "p50_latency_ms": 53.724117162171126, "p95_latency_ms": 62.01983725098863, "conflict_rate": 0.002, "override_rate": 0.005, "rollback_rate": 0.001, "simulation": true}
+{"exp_id": "b2.2", "scenario": "disjoint_edits", "concurrency": 3, "edit_rate": 10, "offline_duration": 0, "p50_latency_ms": 66.10507177443831, "p95_latency_ms": 78.11080827204049, "conflict_rate": 0.006, "override_rate": 0.015, "rollback_rate": 0.001, "simulation": true}
