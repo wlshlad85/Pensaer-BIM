@@ -432,6 +432,7 @@ function SelectedElementView({
               ) : editingKey === key ? (
                 // Inline editing mode
                 <input
+                  id={`property-edit-${key}`}
                   type="text"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}

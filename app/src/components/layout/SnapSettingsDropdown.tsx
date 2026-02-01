@@ -45,6 +45,7 @@ export function SnapSettingsDropdown() {
       <div className="px-2 py-1">
         <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer">
           <input
+            id="snap-enabled"
             type="checkbox"
             checked={snap.enabled}
             onChange={() => setSnapSettings({ enabled: !snap.enabled })}
@@ -63,6 +64,7 @@ export function SnapSettingsDropdown() {
       <div className="px-2 py-1 space-y-0.5">
         <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer">
           <input
+            id="snap-grid"
             type="checkbox"
             checked={snap.grid}
             onChange={() => setSnapSettings({ grid: !snap.grid })}
@@ -79,6 +81,7 @@ export function SnapSettingsDropdown() {
 
         <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer">
           <input
+            id="snap-endpoint"
             type="checkbox"
             checked={snap.endpoint}
             onChange={() => setSnapSettings({ endpoint: !snap.endpoint })}
@@ -95,6 +98,7 @@ export function SnapSettingsDropdown() {
 
         <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer">
           <input
+            id="snap-midpoint"
             type="checkbox"
             checked={snap.midpoint}
             onChange={() => setSnapSettings({ midpoint: !snap.midpoint })}
@@ -111,6 +115,7 @@ export function SnapSettingsDropdown() {
 
         <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer">
           <input
+            id="snap-perpendicular"
             type="checkbox"
             checked={snap.perpendicular}
             onChange={() =>
@@ -135,6 +140,7 @@ export function SnapSettingsDropdown() {
           Threshold: {snap.threshold}px
         </div>
         <input
+          id="snap-threshold"
           type="range"
           min={5}
           max={30}

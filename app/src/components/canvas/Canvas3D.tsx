@@ -544,6 +544,10 @@ export function Canvas3D() {
       roofSelected: 0xea580c,
       floor: 0xcbd5e1,
       floorSelected: 0x3b82f6,
+      curtainwallGlass: 0x87ceeb,
+      curtainwallGlassSelected: 0x00bfff,
+      curtainwallMullion: 0x708090,
+      curtainwallMullionSelected: 0x4682b4,
     };
 
     // Scale factor: 1 unit in 2D = 0.01 units in 3D
@@ -1072,6 +1076,156 @@ export function Canvas3D() {
         meshesRef.current.push(mesh);
       });
 
+    // Build curtain walls - glazed facade systems with panel grids
+    elements
+      .filter((el) => el.type === "curtainwall")
+      .forEach((curtainWall) => {
+        const isSelected = selectedIds.includes(curtainWall.id);
+        
+        // Get curtain wall dimensions from element
+        const cwWidth = curtainWall.width * scale;
+        const cwDepth = curtainWall.height * scale; // In 2D, height is depth
+        
+        // Get grid divisions (default to reasonable values)
+        const uDivisions = curtainWall.uDivisions || 5;  // Horizontal (floors)
+        const vDivisions = curtainWall.vDivisions || 8;  // Vertical (panels)
+        
+        // Get system height (default to 3m per division)
+        const systemHeight = curtainWall.systemHeight 
+          ? curtainWall.systemHeight / 1000 
+          : uDivisions * 3;
+        
+        // Calculate panel dimensions
+        const panelWidth = cwWidth / vDivisions;
+        const panelHeight = systemHeight / uDivisions;
+        
+        // Mullion dimensions (default 50mm width, 100mm depth)
+        const mullionWidth = (curtainWall.mullionWidth || 50) / 1000;
+        const mullionDepth = (curtainWall.mullionDepth || 100) / 1000;
+        const panelThickness = (curtainWall.panelThickness || 24) / 1000; // 24mm double glazing
+        
+        // Base position
+        const baseX = curtainWall.x * scale + offsetX;
+        const baseY = curtainWall.baseElevation ? curtainWall.baseElevation / 1000 : 0;
+        const baseZ = curtainWall.y * scale + offsetZ;
+        
+        // Determine orientation (is it along X or Z axis?)
+        const isAlongX = cwWidth >= cwDepth;
+        
+        // Create curtain wall group
+        const cwGroup = new THREE.Group();
+        cwGroup.name = curtainWall.id;
+        cwGroup.userData = { element: curtainWall };
+        
+        // Glass material
+        const glassMaterial = new THREE.MeshStandardMaterial({
+          color: isSelected ? colors.curtainwallGlassSelected : colors.curtainwallGlass,
+          transparent: true,
+          opacity: 0.4,
+          roughness: 0.1,
+          metalness: 0.3,
+          side: THREE.DoubleSide,
+        });
+        
+        // Mullion material (aluminum frame)
+        const mullionMaterial = new THREE.MeshStandardMaterial({
+          color: isSelected ? colors.curtainwallMullionSelected : colors.curtainwallMullion,
+          roughness: 0.4,
+          metalness: 0.8,
+        });
+        
+        // Create panels using InstancedMesh for performance
+        const panelGeometry = new THREE.BoxGeometry(
+          isAlongX ? panelWidth - mullionWidth : panelThickness,
+          panelHeight - mullionWidth,
+          isAlongX ? panelThickness : panelWidth - mullionWidth
+        );
+        
+        const panelCount = uDivisions * vDivisions;
+        const panelInstances = new THREE.InstancedMesh(
+          panelGeometry,
+          glassMaterial,
+          panelCount
+        );
+        
+        const dummy = new THREE.Object3D();
+        let instanceIndex = 0;
+        
+        // Place panel instances
+        for (let u = 0; u < uDivisions; u++) {
+          for (let v = 0; v < vDivisions; v++) {
+            const panelCenterX = isAlongX 
+              ? baseX + (v + 0.5) * panelWidth
+              : baseX + panelThickness / 2;
+            const panelCenterY = baseY + (u + 0.5) * panelHeight;
+            const panelCenterZ = isAlongX
+              ? baseZ + panelThickness / 2
+              : baseZ + (v + 0.5) * panelWidth;
+            
+            dummy.position.set(panelCenterX, panelCenterY, panelCenterZ);
+            dummy.updateMatrix();
+            panelInstances.setMatrixAt(instanceIndex, dummy.matrix);
+            instanceIndex++;
+          }
+        }
+        
+        panelInstances.instanceMatrix.needsUpdate = true;
+        cwGroup.add(panelInstances);
+        meshesRef.current.push(panelInstances);
+        
+        // Create horizontal mullions (at each floor level)
+        for (let u = 0; u <= uDivisions; u++) {
+          const mullionY = baseY + u * panelHeight;
+          
+          const hMullionGeometry = new THREE.BoxGeometry(
+            isAlongX ? cwWidth : mullionDepth,
+            mullionWidth,
+            isAlongX ? mullionDepth : cwWidth
+          );
+          
+          const hMullion = new THREE.Mesh(hMullionGeometry, mullionMaterial);
+          hMullion.position.set(
+            isAlongX ? baseX + cwWidth / 2 : baseX + mullionDepth / 2,
+            mullionY,
+            isAlongX ? baseZ + mullionDepth / 2 : baseZ + cwWidth / 2
+          );
+          
+          hMullion.castShadow = true;
+          cwGroup.add(hMullion);
+          meshesRef.current.push(hMullion);
+        }
+        
+        // Create vertical mullions (at each panel boundary)
+        for (let v = 0; v <= vDivisions; v++) {
+          const vMullionGeometry = new THREE.BoxGeometry(
+            isAlongX ? mullionWidth : mullionDepth,
+            systemHeight,
+            isAlongX ? mullionDepth : mullionWidth
+          );
+          
+          const vMullion = new THREE.Mesh(vMullionGeometry, mullionMaterial);
+          
+          const mullionX = isAlongX
+            ? baseX + v * panelWidth
+            : baseX + mullionDepth / 2;
+          const mullionZ = isAlongX
+            ? baseZ + mullionDepth / 2
+            : baseZ + v * panelWidth;
+          
+          vMullion.position.set(
+            mullionX,
+            baseY + systemHeight / 2,
+            mullionZ
+          );
+          
+          vMullion.castShadow = true;
+          cwGroup.add(vMullion);
+          meshesRef.current.push(vMullion);
+        }
+        
+        buildingGroup.add(cwGroup);
+      });
+
     // Build roof - anchored to wall tops (MUL-20 fix)
     // Calculate wall bounding box for proper roof positioning
     const wallsBoundingBox = getWallsBoundingBox(walls, scale, wallHeight, offsetX, offsetZ);
@@ -1449,6 +1603,7 @@ export function Canvas3D() {
               ))}
             </div>
             <input
+              id="section-plane-position"
               type="range"
               min="-10"
               max="10"

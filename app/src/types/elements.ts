@@ -61,7 +61,8 @@ export type ElementType =
   | "roof"
   | "column"
   | "beam"
-  | "stair";
+  | "stair"
+  | "curtainwall";
 
 // ============================================
 // BASE ELEMENT INTERFACE
@@ -110,6 +111,9 @@ export interface BaseElement {
 
   /** Timestamp when element was last modified */
   modifiedAt?: number;
+
+  /** Generic properties bag for element-specific data */
+  properties: Record<string, string | number | boolean>;
 }
 
 // ============================================
@@ -392,6 +396,80 @@ export interface StairElement extends BaseElement {
   isEnclosed?: boolean;
 }
 
+/**
+ * Curtain wall element - glazed facade system with grid divisions.
+ * 
+ * Curtain walls are non-structural facade elements consisting of:
+ * - A grid system (horizontal and vertical divisions)
+ * - Panels (glass, spandrel, or opaque) filling grid cells
+ * - Mullions (structural frame members)
+ * 
+ * @example
+ * ```ts
+ * const curtainWall: CurtainWallElement = {
+ *   id: createElementId('cw-1'),
+ *   type: 'curtainwall',
+ *   name: 'Tower Facade',
+ *   x: 0, y: 0,
+ *   width: 20000, height: 50000,
+ *   uDivisions: 10,  // 10 horizontal divisions (floors)
+ *   vDivisions: 20,  // 20 vertical divisions (panel columns)
+ *   panelType: 'glass',
+ *   relationships: {},
+ *   issues: [],
+ *   aiSuggestions: []
+ * };
+ * ```
+ */
+export interface CurtainWallElement extends BaseElement {
+  readonly type: "curtainwall";
+
+  /** Number of horizontal divisions (typically matches floors) */
+  uDivisions: number;
+
+  /** Number of vertical divisions (panel columns) */
+  vDivisions: number;
+
+  /** Default panel type for the grid */
+  panelType?: "glass" | "spandrel" | "opaque" | "louvered";
+
+  /** Glass type for glazed panels */
+  glassType?: "clear" | "tinted" | "reflective" | "low-e" | "fritted";
+
+  /** Mullion profile width in mm */
+  mullionWidth?: number;
+
+  /** Mullion profile depth in mm */
+  mullionDepth?: number;
+
+  /** Panel thickness in mm */
+  panelThickness?: number;
+
+  /** U-value for thermal performance (W/m²K) */
+  uValue?: number;
+
+  /** Solar Heat Gain Coefficient */
+  shgc?: number;
+
+  /** Visible Light Transmittance (0-1) */
+  vlt?: number;
+
+  /** Total height of the curtain wall system in mm */
+  systemHeight: number;
+
+  /** Whether this is a unitized system (prefab panels) */
+  isUnitized?: boolean;
+
+  /** Start point coordinates (for non-rectangular placement) */
+  startPoint?: { x: number; y: number };
+
+  /** End point coordinates (for non-rectangular placement) */
+  endPoint?: { x: number; y: number };
+
+  /** Base elevation relative to building datum in mm */
+  baseElevation?: number;
+}
+
 // ============================================
 // DISCRIMINATED UNION
 // ============================================
@@ -424,7 +502,8 @@ export type Element =
   | RoofElement
   | ColumnElement
   | BeamElement
-  | StairElement;
+  | StairElement
+  | CurtainWallElement;
 
 // ============================================
 // TYPE GUARDS
@@ -491,6 +570,13 @@ export function isBeam(element: Element): element is BeamElement {
  */
 export function isStair(element: Element): element is StairElement {
   return element.type === "stair";
+}
+
+/**
+ * Type guard to check if an element is a CurtainWallElement.
+ */
+export function isCurtainWall(element: Element): element is CurtainWallElement {
+  return element.type === "curtainwall";
 }
 
 /**

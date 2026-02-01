@@ -8,3 +8,4 @@ export { WindowElement } from "./WindowElement";
 export { RoomElement } from "./RoomElement";
 export { FloorElement } from "./FloorElement";
 export { RoofElement } from "./RoofElement";
+export { CurtainWallElement } from "./CurtainWallElement";

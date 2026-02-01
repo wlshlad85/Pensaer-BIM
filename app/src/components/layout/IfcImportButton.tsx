@@ -102,6 +102,7 @@ export function IfcImportButton() {
     <div className="relative">
       <input
         ref={fileInputRef}
+        id="ifc-file-import"
         type="file"
         accept=".ifc"
         className="hidden"

@@ -31,6 +31,7 @@ import {
   DoorElement,
   WindowElement,
   RoomElement,
+  CurtainWallElement,
 } from "./elements";
 
 const CANVAS_WIDTH = 2000;
@@ -832,6 +833,8 @@ export function Canvas2D() {
         return <WindowElement key={element.id} {...commonProps} />;
       case "room":
         return <RoomElement key={element.id} {...commonProps} />;
+      case "curtainwall":
+        return <CurtainWallElement key={element.id} {...commonProps} />;
       default:
         return null;
     }
@@ -840,12 +843,13 @@ export function Canvas2D() {
   // Filter visible elements (respect layer visibility)
   const visibleElements = elements.filter((el) => !hiddenLayers.has(el.type));
 
-  // Sort elements: rooms first (background), then walls, then doors/windows
+  // Sort elements: rooms first (background), then walls/curtainwalls, then doors/windows
   const sortedElements = [...visibleElements].sort((a, b) => {
     const order: Record<string, number> = {
       room: 0,
       floor: 0,
       wall: 1,
+      curtainwall: 1,
       column: 1,
       beam: 1,
       door: 2,

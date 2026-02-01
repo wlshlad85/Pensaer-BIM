@@ -97,6 +97,15 @@ export const commandDefinitions: CommandDefinition[] = [
     description: "Place structural columns",
     keywords: ["pillar", "post", "structural"],
   },
+  {
+    id: "tool.curtainwall",
+    icon: "fa-building",
+    label: "Curtain Wall tool",
+    shortcut: "G",
+    category: "Modeling",
+    description: "Create glazed facade systems",
+    keywords: ["glass", "facade", "glazing", "skyscraper", "tower", "highrise"],
+  },
 
   // Views
   {

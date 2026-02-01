@@ -287,6 +287,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
             <i className="fa-solid fa-magnifying-glass text-gray-500" aria-hidden="true"></i>
             <input
               ref={inputRef}
+              id="command-palette-search"
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

@@ -449,5 +449,12 @@ export function createInitialElements(): Element[] {
         },
       ],
     },
+
+    // === CURTAIN WALL (Demo) - temporarily disabled for debugging ===
+    // {
+    //   id: "curtainwall-001",
+    //   type: "curtainwall",
+    //   ...
+    // },
   ];
 }

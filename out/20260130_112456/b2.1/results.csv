@@ -1,0 +1,7 @@
+exp_id,total_elements,affected_elements,op_id,regen_ms,tvc_ms,validation_ms,rollback,simulation
+b2.1,10000,1,sim_10000_1_0,1.05,1.47,0.42,False,True
+b2.1,10000,1,sim_10000_1_1,1.05,1.47,0.42,False,True
+b2.1,10000,10,sim_10000_10_0,2.35,3.29,0.94,False,True
+b2.1,10000,10,sim_10000_10_1,2.35,3.29,0.94,False,True
+b2.1,10000,100,sim_10000_100_0,5.26,7.37,2.1,False,True
+b2.1,10000,100,sim_10000_100_1,5.26,7.37,2.1,False,True
