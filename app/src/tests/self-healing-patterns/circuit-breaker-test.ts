@@ -1,10 +1,10 @@
 /**
  * Circuit Breaker Pattern Test
- * Testing opossum library for self-healing capabilities
+ * Testing cockatiel library for self-healing capabilities
  */
 
-// Note: Install opossum first: npm install opossum
-// import CircuitBreaker from 'opossum';
+// Note: Install cockatiel first: npm install cockatiel
+// import { Policy } from 'cockatiel';
 
 interface TestResult {
   pattern: string;
@@ -153,7 +153,7 @@ export function analyzeForPensaer(): string[] {
     '  - Fallback to 2D view or wireframe',
     '',
     'IMPLEMENTATION RECOMMENDATION:',
-    '  1. Add opossum to package.json',
+    '  1. Add cockatiel to package.json (already done)',
     '  2. Wrap HttpMCPClient.callTool() with circuit breaker',
     '  3. Configure per-server thresholds (geometry server = 5s timeout)',
     '  4. Add UI indicators for circuit breaker state',

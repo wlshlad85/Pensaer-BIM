@@ -135,8 +135,8 @@ function generateReport(results: TestSummary[]): void {
   const recommendations = [
     'PRIORITY 1 - IMMEDIATE IMPLEMENTATION:',
     '',
-    '1. Install opossum library:',
-    '   npm install opossum',
+    '1. Install cockatiel library (already done):',
+    '   npm install cockatiel',
     '   Wrap all MCP client calls with circuit breaker',
     '',
     '2. Add retry logic to MCP client:',
