@@ -37,12 +37,50 @@ def generate_verdict(exp_id: str, summary: dict[str, Any]) -> str:
         lines.append(f"- TVC improvement gate: {'PASS' if gates.get('tvc_improvement') else 'FAIL'}")
     elif exp_id == "b2.4":
         gates = summary.get("gates", {})
-        lines.append(f"- GPU faster at all tiers: {'PASS' if gates.get('gpu_faster_all_tiers') else 'FAIL'}")
-        lines.append(f"- Speedup scales with N: {'PASS' if gates.get('speedup_scales_with_n') else 'FAIL'}")
-        lines.append(f"- Large tier ≥4× speedup: {'PASS' if gates.get('large_tier_speedup_ge_4x') else 'FAIL'}")
-        speedups = summary.get("speedups", {})
-        for tier, s in speedups.items():
-            lines.append(f"  - N={tier}: CPU p50={s['cpu_p50_ms']}ms, GPU p50={s['gpu_p50_ms']}ms, speedup={s['speedup_ratio']}×")
+        lines.append(f"- GPU faster (clash) all tiers: {'PASS' if gates.get('gpu_faster_clash_all_tiers') else 'FAIL'}")
+        lines.append(f"- GPU faster (meshgen) all tiers: {'PASS' if gates.get('gpu_faster_meshgen_all_tiers') else 'FAIL'}")
+        lines.append(f"- Clash speedup scales with N: {'PASS' if gates.get('clash_speedup_scales') else 'FAIL'}")
+        lines.append(f"- Large tier clash ≥8× speedup: {'PASS' if gates.get('large_tier_clash_ge_8x') else 'FAIL'}")
+        lines.append(f"- Large tier meshgen ≥4× speedup: {'PASS' if gates.get('large_tier_meshgen_ge_4x') else 'FAIL'}")
+        lines.append(f"- VRAM fits 500K elements: {'PASS' if gates.get('vram_fits_500k') else 'FAIL'}")
+        lines.append(f"- LOD3 faster than LOD0: {'PASS' if gates.get('lod3_faster_than_lod0') else 'FAIL'}")
+        lines.append(f"- Max elements in 12GB VRAM: {gates.get('vram_max_elements', 'N/A'):,}")
+        lines.append("")
+        lines.append("### Clash Detection Speedups")
+        for tier, s in summary.get("clash_speedups", {}).items():
+            lines.append(f"  - N={tier}: CPU={s['cpu_p50_ms']}ms, GPU={s['gpu_p50_ms']}ms, **{s['speedup']}×**")
+        lines.append("")
+        lines.append("### Mesh Gen Speedups")
+        for tier, s in summary.get("meshgen_speedups", {}).items():
+            lines.append(f"  - N={tier}: CPU={s['cpu_p50_ms']}ms, GPU={s['gpu_p50_ms']}ms, **{s['speedup']}×**")
+
+    elif exp_id == "b2.5":
+        gates = summary.get("gates", {})
+        lines.append(f"- Export <100ms at 10K: {'PASS' if gates.get('export_under_100ms_at_10k') else 'FAIL'}")
+        lines.append(f"- Export <500ms at 50K: {'PASS' if gates.get('export_under_500ms_at_50k') else 'FAIL'}")
+        lines.append(f"- Reimport <3s at 10K: {'PASS' if gates.get('reimport_under_3s_at_10k') else 'FAIL'}")
+        lines.append(f"- Diff rate <0.1%: {'PASS' if gates.get('diff_rate_under_0_1pct') else 'FAIL'}")
+        lines.append("")
+        lines.append("### Export/Reimport Times (p50)")
+        for tier, v in summary.get("export_p50", {}).items():
+            rt = summary.get("roundtrip_p50", {}).get(tier, "?")
+            lines.append(f"  - N={tier}: export={v}ms, round-trip={rt}ms")
+
+    elif exp_id == "b2.6":
+        gates = summary.get("gates", {})
+        lines.append(f"- Pensaer faster than Revit at 500K: {'PASS' if gates.get('pensaer_faster_than_revit_at_500k') else 'FAIL'}")
+        lines.append(f"- Throughput degradation <50%: {'PASS' if gates.get('throughput_degradation_under_50pct') else 'FAIL'}")
+        lines.append(f"- p95 <50ms at 100K: {'PASS' if gates.get('p95_under_50ms_at_100k') else 'FAIL'}")
+        lines.append(f"- Multi-agent scales linearly: {'PASS' if gates.get('multi_agent_scales_linearly') else 'FAIL'}")
+        lines.append("")
+        lines.append("### Throughput (calls/sec)")
+        for tool, data in summary.get("throughput_by_tool", {}).items():
+            vals = ", ".join(f"N={k}: {v}" for k, v in list(data.items())[:4])
+            lines.append(f"  - {tool}: {vals}")
+        lines.append("")
+        revit = summary.get("revit_throughput", {})
+        vals = ", ".join(f"N={k}: {v}" for k, v in list(revit.items())[:4])
+        lines.append(f"  - Revit API: {vals}")
 
     lines.append("")
     lines.append("## Notes")

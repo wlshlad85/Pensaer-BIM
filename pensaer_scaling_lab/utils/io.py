@@ -29,9 +29,17 @@ def write_jsonl(path: Path, rows: Iterable[dict]) -> None:
 
 def write_csv(path: Path, rows: Iterable[dict]) -> None:
     rows = list(rows)
+    if not rows:
+        return
+    # Collect all field names across all rows (heterogeneous schemas)
+    all_fields: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for key in row:
+            if key not in seen:
+                all_fields.append(key)
+                seen.add(key)
     with path.open("w", encoding="utf-8", newline="") as handle:
-        if not rows:
-            return
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(handle, fieldnames=all_fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
