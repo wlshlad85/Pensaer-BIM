@@ -9,3 +9,6 @@ export { RoomElement } from "./RoomElement";
 export { FloorElement } from "./FloorElement";
 export { RoofElement } from "./RoofElement";
 export { CurtainWallElement } from "./CurtainWallElement";
+export { BuildingElement } from "./BuildingElement";
+export { CoreElement } from "./CoreElement";
+export { GridElement } from "./GridElement";

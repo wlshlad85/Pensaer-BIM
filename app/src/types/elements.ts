@@ -62,7 +62,10 @@ export type ElementType =
   | "column"
   | "beam"
   | "stair"
-  | "curtainwall";
+  | "curtainwall"
+  | "building"
+  | "grid"
+  | "core";
 
 // ============================================
 // BASE ELEMENT INTERFACE
@@ -493,6 +496,9 @@ export interface CurtainWallElement extends BaseElement {
  * }
  * ```
  */
+// Import building types
+import type { BuildingElement, GridElement, CoreElement } from "./building";
+
 export type Element =
   | WallElement
   | DoorElement
@@ -503,7 +509,13 @@ export type Element =
   | ColumnElement
   | BeamElement
   | StairElement
-  | CurtainWallElement;
+  | CurtainWallElement
+  | BuildingElement
+  | GridElement
+  | CoreElement;
+
+// Re-export building types for convenience
+export type { BuildingElement, GridElement, CoreElement } from "./building";
 
 // ============================================
 // TYPE GUARDS
@@ -595,4 +607,43 @@ export function isHostedElement(
   element: Element
 ): element is DoorElement | WindowElement {
   return element.type === "door" || element.type === "window";
+}
+
+/**
+ * Type guard to check if an element is a BuildingElement.
+ */
+export function isBuilding(element: Element): element is BuildingElement {
+  return element.type === "building";
+}
+
+/**
+ * Type guard to check if an element is a GridElement.
+ */
+export function isGrid(element: Element): element is GridElement {
+  return element.type === "grid";
+}
+
+/**
+ * Type guard to check if an element is a CoreElement.
+ */
+export function isCore(element: Element): element is CoreElement {
+  return element.type === "core";
+}
+
+/**
+ * Type guard to check if an element is a structural element.
+ */
+export function isStructuralElement(
+  element: Element
+): element is ColumnElement | BeamElement | CoreElement {
+  return element.type === "column" || element.type === "beam" || element.type === "core";
+}
+
+/**
+ * Type guard to check if an element is a container element.
+ */
+export function isContainerElement(
+  element: Element
+): element is BuildingElement | RoomElement {
+  return element.type === "building" || element.type === "room";
 }

@@ -459,7 +459,7 @@ export function Canvas3D() {
     scene.add(purpleLight);
 
     // Ground plane
-    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x16213e,
       roughness: 0.9,
@@ -470,7 +470,7 @@ export function Canvas3D() {
     scene.add(ground);
 
     // Grid helper
-    const gridHelper = new THREE.GridHelper(20, 20, 0x3b82f6, 0x1e3a5f);
+    const gridHelper = new THREE.GridHelper(80, 40, 0x3b82f6, 0x1e3a5f);
     gridHelper.position.y = 0.01;
     scene.add(gridHelper);
 
@@ -1226,6 +1226,150 @@ export function Canvas3D() {
         buildingGroup.add(cwGroup);
       });
 
+    // Build columns (vertical structural supports)
+    elements
+      .filter((el) => el.type === "column")
+      .forEach((column) => {
+        const isSelected = selectedIds.includes(column.id);
+        const colWidth = column.width * scale;
+        const colDepth = column.height * scale;
+
+        // Get elevation from properties or element fields
+        const baseElev = typeof (column as any).baseElevation === "number"
+          ? (column as any).baseElevation / 1000 : 0;
+        const topElev = typeof (column as any).topElevation === "number"
+          ? (column as any).topElevation / 1000 : baseElev + 3.5;
+        const colHeight = topElev - baseElev;
+
+        const geometry = new THREE.BoxGeometry(
+          Math.max(colWidth, 0.1),
+          Math.max(colHeight, 0.1),
+          Math.max(colDepth, 0.1)
+        );
+        const material = new THREE.MeshStandardMaterial({
+          color: isSelected ? 0x60a5fa : 0x9ca3af,
+          roughness: 0.6,
+          metalness: 0.2,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = column.id;
+        mesh.userData = { element: column };
+        mesh.position.set(
+          column.x * scale + colWidth / 2 + offsetX,
+          baseElev + colHeight / 2,
+          column.y * scale + colDepth / 2 + offsetZ
+        );
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        buildingGroup.add(mesh);
+        meshesRef.current.push(mesh);
+      });
+
+    // Build cores (vertical circulation shafts)
+    elements
+      .filter((el) => el.type === "core")
+      .forEach((coreEl) => {
+        const isSelected = selectedIds.includes(coreEl.id);
+        const core = coreEl as any;
+        const coreWidth = coreEl.width * scale;
+        const coreDepth = coreEl.height * scale;
+        const wallThick = ((core.wallThickness || 300) / 1000);
+
+        // Core height spans all levels
+        const coreHeight = elements.some(el => el.type === "building")
+          ? (elements.find(el => el.type === "building") as any).buildingHeight / 1000
+          : 30;
+
+        // Outer box
+        const outerGeo = new THREE.BoxGeometry(coreWidth, coreHeight, coreDepth);
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: isSelected ? 0x818cf8 : 0x6366f1,
+          roughness: 0.5,
+          metalness: 0.3,
+          transparent: true,
+          opacity: 0.6,
+        });
+        const outerMesh = new THREE.Mesh(outerGeo, coreMat);
+        outerMesh.name = coreEl.id;
+        outerMesh.userData = { element: coreEl };
+        outerMesh.position.set(
+          coreEl.x * scale + coreWidth / 2 + offsetX,
+          coreHeight / 2,
+          coreEl.y * scale + coreDepth / 2 + offsetZ
+        );
+        outerMesh.castShadow = true;
+        buildingGroup.add(outerMesh);
+        meshesRef.current.push(outerMesh);
+
+        // Inner void (darker)
+        const innerW = Math.max(coreWidth - wallThick * 2, 0.1);
+        const innerD = Math.max(coreDepth - wallThick * 2, 0.1);
+        const innerGeo = new THREE.BoxGeometry(innerW, coreHeight + 0.01, innerD);
+        const innerMat = new THREE.MeshStandardMaterial({
+          color: 0x1e1b4b,
+          roughness: 0.9,
+        });
+        const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+        innerMesh.position.copy(outerMesh.position);
+        buildingGroup.add(innerMesh);
+        meshesRef.current.push(innerMesh);
+      });
+
+    // Build structural grid (lines on ground plane)
+    elements
+      .filter((el) => el.type === "grid")
+      .forEach((gridEl) => {
+        const grid = gridEl as any;
+        const gridLineMat = new THREE.LineBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.4 });
+
+        // Vertical grid lines (along Z axis)
+        if (grid.verticalLines) {
+          for (const vLine of grid.verticalLines) {
+            const x = gridEl.x * scale + (vLine.position / 1000) + offsetX;
+            const z1 = gridEl.y * scale + offsetZ;
+            const z2 = gridEl.y * scale + gridEl.height * scale + offsetZ;
+            const points = [new THREE.Vector3(x, 0.02, z1), new THREE.Vector3(x, 0.02, z2)];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geo, gridLineMat);
+            buildingGroup.add(line);
+          }
+        }
+
+        // Horizontal grid lines (along X axis)
+        if (grid.horizontalLines) {
+          for (const hLine of grid.horizontalLines) {
+            const z = gridEl.y * scale + (hLine.position / 1000) + offsetZ;
+            const x1 = gridEl.x * scale + offsetX;
+            const x2 = gridEl.x * scale + gridEl.width * scale + offsetX;
+            const points = [new THREE.Vector3(x1, 0.02, z), new THREE.Vector3(x2, 0.02, z)];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geo, gridLineMat);
+            buildingGroup.add(line);
+          }
+        }
+      });
+
+    // Build building containers (wireframe bounding box)
+    elements
+      .filter((el) => el.type === "building")
+      .forEach((buildingEl) => {
+        const bldg = buildingEl as any;
+        const bWidth = buildingEl.width * scale;
+        const bDepth = buildingEl.height * scale;
+        const bHeight = (bldg.buildingHeight || 30000) / 1000;
+
+        const geo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
+        const edges = new THREE.EdgesGeometry(geo);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.3 });
+        const wireframe = new THREE.LineSegments(edges, lineMat);
+        wireframe.position.set(
+          buildingEl.x * scale + bWidth / 2 + offsetX,
+          bHeight / 2,
+          buildingEl.y * scale + bDepth / 2 + offsetZ
+        );
+        buildingGroup.add(wireframe);
+      });
+
     // Build roof - anchored to wall tops (MUL-20 fix)
     // Calculate wall bounding box for proper roof positioning
     const wallsBoundingBox = getWallsBoundingBox(walls, scale, wallHeight, offsetX, offsetZ);
@@ -1377,6 +1521,30 @@ export function Canvas3D() {
     }
 
     scene.add(buildingGroup);
+
+    // Auto-fit camera to scene bounds when tower/building elements exist
+    const hasTowerElements = elements.some(el =>
+      el.type === "building" || el.type === "core" || el.type === "grid"
+    );
+    if (hasTowerElements && cameraRef.current && controlsRef.current) {
+      const box = new THREE.Box3().setFromObject(buildingGroup);
+      if (!box.isEmpty()) {
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = cameraRef.current.fov * (Math.PI / 180);
+        const cameraDistance = maxDim / (2 * Math.tan(fov / 2)) * 1.5;
+
+        controlsRef.current.target.copy(center);
+        cameraRef.current.position.set(
+          center.x + cameraDistance * 0.7,
+          center.y + cameraDistance * 0.5,
+          center.z + cameraDistance * 0.7
+        );
+        controlsRef.current.maxDistance = cameraDistance * 4;
+        controlsRef.current.update();
+      }
+    }
   }, [elements, selectedIds]);
 
   // Update OrbitControls auto-rotate setting

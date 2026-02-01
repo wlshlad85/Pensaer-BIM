@@ -32,6 +32,10 @@ import {
   WindowElement,
   RoomElement,
   CurtainWallElement,
+  BuildingElement,
+  CoreElement,
+  GridElement,
+  FloorElement,
 } from "./elements";
 
 const CANVAS_WIDTH = 2000;
@@ -835,6 +839,14 @@ export function Canvas2D() {
         return <RoomElement key={element.id} {...commonProps} />;
       case "curtainwall":
         return <CurtainWallElement key={element.id} {...commonProps} />;
+      case "building":
+        return <BuildingElement key={element.id} {...commonProps} />;
+      case "core":
+        return <CoreElement key={element.id} {...commonProps} />;
+      case "grid":
+        return <GridElement key={element.id} {...commonProps} />;
+      case "floor":
+        return <FloorElement key={element.id} {...commonProps} />;
       default:
         return null;
     }
@@ -846,8 +858,11 @@ export function Canvas2D() {
   // Sort elements: rooms first (background), then walls/curtainwalls, then doors/windows
   const sortedElements = [...visibleElements].sort((a, b) => {
     const order: Record<string, number> = {
+      building: -2,
+      grid: -1,
       room: 0,
       floor: 0,
+      core: 0,
       wall: 1,
       curtainwall: 1,
       column: 1,

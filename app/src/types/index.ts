@@ -26,6 +26,10 @@ export type {
   ColumnElement,
   BeamElement,
   StairElement,
+  CurtainWallElement,
+  BuildingElement,
+  GridElement,
+  CoreElement,
   Element,
 } from "./elements";
 
@@ -41,9 +45,26 @@ export {
   isColumn,
   isBeam,
   isStair,
+  isCurtainWall,
+  isBuilding,
+  isGrid,
+  isCore,
   isHostElement,
   isHostedElement,
+  isStructuralElement,
+  isContainerElement,
 } from "./elements";
+
+// Building types
+export type {
+  GridDirection,
+  GridLine,
+  CoreType,
+  SlabEdgeCondition,
+  TowerSlabProperties,
+  TowerConfig,
+  TowerGenerationResult,
+} from "./building";
 
 // Relationship types
 export type {

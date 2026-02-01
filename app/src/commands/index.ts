@@ -6,6 +6,7 @@
 
 export { registerElementCommands } from "./handlers/elementCommands";
 export { registerBuiltinCommands } from "./handlers/builtinCommands";
+export { registerTowerCommands } from "./handlers/towerCommands";
 
 // Re-export dispatcher types and functions
 export {
@@ -40,6 +41,8 @@ export {
   type CommandLogEntry,
 } from "../services/commandDispatcher";
 
+import { registerTowerCommands } from "./handlers/towerCommands";
+
 /**
  * Initialize all command handlers
  * Call this during app startup
@@ -50,4 +53,7 @@ export function initializeCommands(): void {
 
   // Register element commands (wall, floor, roof, etc.)
   registerElementCommands();
+
+  // Register tower/building commands (tower, grid, core, level, propagate)
+  registerTowerCommands();
 }
