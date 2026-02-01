@@ -27,9 +27,12 @@ export const FloorElement = memo(function FloorElement({
   onMouseEnter,
   onMouseLeave,
 }: FloorElementProps) {
-  const isSelected = useSelectionStore((s) => s.isSelected(element.id));
-  const isHovered = useSelectionStore((s) => s.isHovered(element.id));
-  const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
+  const selectedIds = useSelectionStore((s) => s.selectedIds);
+  const hoveredId = useSelectionStore((s) => s.hoveredId);
+  const highlightedIds = useSelectionStore((s) => s.highlightedIds);
+  const isSelected = selectedIds.includes(element.id);
+  const isHovered = hoveredId === element.id;
+  const isHighlighted = highlightedIds.includes(element.id);
 
   // Pattern ID unique to this floor
   const patternId = `floor-hatch-${element.id}`;
