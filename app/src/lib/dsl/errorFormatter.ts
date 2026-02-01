@@ -7,7 +7,8 @@
  * - Actionable suggestions
  */
 
-import { DslError, DslErrorCode, findSimilar, KNOWN_COMMANDS } from "./errors";
+import type { DslError } from "./errors";
+import { DslErrorCode, findSimilar, KNOWN_COMMANDS } from "./errors";
 
 // =============================================================================
 // ANSI Color Codes
