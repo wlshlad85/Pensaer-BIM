@@ -12,7 +12,103 @@
  * - Metrics collection for monitoring
  */
 
-import CircuitBreaker from 'opossum';
+/**
+ * Lightweight browser-compatible circuit breaker.
+ * Replaces opossum (Node-only) to avoid crashing Vite builds.
+ */
+class CircuitBreaker {
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private readonly fn: (...args: any[]) => Promise<any>;
+  private readonly options: {
+    timeout: number;
+    errorThresholdPercentage: number;
+    resetTimeout: number;
+    volumeThreshold: number;
+  };
+  private totalCalls = 0;
+  private failedCalls = 0;
+  private readonly eventHandlers: Map<string, ((...args: any[]) => void)[]> = new Map();
+
+  constructor(fn: (...args: any[]) => Promise<any>, options?: Partial<CircuitBreaker['options']>) {
+    this.fn = fn;
+    this.options = {
+      timeout: 30000,
+      errorThresholdPercentage: 50,
+      resetTimeout: 10000,
+      volumeThreshold: 5,
+      ...options,
+    };
+  }
+
+  async fire(...args: any[]): Promise<any> {
+    if (this.state === 'OPEN') {
+      if (Date.now() - this.lastFailureTime > this.options.resetTimeout) {
+        this.state = 'HALF_OPEN';
+      } else {
+        this.emit('reject');
+        const fallback = this.eventHandlers.get('fallback');
+        if (fallback?.[0]) return fallback[0](...args);
+        throw new Error('Circuit breaker is OPEN');
+      }
+    }
+
+    this.totalCalls++;
+    try {
+      const result = await Promise.race([
+        this.fn(...args),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Circuit breaker timeout')), this.options.timeout)
+        ),
+      ]);
+      this.onSuccess();
+      return result;
+    } catch (err) {
+      this.onFailure();
+      throw err;
+    }
+  }
+
+  private onSuccess(): void {
+    this.failureCount = 0;
+    if (this.state === 'HALF_OPEN') this.state = 'CLOSED';
+    this.emit('success');
+  }
+
+  private onFailure(): void {
+    this.failedCalls++;
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    if (
+      this.totalCalls >= this.options.volumeThreshold &&
+      (this.failedCalls / this.totalCalls) * 100 >= this.options.errorThresholdPercentage
+    ) {
+      this.state = 'OPEN';
+      this.emit('open');
+    }
+    this.emit('failure');
+  }
+
+  on(event: string, handler: (...args: any[]) => void): this {
+    if (!this.eventHandlers.has(event)) this.eventHandlers.set(event, []);
+    this.eventHandlers.get(event)!.push(handler);
+    return this;
+  }
+
+  fallback(fn: (...args: any[]) => any): this {
+    return this.on('fallback', fn);
+  }
+
+  private emit(event: string, ...args: any[]): void {
+    this.eventHandlers.get(event)?.forEach(h => h(...args));
+  }
+
+  get status(): { stats: { fires: number; failures: number } } {
+    return { stats: { fires: this.totalCalls, failures: this.failedCalls } };
+  }
+}
+
 import type {
   IMCPClient,
   MCPToolResult,

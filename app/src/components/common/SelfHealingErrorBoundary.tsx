@@ -88,15 +88,9 @@ export class SelfHealingErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // Auto-retry if under limit
-    if (this.state.retryCount < this.maxRetries) {
-      setTimeout(() => {
-        console.log(
-          `[Self-Healing] Auto-retry ${this.state.retryCount + 1}/${this.maxRetries}`
-        );
-        this.handleRetry();
-      }, 1000);
-    }
+    // NOTE: Auto-retry disabled — was causing infinite render loops
+    // when the underlying error persists across retries.
+    // Manual retry is still available via the UI button.
   }
 
   /**
