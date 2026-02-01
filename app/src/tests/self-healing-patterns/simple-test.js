@@ -280,7 +280,7 @@ async function runAllTests() {
   console.log('IMMEDIATE ACTIONS:');
   console.log('');
   console.log('1. Install circuit breaker library:');
-  console.log('   npm install opossum');
+  console.log('   npm install cockatiel');
   console.log('');
   console.log('2. Wrap MCP client calls:');
   console.log('   - Add circuit breaker to HttpMCPClient');

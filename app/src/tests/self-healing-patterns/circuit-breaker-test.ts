@@ -42,7 +42,7 @@ export async function testCircuitBreaker(): Promise<TestResult> {
 
   observations.push('Starting Circuit Breaker test...');
 
-  // Mock implementation (would use opossum in real scenario)
+  // Mock implementation (now uses cockatiel in real scenario)
   // const breaker = new CircuitBreaker(unreliableAPI, {
   //   timeout: 3000,
   //   errorThresholdPercentage: 50,
