@@ -26,9 +26,12 @@ export const WindowElement = memo(function WindowElement({
   onMouseEnter,
   onMouseLeave,
 }: WindowElementProps) {
-  const isSelected = useSelectionStore((s) => s.isSelected(element.id));
-  const isHovered = useSelectionStore((s) => s.isHovered(element.id));
-  const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
+  const selectedIds = useSelectionStore((s) => s.selectedIds);
+  const hoveredId = useSelectionStore((s) => s.hoveredId);
+  const highlightedIds = useSelectionStore((s) => s.highlightedIds);
+  const isSelected = selectedIds.includes(element.id);
+  const isHovered = hoveredId === element.id;
+  const isHighlighted = highlightedIds.includes(element.id);
 
   const hasIssues = element.issues.length > 0;
 

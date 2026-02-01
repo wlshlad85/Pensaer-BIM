@@ -26,9 +26,12 @@ export const GridElement = memo(function GridElement({
   onMouseEnter,
   onMouseLeave,
 }: GridElementProps) {
-  const isSelected = useSelectionStore((s) => s.isSelected(element.id));
-  const isHovered = useSelectionStore((s) => s.isHovered(element.id));
-  const isHighlighted = useSelectionStore((s) => s.isHighlighted(element.id));
+  const selectedIds = useSelectionStore((s) => s.selectedIds);
+  const hoveredId = useSelectionStore((s) => s.hoveredId);
+  const highlightedIds = useSelectionStore((s) => s.highlightedIds);
+  const isSelected = selectedIds.includes(element.id);
+  const isHovered = hoveredId === element.id;
+  const isHighlighted = highlightedIds.includes(element.id);
 
   // Type guard for grid element
   if (element.type !== "grid") return null;
