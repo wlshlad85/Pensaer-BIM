@@ -21,10 +21,14 @@ export function Header({ onOpenPalette }: HeaderProps) {
   // History for undo/redo
   const undo = useHistoryStore((s) => s.undo);
   const redo = useHistoryStore((s) => s.redo);
-  const canUndo = useHistoryStore((s) => s.canUndo());
-  const canRedo = useHistoryStore((s) => s.canRedo());
-  const undoDesc = useHistoryStore((s) => s.getUndoDescription());
-  const redoDesc = useHistoryStore((s) => s.getRedoDescription());
+  const canUndoFn = useHistoryStore((s) => s.canUndo);
+  const canRedoFn = useHistoryStore((s) => s.canRedo);
+  const getUndoDesc = useHistoryStore((s) => s.getUndoDescription);
+  const getRedoDesc = useHistoryStore((s) => s.getRedoDescription);
+  const canUndo = canUndoFn();
+  const canRedo = canRedoFn();
+  const undoDesc = getUndoDesc();
+  const redoDesc = getRedoDesc();
 
   // Count issues (safely handle elements without issues array)
   const issueCount = elements.reduce(
