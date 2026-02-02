@@ -32,6 +32,7 @@ import {
   WindowElement,
   RoomElement,
 } from "./elements";
+import { GridLineElement } from "./elements/GridLineElement";
 
 const CANVAS_WIDTH = 2000;
 const CANVAS_HEIGHT = 1500;
@@ -832,6 +833,8 @@ export function Canvas2D() {
         return <WindowElement key={element.id} {...commonProps} />;
       case "room":
         return <RoomElement key={element.id} {...commonProps} />;
+      case "gridline":
+        return <GridLineElement key={element.id} {...commonProps} />;
       default:
         return null;
     }
@@ -843,6 +846,7 @@ export function Canvas2D() {
   // Sort elements: rooms first (background), then walls, then doors/windows
   const sortedElements = [...visibleElements].sort((a, b) => {
     const order: Record<string, number> = {
+      gridline: -1,
       room: 0,
       floor: 0,
       wall: 1,

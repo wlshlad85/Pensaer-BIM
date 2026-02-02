@@ -26,6 +26,7 @@ export type {
   ColumnElement,
   BeamElement,
   StairElement,
+  GridLineElement,
   Element,
 } from "./elements";
 
@@ -41,6 +42,7 @@ export {
   isColumn,
   isBeam,
   isStair,
+  isGridLine,
   isHostElement,
   isHostedElement,
 } from "./elements";
