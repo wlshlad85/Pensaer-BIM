@@ -151,6 +151,9 @@ export enum TokenType {
   LONG_MIN = "LONG_MIN",
   LONG_MAX = "LONG_MAX",
 
+  // Generic unknown long option (for passthrough commands)
+  LONG_OPTION_UNKNOWN = "LONG_OPTION_UNKNOWN",
+
   // Variables
   VAR_LAST = "VAR_LAST",
   VAR_SELECTED = "VAR_SELECTED",

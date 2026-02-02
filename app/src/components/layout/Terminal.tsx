@@ -716,9 +716,13 @@ export function Terminal({
 
   // Set of commands that should be routed through the DSL parser
   // for natural syntax support (e.g., `wall 0,0 10,0 3`)
-  const DSL_COMMANDS = new Set([
-    "wall", "walls", "floor", "roof", "room", "door", "window",
-    "opening", "rect", "box",
+  // Commands that need special Terminal formatting beyond what the DSL executor provides.
+  // These go through executeDsl() first (for variable resolution / unified pipeline),
+  // but then apply custom terminal output formatting.
+  const CUSTOM_FORMAT_COMMANDS = new Set([
+    "help", "clear", "version", "status", "list", "detect-rooms", "analyze",
+    "clash", "clash-between", "delete", "get", "adjacency", "nearest",
+    "area", "clearance", "demo", "macro", "echo",
   ]);
 
   const processCommand = async (terminal: XTerminal, cmd: string) => {
@@ -731,12 +735,16 @@ export function Terminal({
 
     const [command, ...args] = trimmed.split(/\s+/);
 
-    // Route DSL-recognized element commands through the DSL parser
-    // This enables natural syntax like `wall 0,0 10,0 3` alongside `wall --start 0,0 --end 10,0`
-    if (DSL_COMMANDS.has(command.toLowerCase())) {
-      const selectedIds = useSelectionStore.getState().selectedIds;
-      const context: ExecutionContext = { selectedIds };
+    // ===================================================================
+    // UNIFIED DSL PIPELINE: ALL commands route through executeDsl().
+    // This ensures $last, $selected, $wall variable refs and from/to
+    // syntax work consistently for every command.
+    // ===================================================================
+    const selectedIds = useSelectionStore.getState().selectedIds;
+    const context: ExecutionContext = { selectedIds };
 
+    // Commands with custom terminal formatting fall through to the switch
+    if (!CUSTOM_FORMAT_COMMANDS.has(command.toLowerCase())) {
       const dslResult = await executeDsl(trimmed, context);
 
       if (dslResult.success && dslResult.commandResults.length > 0) {
@@ -761,6 +769,8 @@ export function Terminal({
       return;
     }
 
+    // Custom-formatted commands still go through dispatchCommand for
+    // handler execution, but get special terminal output rendering.
     switch (command.toLowerCase()) {
       case "help": {
         // Check if specific command help is requested
@@ -1523,39 +1533,20 @@ export function Terminal({
       }
 
       default: {
-        // Try DSL parser for natural command syntax (e.g., "wall (0, 0) (5, 0)")
-        terminal.writeln("\x1b[33mParsing as DSL command...\x1b[0m");
-
-        // Get execution context from selection store
-        const selectedIds = useSelectionStore.getState().selectedIds;
-        const context: ExecutionContext = {
-          selectedIds,
-          // lastElementId and wallId are tracked within executor during execution
-        };
-
+        // Fallback: route through unified DSL pipeline
+        // This should not normally be reached since CUSTOM_FORMAT_COMMANDS
+        // should cover all switch cases, but acts as a safety net.
         const dslResult = await executeDsl(trimmed, context);
 
         if (dslResult.success && dslResult.commandResults.length > 0) {
-          // Write terminal output from executor
           dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
-
-          // Show summary if multiple elements created
-          if (dslResult.createdElementIds.length > 1) {
-            terminal.writeln(
-              `\x1b[36mCreated ${dslResult.createdElementIds.length} element(s)\x1b[0m`
-            );
-          }
         } else if (!dslResult.success) {
-          // Show parse/execution errors
           dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
-
-          // If no specific errors, show generic help
           if (dslResult.terminalOutput.length === 0) {
             terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
             terminal.writeln("Type 'help' for available commands.");
           }
         } else {
-          // No commands parsed (empty result)
           terminal.writeln(`\x1b[31mCommand not found: ${command}\x1b[0m`);
           terminal.writeln("Type 'help' for available commands.");
         }

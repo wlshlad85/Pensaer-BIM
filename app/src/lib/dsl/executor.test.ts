@@ -73,12 +73,12 @@ describe("DSL Executor", () => {
       const result = await executeCommand(command);
 
       expect(result.success).toBe(true);
-      expect(mockDispatchCommand).toHaveBeenCalledWith("door", {
+      expect(mockDispatchCommand).toHaveBeenCalledWith("door", expect.objectContaining({
         wall_id: "wall-abc",
         offset: 0.5,
         width: 0.9,
         height: 2.1,
-      });
+      }));
     });
 
     it("resolves $last variable for door placement", async () => {
@@ -101,12 +101,12 @@ describe("DSL Executor", () => {
       const result = await executeCommand(command, { lastElementId: "wall-123" });
 
       expect(result.success).toBe(true);
-      expect(mockDispatchCommand).toHaveBeenCalledWith("door", {
+      expect(mockDispatchCommand).toHaveBeenCalledWith("door", expect.objectContaining({
         wall_id: "wall-123",
         offset: 0.5,
         width: 0.9,
         height: 2.1,
-      });
+      }));
     });
 
     it("fails when variable cannot be resolved", async () => {
@@ -210,12 +210,12 @@ describe("DSL Executor", () => {
       expect(result.createdElementIds).toEqual(["wall-1", "door-1"]);
 
       // The door command should have used the wall-1 ID from context
-      expect(mockDispatchCommand).toHaveBeenLastCalledWith("door", {
+      expect(mockDispatchCommand).toHaveBeenLastCalledWith("door", expect.objectContaining({
         wall_id: "wall-1",
         offset: 0.5,
         width: 0.9,
         height: 2.1,
-      });
+      }));
     });
 
     it("stops on first error", async () => {

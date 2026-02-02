@@ -401,10 +401,13 @@ door $last 2`);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it("reports error for unknown command", () => {
+    it("parses unknown command as passthrough", () => {
       const result = parse("unknowncommand");
-      expect(result.success).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.success).toBe(true);
+      expect(result.commands.length).toBe(1);
+      expect(result.commands[0].type).toBe("Passthrough");
+      const cmd = result.commands[0] as import("./ast").PassthroughCommand;
+      expect(cmd.commandName).toBe("unknowncommand");
     });
 
     it("reports error for missing wall reference in door", () => {

@@ -263,6 +263,20 @@ export interface HelpCommand extends BaseCommand {
 }
 
 // =============================================================================
+// Passthrough Command (for non-DSL commands routed through unified pipeline)
+// =============================================================================
+
+export interface PassthroughCommand extends BaseCommand {
+  type: "Passthrough";
+  /** The original command name (e.g., "list", "delete", "status") */
+  commandName: string;
+  /** Raw argument tokens as strings */
+  rawArgs: string[];
+  /** Parsed key-value arguments (after -- processing) */
+  parsedArgs: Record<string, unknown>;
+}
+
+// =============================================================================
 // Command Union Type
 // =============================================================================
 
@@ -278,7 +292,8 @@ export type Command =
   | PlaceWindowCommand
   | ModifyWindowCommand
   | CreateOpeningCommand
-  | HelpCommand;
+  | HelpCommand
+  | PassthroughCommand;
 
 // =============================================================================
 // Parse Result
@@ -404,6 +419,9 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
 
     case "Help":
       return { topic: cmd.topic };
+
+    case "Passthrough":
+      return { ...cmd.parsedArgs };
 
     default:
       return {};

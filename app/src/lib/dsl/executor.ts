@@ -133,6 +133,11 @@ export async function executeCommand(
   command: Command,
   context: ExecutionContext = {}
 ): Promise<CommandResult> {
+  // Handle Passthrough commands — route directly to command handler registry
+  if (command.type === "Passthrough") {
+    return executePassthrough(command as import("./ast").PassthroughCommand, context);
+  }
+
   const toolName = COMMAND_TO_TOOL[command.type];
 
   if (!toolName) {
@@ -229,6 +234,54 @@ async function executeRectWalls(
       ? { id: createdIds[createdIds.length - 1], type: "wall" }
       : undefined,
   };
+}
+
+// =============================================================================
+// Passthrough Command Execution
+// =============================================================================
+
+/**
+ * Execute a passthrough command by dispatching to the command handler registry.
+ * This enables non-DSL commands (list, delete, status, etc.) to flow through
+ * the unified DSL pipeline while still getting variable resolution.
+ */
+async function executePassthrough(
+  command: import("./ast").PassthroughCommand,
+  context: ExecutionContext
+): Promise<CommandResult> {
+  const args = { ...command.parsedArgs };
+
+  // Resolve $last, $selected, $wall in raw args and inject into parsed args
+  // Check for variable refs that might be element IDs
+  for (const rawArg of command.rawArgs) {
+    if (rawArg === "$last" && context.lastElementId) {
+      // If no explicit element_id/wall arg, inject $last
+      if (!args.element_id && !args.wall && !args.element_ids) {
+        args.element_id = context.lastElementId;
+      }
+    } else if (rawArg === "$selected" && context.selectedIds?.length) {
+      if (!args.element_ids && !args.element_id) {
+        args.element_ids = context.selectedIds;
+        if (context.selectedIds.length === 1) {
+          args.element_id = context.selectedIds[0];
+        }
+      }
+    } else if (rawArg === "$wall" && context.wallId) {
+      if (!args.wall && !args.wall_id) {
+        args.wall = context.wallId;
+      }
+    }
+  }
+
+  // Positional args (non-flag args that aren't variable refs)
+  const positional = command.rawArgs.filter(
+    (a) => !a.startsWith("--") && !a.startsWith("$")
+  );
+  if (positional.length > 0 && !args._positional) {
+    args._positional = positional;
+  }
+
+  return dispatchCommand(command.commandName, args);
 }
 
 // =============================================================================
