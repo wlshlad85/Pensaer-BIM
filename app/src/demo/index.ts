@@ -9,6 +9,14 @@ export {
 } from "./highRiseDemo";
 
 export {
+  generateInvestorDemoCommands,
+  INVESTOR_DEMO_COMMANDS,
+  INVESTOR_DEMO_METADATA,
+  resolveWallRefs,
+  type WallRefs,
+} from "./investorDemo";
+
+export {
   useDemoRunner,
   DEMO_SCRIPTS,
   TIMING_PRESETS,
