@@ -720,6 +720,157 @@ async function createRoomHandler(
 }
 
 // ============================================
+// RECT / BOX COMMAND
+// ============================================
+
+/**
+ * Create 4 walls forming a rectangle.
+ *
+ * Accepts two opposite corners via --min/--max or positional syntax:
+ *   rect --min 0,0 --max 10,8
+ *   rect 0,0 10,8
+ *
+ * Dispatches 4 individual wall commands (bottom, right, top, left).
+ */
+async function createRectHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  // Support --min/--max and positional syntax
+  let minPt = args.min as number[] | undefined;
+  let maxPt = args.max as number[] | undefined;
+  const positional = args._positional as unknown[] | undefined;
+
+  if (!minPt && !maxPt && positional && positional.length >= 2) {
+    const first = positional[0];
+    const second = positional[1];
+    if (Array.isArray(first) && first.length >= 2) {
+      minPt = first as number[];
+    }
+    if (Array.isArray(second) && second.length >= 2) {
+      maxPt = second as number[];
+    }
+  }
+
+  if (!minPt || !maxPt) {
+    return {
+      success: false,
+      message: "Missing required parameters: --min x,y --max x,y (or positional: rect x1,y1 x2,y2)",
+    };
+  }
+
+  // Normalise so min < max
+  const x0 = Math.min(minPt[0], maxPt[0]);
+  const y0 = Math.min(minPt[1], maxPt[1]);
+  const x1 = Math.max(minPt[0], maxPt[0]);
+  const y1 = Math.max(minPt[1], maxPt[1]);
+
+  // Validate non-zero area
+  if (x0 === x1 || y0 === y1) {
+    return {
+      success: false,
+      message: "Rectangle must have non-zero width and height",
+    };
+  }
+
+  const height = (args.height as number) || 3.0;
+  const thickness = (args.thickness as number) || 0.2;
+  const material = (args.material as string) || "Concrete";
+  const level = (args.level as string) || "Level 1";
+
+  // Define 4 walls: bottom, right, top, left (clockwise)
+  const sides: Array<{ label: string; start: number[]; end: number[] }> = [
+    { label: "bottom", start: [x0, y0], end: [x1, y0] },
+    { label: "right",  start: [x1, y0], end: [x1, y1] },
+    { label: "top",    start: [x1, y1], end: [x0, y1] },
+    { label: "left",   start: [x0, y1], end: [x0, y0] },
+  ];
+
+  const createdIds: string[] = [];
+
+  for (const side of sides) {
+    const wallResult = await callMcpTool("create_wall", {
+      start: side.start,
+      end: side.end,
+      height,
+      thickness,
+      wall_type: "basic",
+      material,
+      level,
+    });
+
+    if (!wallResult.success) {
+      return {
+        success: false,
+        message: `Failed creating ${side.label} wall: ${wallResult.message}`,
+        data: { created_so_far: createdIds },
+      };
+    }
+
+    // Create element in model store (same logic as createWallHandler)
+    const wallId = (wallResult.data?.wall_id as string) || `wall-${crypto.randomUUID().slice(0, 8)}`;
+    const length = Math.sqrt(
+      Math.pow(side.end[0] - side.start[0], 2) + Math.pow(side.end[1] - side.start[1], 2)
+    );
+    const isHorizontal = Math.abs(side.end[0] - side.start[0]) >= Math.abs(side.end[1] - side.start[1]);
+
+    const wallElement: Element = {
+      id: wallId,
+      type: "wall",
+      name: `Wall ${wallId.slice(-4)}`,
+      x: side.start[0] * SCALE,
+      y: side.start[1] * SCALE,
+      width: isHorizontal ? length * SCALE : thickness * SCALE * 60,
+      height: isHorizontal ? thickness * SCALE * 60 : length * SCALE,
+      properties: {
+        thickness: `${thickness * 1000}mm`,
+        height: `${height * 1000}mm`,
+        material,
+        structural: false,
+        level,
+        wall_type: "basic",
+        start_x: side.start[0],
+        start_y: side.start[1],
+        end_x: side.end[0],
+        end_y: side.end[1],
+      },
+      relationships: {
+        hosts: [],
+        joins: [],
+        bounds: [],
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    useModelStore.getState().addElement(wallElement);
+    createdIds.push(wallId);
+  }
+
+  useHistoryStore.getState().recordAction(`Create rect walls (${createdIds.length} walls)`);
+
+  const rectWidth = x1 - x0;
+  const rectHeight = y1 - y0;
+
+  return {
+    success: true,
+    message: `Created 4 walls forming ${rectWidth}×${rectHeight}m rectangle`,
+    data: {
+      wall_ids: createdIds,
+      count: 4,
+      width: rectWidth,
+      height: rectHeight,
+      min: [x0, y0],
+      max: [x1, y1],
+    },
+    // Report last wall as the created element (matches executor pattern)
+    elementCreated: createdIds.length > 0
+      ? { id: createdIds[createdIds.length - 1], type: "wall" }
+      : undefined,
+  };
+}
+
+// ============================================
 // DOOR COMMAND
 // ============================================
 
@@ -791,6 +942,63 @@ function validateDoorPlacement(
   return { valid: true, wallLength, requiredSpace: width };
 }
 
+/**
+ * Check if a new hosted element (door/window) overlaps with any existing
+ * hosted elements on the same wall.
+ *
+ * Each hosted element occupies [offset - width/2, offset + width/2] along
+ * the wall.  Two elements overlap when their intervals intersect (with a
+ * small tolerance to avoid false positives from floating-point rounding).
+ */
+function checkHostedElementOverlap(
+  wall: Element,
+  newOffset: number,
+  newWidth: number,
+  excludeId?: string,
+): { overlaps: boolean; conflictId?: string; message?: string } {
+  const TOLERANCE = 0.001; // 1 mm tolerance
+
+  const newStart = newOffset - newWidth / 2;
+  const newEnd = newOffset + newWidth / 2;
+
+  const hostedIds = (wall.relationships.hosts as string[]) || [];
+  const elements = useModelStore.getState().elements;
+
+  for (const hostedId of hostedIds) {
+    if (hostedId === excludeId) continue;
+
+    const hosted = elements.find((el) => el.id === hostedId);
+    if (!hosted) continue;
+
+    const existingOffset = hosted.properties.offset as number | undefined;
+    if (existingOffset === undefined) continue;
+
+    // Determine existing element width in metres
+    const existingWidthStr = hosted.properties.width as string | undefined;
+    let existingWidth = 0;
+    if (existingWidthStr) {
+      existingWidth = parseFloat(existingWidthStr.replace("mm", "")) / 1000;
+    }
+    if (!existingWidth || existingWidth <= 0) {
+      existingWidth = hosted.type === "door" ? 0.9 : 1.2; // fallback defaults
+    }
+
+    const existStart = existingOffset - existingWidth / 2;
+    const existEnd = existingOffset + existingWidth / 2;
+
+    // Intervals overlap if newStart < existEnd AND newEnd > existStart
+    if (newStart < existEnd - TOLERANCE && newEnd > existStart + TOLERANCE) {
+      return {
+        overlaps: true,
+        conflictId: hostedId,
+        message: `Overlaps with existing ${hosted.type} ${hostedId} at offset ${existingOffset.toFixed(2)}m`,
+      };
+    }
+  }
+
+  return { overlaps: false };
+}
+
 async function placeDoorHandler(
   args: Record<string, unknown>,
   context: CommandContext
@@ -844,6 +1052,21 @@ async function placeDoorHandler(
         wall_length: validation.wallLength,
         door_width: effectiveWidth,
         offset: doorOffset,
+      },
+    };
+  }
+
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, doorOffset, effectiveWidth);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Door placement invalid: ${overlap.message}`,
+      data: {
+        wall_id: targetWallId,
+        offset: doorOffset,
+        width: effectiveWidth,
+        conflict_element: overlap.conflictId,
       },
     };
   }
@@ -1098,6 +1321,21 @@ async function placeWindowHandler(
         window_height: height,
         offset: windowOffset,
         sill_height: sillHeight,
+      },
+    };
+  }
+
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, windowOffset, width);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Window placement invalid: ${overlap.message}`,
+      data: {
+        wall_id: targetWallId,
+        offset: windowOffset,
+        width,
+        conflict_element: overlap.conflictId,
       },
     };
   }
@@ -1399,6 +1637,9 @@ async function detectClashesBetweenSetsHandler(
 // REGISTER ALL COMMANDS
 // ============================================
 
+// Exported for testing
+export { checkHostedElementOverlap };
+
 export function registerElementCommands(): void {
   registerCommand({
     name: "wall",
@@ -1451,6 +1692,30 @@ export function registerElementCommands(): void {
       "room --points 0,0 6,0 6,4 3,4 3,2 0,2 --name \"L-Shaped Room\"",
     ],
     handler: createRoomHandler,
+  });
+
+  registerCommand({
+    name: "rect",
+    description: "Create 4 walls forming a rectangle from two corner points",
+    usage: "rect --min x,y --max x,y [--height h] [--thickness t] [--material m] [--level l]",
+    examples: [
+      "rect --min 0,0 --max 10,8",
+      "rect 0,0 10,8",
+      "rect --min 0,0 --max 5,5 --height 3.0 --thickness 0.3",
+      "rect --min 0,0 --max 12,10 --material Brick --level \"Level 2\"",
+    ],
+    handler: createRectHandler,
+  });
+
+  registerCommand({
+    name: "box",
+    description: "Alias for rect — create 4 walls forming a rectangle",
+    usage: "box --min x,y --max x,y [--height h] [--thickness t] [--material m] [--level l]",
+    examples: [
+      "box --min 0,0 --max 10,8",
+      "box 0,0 10,8",
+    ],
+    handler: createRectHandler,
   });
 
   registerCommand({
