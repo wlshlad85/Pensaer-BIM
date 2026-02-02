@@ -15,6 +15,7 @@ import type {
   CreateFloorCommand,
   CreateRoofCommand,
   CreateRoomCommand,
+  CreateStairCommand,
   PlaceDoorCommand,
   PlaceWindowCommand,
   CreateOpeningCommand,
@@ -31,6 +32,7 @@ import {
   SwingDirection,
   RoofType,
   RoomType,
+  StairType,
   VariableRef,
 } from "./ast";
 import { findSimilar, KNOWN_COMMANDS } from "./errors";
@@ -181,6 +183,8 @@ export class Parser {
       return this.parseRoofCommand();
     } else if (this.match(TokenType.ROOM)) {
       return this.parseRoomCommand();
+    } else if (this.match(TokenType.STAIR)) {
+      return this.parseStairCommand();
     } else if (this.match(TokenType.DOOR)) {
       return this.parseDoorCommand();
     } else if (this.match(TokenType.WINDOW)) {
@@ -615,6 +619,59 @@ export class Parser {
   }
 
   // =========================================================================
+  // Stair Command
+  // =========================================================================
+
+  private parseStairCommand(): CreateStairCommand | null {
+    const startToken = this.advance();
+    let position: Point2D | null = null;
+    let width = 1.0;
+    let risers: number | undefined;
+    let riserHeight = 0.17;
+    let treadDepth = 0.28;
+    let stairType: StairType | undefined;
+    let levelId: string | undefined;
+
+    while (this.isStairOption()) {
+      if (this.match(TokenType.LONG_POSITION)) {
+        this.advance();
+        position = this.parsePoint2D();
+        if (!position) { this.error("Expected coordinates after --position"); return null; }
+        continue;
+      }
+      const optType = this.currentType;
+      this.advance();
+      const value = this.parseOptionValue();
+      switch (optType) {
+        case TokenType.LONG_WIDTH: case TokenType.WIDTH: case TokenType.OPT_W: width = value as number; break;
+        case TokenType.LONG_RISERS: case TokenType.RISERS: risers = value as number; break;
+        case TokenType.LONG_RISER_HEIGHT: case TokenType.RISER_HEIGHT: riserHeight = value as number; break;
+        case TokenType.LONG_TREAD_DEPTH: case TokenType.TREAD_DEPTH: treadDepth = value as number; break;
+        case TokenType.LONG_TYPE: case TokenType.TYPE: stairType = this.parseStairTypeValue(value); break;
+        case TokenType.LONG_LEVEL: case TokenType.LEVEL: levelId = String(value); break;
+      }
+    }
+    if (!position) { this.error("Missing --position"); return null; }
+    if (risers === undefined || risers < 1) { this.error("Missing or invalid --risers"); return null; }
+    return { type: "CreateStair", position, width, risers, riserHeight, treadDepth, stairType, levelId, line: startToken.line, column: startToken.column };
+  }
+
+  private isStairOption(): boolean {
+    return this.match(TokenType.LONG_POSITION, TokenType.LONG_WIDTH, TokenType.WIDTH, TokenType.OPT_W, TokenType.LONG_RISERS, TokenType.RISERS, TokenType.LONG_RISER_HEIGHT, TokenType.RISER_HEIGHT, TokenType.LONG_TREAD_DEPTH, TokenType.TREAD_DEPTH, TokenType.LONG_TYPE, TokenType.TYPE, TokenType.LONG_LEVEL, TokenType.LEVEL);
+  }
+
+  private parseStairTypeValue(value: unknown): StairType | undefined {
+    const str = String(value).toLowerCase();
+    switch (str) {
+      case "straight": return StairType.STRAIGHT;
+      case "l": case "l-shaped": return StairType.L;
+      case "u": case "u-shaped": return StairType.U;
+      case "spiral": return StairType.SPIRAL;
+      default: return undefined;
+    }
+  }
+
+  // =========================================================================
   // Door Commands
   // =========================================================================
 
@@ -795,7 +852,8 @@ export class Parser {
         TokenType.ROOM,
         TokenType.DOOR,
         TokenType.WINDOW,
-        TokenType.OPENING
+        TokenType.OPENING,
+        TokenType.STAIR
       )
     ) {
       const topicToken = this.advance();
@@ -1099,6 +1157,9 @@ export class Parser {
         return "level";
       case TokenType.LONG_MATERIAL:
         return "material";
+      case TokenType.RISERS: case TokenType.LONG_RISERS: return "risers";
+      case TokenType.RISER_HEIGHT: case TokenType.LONG_RISER_HEIGHT: return "riser-height";
+      case TokenType.TREAD_DEPTH: case TokenType.LONG_TREAD_DEPTH: return "tread-depth";
       case TokenType.SLOPE:
       case TokenType.LONG_SLOPE:
         return "slope";
@@ -1145,6 +1206,7 @@ export class Parser {
         TokenType.AWNING,
         TokenType.HOPPER,
         TokenType.PIVOT,
+        TokenType.STRAIGHT, TokenType.L_SHAPED, TokenType.U_SHAPED, TokenType.SPIRAL,
         // Swing directions
         TokenType.LEFT,
         TokenType.RIGHT,
