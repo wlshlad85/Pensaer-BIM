@@ -13,6 +13,7 @@ import {
   useHistoryStore,
 } from "../../stores";
 import type { Element, Issue } from "../../types";
+import { isElevatedSecurity, getSecurityLabel } from "../../types/elements";
 import { validateModel, getValidationSummary, getIssueFix } from "../../utils/validation";
 
 // Icon mapping for element types
@@ -394,6 +395,26 @@ function SelectedElementView({
           </div>
         </div>
       </div>
+
+      {/* Security Classification Banner */}
+      {element.securityClassification &&
+        isElevatedSecurity(element.securityClassification) && (
+          <div
+            className={`px-4 py-2 flex items-center gap-2 text-xs font-medium ${
+              element.securityClassification === "TopSecret"
+                ? "bg-purple-900/30 text-purple-300 border-b border-purple-800/50"
+                : element.securityClassification === "Secret"
+                  ? "bg-red-900/30 text-red-300 border-b border-red-800/50"
+                  : "bg-yellow-900/30 text-yellow-300 border-b border-yellow-800/50"
+            }`}
+          >
+            <i className="fa-solid fa-lock"></i>
+            {getSecurityLabel(element.securityClassification)}
+            {element.accessControl?.needToKnow && (
+              <span className="ml-auto text-[10px] opacity-75">NEED-TO-KNOW</span>
+            )}
+          </div>
+        )}
 
       {/* Issues */}
       {element.issues.length > 0 && (
