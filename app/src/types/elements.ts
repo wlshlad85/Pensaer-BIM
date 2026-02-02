@@ -56,6 +56,7 @@ export type ElementType =
   | "wall"
   | "door"
   | "window"
+  | "opening"
   | "room"
   | "floor"
   | "roof"
@@ -222,6 +223,25 @@ export interface WindowElement extends BaseElement {
 
   /** Whether window is operable */
   operable?: boolean;
+}
+
+/**
+ * Opening element - a void/cut in a wall without a door or window (e.g., pass-through, niche).
+ */
+export interface OpeningElement extends BaseElement {
+  readonly type: "opening";
+
+  /** Opening width in mm */
+  openingWidth: number;
+
+  /** Opening height in mm */
+  openingHeight: number;
+
+  /** Base height from floor level in mm */
+  baseHeight: number;
+
+  /** Offset along the host wall in meters */
+  offset?: number;
 }
 
 /**
@@ -419,6 +439,7 @@ export type Element =
   | WallElement
   | DoorElement
   | WindowElement
+  | OpeningElement
   | RoomElement
   | FloorElement
   | RoofElement
@@ -449,6 +470,13 @@ export function isDoor(element: Element): element is DoorElement {
  */
 export function isWindow(element: Element): element is WindowElement {
   return element.type === "window";
+}
+
+/**
+ * Type guard to check if an element is an OpeningElement.
+ */
+export function isOpening(element: Element): element is OpeningElement {
+  return element.type === "opening";
 }
 
 /**
@@ -507,6 +535,6 @@ export function isHostElement(
  */
 export function isHostedElement(
   element: Element
-): element is DoorElement | WindowElement {
-  return element.type === "door" || element.type === "window";
+): element is DoorElement | WindowElement | OpeningElement {
+  return element.type === "door" || element.type === "window" || element.type === "opening";
 }
