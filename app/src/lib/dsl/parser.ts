@@ -18,6 +18,8 @@ import type {
   PlaceDoorCommand,
   PlaceWindowCommand,
   CreateOpeningCommand,
+  CreateColumnCommand,
+  CreateBeamCommand,
   HelpCommand,
   ElementRef,
   ParseError,
@@ -187,6 +189,10 @@ export class Parser {
       return this.parseWindowCommand();
     } else if (this.match(TokenType.OPENING)) {
       return this.parseOpeningCommand();
+    } else if (this.match(TokenType.COLUMN)) {
+      return this.parseColumnCommand();
+    } else if (this.match(TokenType.BEAM)) {
+      return this.parseBeamCommand();
     } else if (this.match(TokenType.BOX, TokenType.RECT)) {
       return this.parseRectWallsCommand();
     } else if (this.match(TokenType.HELP)) {
@@ -727,6 +733,234 @@ export class Parser {
   }
 
   // =========================================================================
+  // Column Command
+  // =========================================================================
+
+  private parseColumnCommand(): CreateColumnCommand | null {
+    const startToken = this.advance(); // consume 'column'
+
+    let position: Point2D | null = null;
+    let width = 0.4;
+    let depth = 0.4;
+    let height = 3.0;
+    let shape: string | undefined;
+    let material: string | undefined;
+    let levelId: string | undefined;
+
+    if (this.match(TokenType.LONG_POSITION)) {
+      this.advance();
+      position = this.parsePoint2D();
+      if (!position) {
+        this.error("Expected coordinates after --position. Example: column --position 5,3");
+        return null;
+      }
+    } else {
+      position = this.parsePoint2D();
+      if (!position) {
+        this.error("Expected position. Examples:\n  column --position 5,3\n  column 5,3");
+        return null;
+      }
+    }
+
+    while (this.isColumnOption()) {
+      const [name, value] = this.parseGenericOption();
+      if (name === "width") width = value as number;
+      else if (name === "depth") depth = value as number;
+      else if (name === "height") height = value as number;
+      else if (name === "shape") shape = String(value);
+      else if (name === "material") material = String(value);
+      else if (name === "level") levelId = String(value);
+    }
+
+    return {
+      type: "CreateColumn",
+      position,
+      width,
+      depth,
+      height,
+      shape,
+      material,
+      levelId,
+      line: startToken.line,
+      column: startToken.column,
+    };
+  }
+
+  private isColumnOption(): boolean {
+    return this.match(
+      TokenType.WIDTH,
+      TokenType.HEIGHT,
+      TokenType.LEVEL,
+      TokenType.LONG_WIDTH,
+      TokenType.LONG_HEIGHT,
+      TokenType.LONG_DEPTH,
+      TokenType.LONG_SHAPE,
+      TokenType.LONG_LEVEL,
+      TokenType.LONG_MATERIAL,
+      TokenType.OPT_W,
+      TokenType.OPT_H,
+    );
+  }
+
+  // =========================================================================
+  // Beam Command
+  // =========================================================================
+
+  private parseBeamCommand(): CreateBeamCommand | null {
+    const startToken = this.advance(); // consume 'beam'
+
+    let start: Point2D | null = null;
+    let end: Point2D | null = null;
+    let width = 0.3;
+    let depth = 0.5;
+    let material: string | undefined;
+    let levelId: string | undefined;
+
+    if (this.match(TokenType.LONG_START)) {
+      this.advance();
+      start = this.parsePoint2D();
+      if (!start) {
+        this.error("Expected coordinates after --start. Example: beam --start 0,0 --end 10,0");
+        return null;
+      }
+
+      while (this.isBeamOptionExtended()) {
+        if (this.match(TokenType.LONG_END)) {
+          this.advance();
+          end = this.parsePoint2D();
+          if (!end) {
+            this.error("Expected coordinates after --end. Example: beam --start 0,0 --end 10,0");
+            return null;
+          }
+        } else {
+          const [name, value] = this.parseGenericOption();
+          if (name === "width") width = value as number;
+          else if (name === "depth") depth = value as number;
+          else if (name === "material") material = String(value);
+          else if (name === "level") levelId = String(value);
+        }
+      }
+
+      if (!end) {
+        this.error("Missing --end parameter. Example: beam --start 0,0 --end 10,0");
+        return null;
+      }
+    } else {
+      if (this.match(TokenType.FROM)) {
+        this.advance();
+      }
+
+      start = this.parsePoint2D();
+      if (!start) {
+        this.error("Expected start point. Examples:\n  beam --start 0,0 --end 10,0\n  beam 0,0 10,0");
+        return null;
+      }
+
+      if (this.match(TokenType.TO)) {
+        this.advance();
+      }
+
+      end = this.parsePoint2D();
+      if (!end) {
+        this.error("Expected end point. Examples:\n  beam --start 0,0 --end 10,0\n  beam 0,0 10,0");
+        return null;
+      }
+
+      while (this.isBeamOption()) {
+        const [name, value] = this.parseGenericOption();
+        if (name === "width") width = value as number;
+        else if (name === "depth") depth = value as number;
+        else if (name === "material") material = String(value);
+        else if (name === "level") levelId = String(value);
+      }
+    }
+
+    if (start.x === end.x && start.y === end.y) {
+      this.error("Beam start and end points cannot be the same");
+      return null;
+    }
+
+    return {
+      type: "CreateBeam",
+      start,
+      end,
+      width,
+      depth,
+      material,
+      levelId,
+      line: startToken.line,
+      column: startToken.column,
+    };
+  }
+
+  private isBeamOption(): boolean {
+    return this.match(
+      TokenType.WIDTH,
+      TokenType.LEVEL,
+      TokenType.LONG_WIDTH,
+      TokenType.LONG_DEPTH,
+      TokenType.LONG_LEVEL,
+      TokenType.LONG_MATERIAL,
+      TokenType.OPT_W,
+    );
+  }
+
+  private isBeamOptionExtended(): boolean {
+    return this.match(
+      TokenType.WIDTH,
+      TokenType.LEVEL,
+      TokenType.LONG_WIDTH,
+      TokenType.LONG_DEPTH,
+      TokenType.LONG_LEVEL,
+      TokenType.LONG_MATERIAL,
+      TokenType.LONG_END,
+      TokenType.OPT_W,
+    );
+  }
+
+  /**
+   * Generic option parser that handles --depth, --shape, and delegates
+   * common options to parseOptionName logic.
+   */
+  private parseGenericOption(): [string, number | string] {
+    const type = this.currentType;
+    this.advance();
+
+    let name: string;
+    switch (type) {
+      case TokenType.LONG_DEPTH:
+        name = "depth";
+        break;
+      case TokenType.LONG_SHAPE:
+        name = "shape";
+        break;
+      case TokenType.HEIGHT:
+      case TokenType.LONG_HEIGHT:
+      case TokenType.OPT_H:
+        name = "height";
+        break;
+      case TokenType.WIDTH:
+      case TokenType.LONG_WIDTH:
+      case TokenType.OPT_W:
+        name = "width";
+        break;
+      case TokenType.LEVEL:
+      case TokenType.LONG_LEVEL:
+        name = "level";
+        break;
+      case TokenType.LONG_MATERIAL:
+        name = "material";
+        break;
+      default:
+        name = "unknown";
+        break;
+    }
+
+    const value = this.parseOptionValue();
+    return [name, value];
+  }
+
+  // =========================================================================
   // Opening Commands
   // =========================================================================
 
@@ -795,7 +1029,9 @@ export class Parser {
         TokenType.ROOM,
         TokenType.DOOR,
         TokenType.WINDOW,
-        TokenType.OPENING
+        TokenType.OPENING,
+        TokenType.COLUMN,
+        TokenType.BEAM
       )
     ) {
       const topicToken = this.advance();

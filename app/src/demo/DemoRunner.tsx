@@ -15,6 +15,10 @@ import {
   HIGH_RISE_DEMO_COMMANDS,
   HIGH_RISE_METADATA,
 } from "./highRiseDemo";
+import {
+  INVESTOR_DEMO_COMMANDS,
+  INVESTOR_DEMO_METADATA,
+} from "./investorDemo";
 import { DEMO_COMMANDS } from "../services/demo";
 
 // ============================================
@@ -88,6 +92,15 @@ export const DEMO_SCRIPTS: DemoScript[] = [
       `with ${HIGH_RISE_METADATA.grossFloorArea.toLocaleString()}m² GFA`,
     commands: HIGH_RISE_DEMO_COMMANDS,
     metadata: HIGH_RISE_METADATA,
+  },
+  {
+    id: "tramshed",
+    name: "Tramshed Tech HQ",
+    description:
+      `Build ${INVESTOR_DEMO_METADATA.name} — a ${INVESTOR_DEMO_METADATA.width}m × ${INVESTOR_DEMO_METADATA.depth}m ` +
+      `modern office with ${INVESTOR_DEMO_METADATA.rooms} rooms`,
+    commands: INVESTOR_DEMO_COMMANDS,
+    metadata: INVESTOR_DEMO_METADATA,
   },
 ];
 

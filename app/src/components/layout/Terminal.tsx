@@ -1522,6 +1522,56 @@ export function Terminal({
         break;
       }
 
+      case "demo": {
+        // Run a named demo script
+        const { DEMO_SCRIPTS } = await import("../../demo/DemoRunner");
+        const scriptId = args[0]?.toLowerCase();
+        if (!scriptId) {
+          terminal.writeln("\x1b[1;33mAvailable demos:\x1b[0m");
+          for (const s of DEMO_SCRIPTS) {
+            terminal.writeln(`  \x1b[32m${s.id}\x1b[0m - ${s.description}`);
+          }
+          terminal.writeln("");
+          terminal.writeln("\x1b[90mUsage: demo <name>\x1b[0m");
+          break;
+        }
+        const script = DEMO_SCRIPTS.find((s) => s.id === scriptId);
+        if (!script) {
+          terminal.writeln(`\x1b[31mUnknown demo: ${scriptId}\x1b[0m`);
+          terminal.writeln("\x1b[90mRun 'demo' to see available demos.\x1b[0m");
+          break;
+        }
+        terminal.writeln(`\x1b[1;36mStarting demo: ${script.name}\x1b[0m`);
+        terminal.writeln("\x1b[90mPress Escape to stop\x1b[0m");
+        terminal.writeln("");
+        for (const demoCmd of script.commands) {
+          if (demoCmd.startsWith("#")) {
+            const isSection = demoCmd.includes("▸") || demoCmd.includes("═");
+            terminal.writeln(`\x1b[36m${demoCmd}\x1b[0m`);
+            await new Promise<void>((r) => setTimeout(r, isSection ? 1500 : 800));
+            continue;
+          }
+          if (demoCmd === "clear") {
+            terminal.clear();
+            await new Promise<void>((r) => setTimeout(r, 200));
+            continue;
+          }
+          // Type the command with typewriter effect
+          terminal.write("\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ");
+          for (const ch of demoCmd) {
+            terminal.write(ch);
+            await new Promise<void>((r) => setTimeout(r, 30));
+          }
+          terminal.writeln("");
+          // Execute it
+          await processCommand(terminal, demoCmd);
+          await new Promise<void>((r) => setTimeout(r, 600));
+        }
+        terminal.writeln("");
+        terminal.writeln("\x1b[1;32m✓ Demo complete!\x1b[0m");
+        break;
+      }
+
       default: {
         // Try DSL parser for natural command syntax (e.g., "wall (0, 0) (5, 0)")
         terminal.writeln("\x1b[33mParsing as DSL command...\x1b[0m");
