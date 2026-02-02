@@ -12,7 +12,7 @@
  * - Metrics collection for monitoring
  */
 
-import { Policy } from 'cockatiel';
+import { handleAll, circuitBreaker, SamplingBreaker, type CircuitBreakerPolicy } from 'cockatiel';
 import type {
   IMCPClient,
   MCPToolResult,
@@ -103,7 +103,7 @@ const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
 export class SelfHealingMCPClient implements IMCPClient {
   private baseClient: IMCPClient;
   private config: Required<SelfHealingConfig>;
-  private breakers: Map<string, Policy> = new Map();
+  private breakers: Map<string, CircuitBreakerPolicy> = new Map();
   private cache: Map<string, CacheEntry> = new Map();
   private metrics: SelfHealingMetrics;
   private startTime: number;
@@ -144,28 +144,26 @@ export class SelfHealingMCPClient implements IMCPClient {
     const servers = ['geometry', 'spatial', 'validation', 'documentation'];
 
     servers.forEach(server => {
-      // Create circuit breaker policy with cockatiel
-      const breaker = Policy
-        .handleAll()
-        .circuitBreaker({
-          breakDuration: this.config.circuitBreakerConfig.resetTimeout,
-          samplingDuration: this.config.circuitBreakerConfig.timeout,
-          failureRatio: this.config.circuitBreakerConfig.errorThresholdPercentage / 100,
-          minimumThroughput: this.config.circuitBreakerConfig.volumeThreshold || 5,
-        });
-
-      // Event handlers for monitoring
-      breaker.on('opened', () => {
-        console.warn(`[Self-Healing] Circuit breaker OPEN for ${server} server`);
-        this.notifyCircuitOpen(server);
+      // Create circuit breaker policy with cockatiel v3
+      const breaker = circuitBreaker(handleAll, {
+        breaker: new SamplingBreaker({
+          threshold: this.config.circuitBreakerConfig.errorThresholdPercentage / 100,
+          duration: this.config.circuitBreakerConfig.timeout,
+          minimumRps: this.config.circuitBreakerConfig.volumeThreshold || 5,
+        }),
+        halfOpenAfter: this.config.circuitBreakerConfig.resetTimeout,
       });
 
-      breaker.on('halfOpened', () => {
-        console.info(`[Self-Healing] Circuit breaker HALF-OPEN for ${server} server`);
-      });
-
-      breaker.on('closed', () => {
-        console.info(`[Self-Healing] Circuit breaker CLOSED for ${server} server`);
+      // Event handlers for monitoring (cockatiel v3 API)
+      breaker.onStateChange(state => {
+        if (state === 'open') {
+          console.warn(`[Self-Healing] Circuit breaker OPEN for ${server} server`);
+          this.notifyCircuitOpen(server);
+        } else if (state === 'halfOpen') {
+          console.info(`[Self-Healing] Circuit breaker HALF-OPEN for ${server} server`);
+        } else if (state === 'closed') {
+          console.info(`[Self-Healing] Circuit breaker CLOSED for ${server} server`);
+        }
       });
 
       this.breakers.set(server, breaker);
