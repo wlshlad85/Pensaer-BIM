@@ -27,7 +27,8 @@ export function LevelPanel({
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
 
-  const levels = useModelStore((s) => s.getLevelsOrdered());
+  const getLevelsOrdered = useModelStore((s) => s.getLevelsOrdered);
+  const levels = getLevelsOrdered();
   const getElementsByLevel = useModelStore((s) => s.getElementsByLevel);
   const activeLevel = useUIStore((s) => s.activeLevel);
   const setActiveLevel = useUIStore((s) => s.setActiveLevel);

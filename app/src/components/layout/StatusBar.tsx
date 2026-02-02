@@ -61,7 +61,7 @@ export function StatusBar({
 
   // Get selected elements from store
   const selectedElements = useMemo(() => {
-    return elements.filter((el) => selectedIds.has(el.id));
+    return elements.filter((el) => selectedIds.includes(el.id));
   }, [elements, selectedIds]);
 
   // Group selected elements by type for summary
@@ -74,7 +74,7 @@ export function StatusBar({
 
   // Format selection info based on count
   const selectionInfo = useMemo(() => {
-    const count = selectedIds.size;
+    const count = selectedIds.length;
     if (count === 0) {
       return { text: "Nothing selected", icon: "fa-object-group", color: "text-gray-500" };
     }
@@ -232,20 +232,20 @@ export function StatusBar({
             type="button"
             className={`flex items-center gap-1.5 hover:text-white transition-colors ${selectionInfo.color}`}
             title={selectionInfo.tooltip || selectionInfo.text}
-            onClick={() => selectedIds.size > 0 && setShowSelectionDetails(!showSelectionDetails)}
-            disabled={selectedIds.size === 0}
+            onClick={() => selectedIds.length > 0 && setShowSelectionDetails(!showSelectionDetails)}
+            disabled={selectedIds.length === 0}
             aria-expanded={showSelectionDetails}
             aria-haspopup="true"
           >
             <i className={`fa-solid ${selectionInfo.icon} text-gray-500`} />
             <span className="max-w-[150px] truncate">{selectionInfo.text}</span>
-            {selectedIds.size > 0 && (
+            {selectedIds.length > 0 && (
               <i className={`fa-solid fa-chevron-${showSelectionDetails ? "up" : "down"} text-[8px] text-gray-500`} />
             )}
           </button>
 
           {/* Selection Details Popup */}
-          {showSelectionDetails && selectedIds.size > 0 && (
+          {showSelectionDetails && selectedIds.length > 0 && (
             <SelectionDetailsPopup
               selectedElements={selectedElements}
               selectionByType={selectionByType}
