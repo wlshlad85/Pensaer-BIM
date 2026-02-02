@@ -1045,6 +1045,45 @@ function validateWindowPlacement(
   return { valid: true, wallLength, wallHeight, requiredSpace: width };
 }
 
+/**
+ * Check if a new hosted element (door/window/opening) overlaps with existing ones on a wall
+ */
+function checkHostedElementOverlap(
+  wall: Element,
+  offset: number,
+  width: number
+): { overlaps: boolean; message?: string; conflictId?: string } {
+  const hostedIds = (wall.relationships.hosts as string[]) || [];
+  if (hostedIds.length === 0) return { overlaps: false };
+
+  const newStart = offset - width / 2;
+  const newEnd = offset + width / 2;
+
+  for (const hostedId of hostedIds) {
+    const hosted = useModelStore.getState().getElementById(hostedId);
+    if (!hosted) continue;
+
+    const hostedOffset = hosted.properties.offset as number | undefined;
+    const hostedWidthStr = hosted.properties.width as string | undefined;
+    if (hostedOffset === undefined || !hostedWidthStr) continue;
+
+    const hostedWidth = parseFloat(hostedWidthStr.replace("mm", "")) / 1000;
+    const hostedStart = hostedOffset - hostedWidth / 2;
+    const hostedEnd = hostedOffset + hostedWidth / 2;
+
+    // Check overlap
+    if (newStart < hostedEnd && newEnd > hostedStart) {
+      return {
+        overlaps: true,
+        message: `Overlaps with existing element ${hostedId}`,
+        conflictId: hostedId,
+      };
+    }
+  }
+
+  return { overlaps: false };
+}
+
 async function placeWindowHandler(
   args: Record<string, unknown>,
   context: CommandContext
@@ -1207,6 +1246,222 @@ async function placeWindowHandler(
         wall_length: validation.wallLength,
       },
       elementCreated: { id: windowId, type: "window" },
+    };
+  }
+
+  return result;
+}
+
+// ============================================
+// OPENING COMMAND
+// ============================================
+
+/**
+ * Validate that an opening fits in the host wall
+ */
+function validateOpeningPlacement(
+  wall: Element,
+  offset: number,
+  width: number,
+  height: number,
+  baseHeight: number
+): { valid: boolean; message?: string; wallLength?: number; wallHeight?: number } {
+  const startX = wall.properties.start_x as number | undefined;
+  const startY = wall.properties.start_y as number | undefined;
+  const endX = wall.properties.end_x as number | undefined;
+  const endY = wall.properties.end_y as number | undefined;
+
+  let wallLength: number;
+  if (startX !== undefined && startY !== undefined && endX !== undefined && endY !== undefined) {
+    wallLength = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+  } else {
+    const isHorizontal = wall.width > wall.height;
+    wallLength = (isHorizontal ? wall.width : wall.height) / SCALE;
+  }
+
+  const wallHeightStr = wall.properties.height as string | undefined;
+  const wallHeight = wallHeightStr
+    ? parseFloat(wallHeightStr.replace("mm", "")) / 1000
+    : 2.8;
+
+  // Horizontal fit
+  if (offset < 0) {
+    return { valid: false, message: "Offset cannot be negative", wallLength, wallHeight };
+  }
+
+  const openingStart = offset - width / 2;
+  const openingEnd = offset + width / 2;
+
+  if (openingStart < 0) {
+    return {
+      valid: false,
+      message: `Opening extends ${Math.abs(openingStart).toFixed(2)}m past wall start`,
+      wallLength,
+      wallHeight,
+    };
+  }
+
+  if (openingEnd > wallLength) {
+    return {
+      valid: false,
+      message: `Opening extends ${(openingEnd - wallLength).toFixed(2)}m past wall end (wall is ${wallLength.toFixed(2)}m long)`,
+      wallLength,
+      wallHeight,
+    };
+  }
+
+  // Vertical fit
+  const openingTop = baseHeight + height;
+  if (openingTop > wallHeight) {
+    return {
+      valid: false,
+      message: `Opening top (${openingTop.toFixed(2)}m) exceeds wall height (${wallHeight.toFixed(2)}m)`,
+      wallLength,
+      wallHeight,
+    };
+  }
+
+  if (baseHeight < 0) {
+    return { valid: false, message: "Base height cannot be negative", wallLength, wallHeight };
+  }
+
+  return { valid: true, wallLength, wallHeight };
+}
+
+async function placeOpeningHandler(
+  args: Record<string, unknown>,
+  context: CommandContext
+): Promise<CommandResult> {
+  const wallId = args.wall as string | undefined;
+
+  // If no wall specified but one wall is selected, use it
+  const targetWallId = wallId || (context.selectedIds.length === 1 ? context.selectedIds[0] : undefined);
+
+  if (!targetWallId) {
+    return {
+      success: false,
+      message: "Missing required parameter: --wall (or select a wall first)",
+    };
+  }
+
+  // Validate wall exists and is actually a wall
+  const wall = useModelStore.getState().getElementById(targetWallId);
+  if (!wall) {
+    return {
+      success: false,
+      message: `Wall not found: ${targetWallId}`,
+    };
+  }
+  if (wall.type !== "wall") {
+    return {
+      success: false,
+      message: `Element ${targetWallId} is not a wall (type: ${wall.type})`,
+    };
+  }
+
+  // Parse opening parameters with defaults
+  const offset = args.offset as number | undefined;
+  const position = args.position as number | undefined;
+  const openingOffset = offset ?? position ?? 0.5;
+  const width = (args.width as number) || 1.0;
+  const height = (args.height as number) || 2.1;
+  const baseHeight = (args.base_height as number) ?? (args.baseHeight as number) ?? 0;
+
+  // Validate placement
+  const validation = validateOpeningPlacement(wall, openingOffset, width, height, baseHeight);
+  if (!validation.valid) {
+    return {
+      success: false,
+      message: `Opening placement invalid: ${validation.message}`,
+      data: {
+        wall_length: validation.wallLength,
+        wall_height: validation.wallHeight,
+        opening_width: width,
+        opening_height: height,
+        offset: openingOffset,
+        base_height: baseHeight,
+      },
+    };
+  }
+
+  // Call MCP tool for opening creation
+  const result = await callMcpTool("create_opening", {
+    wall_id: targetWallId,
+    position: openingOffset,
+    width,
+    height,
+    base_height: baseHeight,
+    opening_type: "generic",
+  });
+
+  if (result.success && result.data) {
+    const openingId = result.data.opening_id as string || `opening-${crypto.randomUUID().slice(0, 8)}`;
+
+    // Calculate opening position on wall
+    const isHorizontal = wall.width > wall.height;
+    let openingX: number, openingY: number, openingW: number, openingH: number;
+
+    if (isHorizontal) {
+      openingX = wall.x + openingOffset * SCALE - (width * SCALE) / 2;
+      openingY = wall.y - 6;
+      openingW = width * SCALE;
+      openingH = 24;
+    } else {
+      openingX = wall.x - 6;
+      openingY = wall.y + openingOffset * SCALE - (width * SCALE) / 2;
+      openingW = 24;
+      openingH = width * SCALE;
+    }
+
+    const openingElement: Element = {
+      id: openingId,
+      type: "opening",
+      name: `Opening ${openingId.slice(-4)}`,
+      x: openingX,
+      y: openingY,
+      width: openingW,
+      height: openingH,
+      properties: {
+        width: `${width * 1000}mm`,
+        height: `${height * 1000}mm`,
+        baseHeight: `${baseHeight * 1000}mm`,
+        offset: openingOffset,
+        level: wall.properties.level as string || "Level 1",
+      },
+      relationships: {
+        hostedBy: targetWallId,
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    // Add opening to model
+    useModelStore.getState().addElement(openingElement);
+
+    // Update wall's hosts relationship
+    const currentHosts = wall.relationships.hosts || [];
+    useModelStore.getState().updateElement(targetWallId, {
+      relationships: {
+        ...wall.relationships,
+        hosts: [...currentHosts, openingId],
+      },
+    });
+
+    useHistoryStore.getState().recordAction(`Place opening ${openingId} in ${targetWallId}`);
+
+    return {
+      success: true,
+      message: `Placed opening: ${openingId}`,
+      data: {
+        opening_id: openingId,
+        wall_id: targetWallId,
+        offset: openingOffset,
+        width,
+        height,
+        base_height: baseHeight,
+        wall_length: validation.wallLength,
+      },
+      elementCreated: { id: openingId, type: "opening" },
     };
   }
 
@@ -1485,6 +1740,18 @@ export function registerElementCommands(): void {
       "window --wall wall-001 --offset 2.5 --width 1.2 --height 1.5 --type awning",
     ],
     handler: placeWindowHandler,
+  });
+
+  registerCommand({
+    name: "opening",
+    description: "Place an opening (void) in a wall without a door or window",
+    usage: "opening --wall <wall_id> --offset <m> [--width w] [--height h] [--base_height bh]",
+    examples: [
+      "opening --wall wall-001 --offset 2.5",
+      "opening --wall wall-001 --offset 1.5 --width 1.2 --height 0.6 --base_height 2.0",
+      "opening --wall wall-001 --offset 3.0 --width 2.0 --height 2.4",
+    ],
+    handler: placeOpeningHandler,
   });
 
   registerCommand({

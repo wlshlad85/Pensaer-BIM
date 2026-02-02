@@ -83,6 +83,18 @@ vi.mock("../../services/mcpClient", () => ({
               elements_checked: 5,
             },
           });
+        case "create_opening":
+          return Promise.resolve({
+            success: true,
+            data: {
+              opening_id: "opening-test-123",
+              wall_id: args.wall_id,
+              width: args.width || 1.0,
+              height: args.height || 2.1,
+              base_height: args.base_height || 0,
+            },
+            event_id: "evt-130",
+          });
         default:
           return Promise.resolve({
             success: false,
@@ -425,6 +437,159 @@ describe("Element Command Handlers", () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.count).toBe(1);
+    });
+  });
+
+  describe("Opening Command", () => {
+    it("registers opening command", () => {
+      const cmd = getCommand("opening");
+      expect(cmd).toBeDefined();
+      expect(cmd?.name).toBe("opening");
+      expect(cmd?.description).toContain("opening");
+    });
+
+    it("creates opening with valid parameters", async () => {
+      // First create a wall to host the opening
+      const wallResult = await dispatchCommand("wall", {
+        start: [0, 0],
+        end: [5, 0],
+        height: 3.0,
+        thickness: 0.2,
+      });
+      expect(wallResult.success).toBe(true);
+      const wallId = wallResult.elementCreated?.id;
+
+      const result = await dispatchCommand("opening", {
+        wall: wallId,
+        offset: 2.5,
+        width: 1.0,
+        height: 2.1,
+        base_height: 0,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("opening");
+      expect(result.elementCreated).toBeDefined();
+      expect(result.elementCreated?.type).toBe("opening");
+    });
+
+    it("fails without wall parameter", async () => {
+      const result = await dispatchCommand("opening", {
+        offset: 2.0,
+        width: 1.0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("wall");
+    });
+
+    it("fails when wall does not exist", async () => {
+      const result = await dispatchCommand("opening", {
+        wall: "nonexistent-wall",
+        offset: 1.0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("not found");
+    });
+
+    it("fails when target is not a wall", async () => {
+      // Add a floor element
+      useModelStore.setState({
+        elements: [
+          {
+            id: "floor-1",
+            type: "floor",
+            name: "Floor 1",
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            properties: {},
+            relationships: {},
+            issues: [],
+            aiSuggestions: [],
+          },
+        ],
+      });
+
+      const result = await dispatchCommand("opening", {
+        wall: "floor-1",
+        offset: 1.0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("not a wall");
+    });
+
+    it("adds opening to model store and updates wall hosts", async () => {
+      const wallResult = await dispatchCommand("wall", {
+        start: [0, 0],
+        end: [5, 0],
+        height: 3.0,
+        thickness: 0.2,
+      });
+      const wallId = wallResult.elementCreated?.id;
+
+      const result = await dispatchCommand("opening", {
+        wall: wallId,
+        offset: 2.5,
+        width: 1.0,
+        height: 2.1,
+      });
+
+      expect(result.success).toBe(true);
+      const openingId = result.elementCreated?.id;
+
+      // Verify opening exists in store
+      const opening = useModelStore.getState().getElementById(openingId!);
+      expect(opening).toBeDefined();
+      expect(opening?.type).toBe("opening");
+
+      // Verify wall hosts relationship updated
+      const wall = useModelStore.getState().getElementById(wallId!);
+      expect(wall?.relationships.hosts).toContain(openingId);
+    });
+
+    it("validates opening fits within wall bounds", async () => {
+      const wallResult = await dispatchCommand("wall", {
+        start: [0, 0],
+        end: [2, 0],
+        height: 3.0,
+        thickness: 0.2,
+      });
+      const wallId = wallResult.elementCreated?.id;
+
+      // Try to place opening that extends past wall end
+      const result = await dispatchCommand("opening", {
+        wall: wallId,
+        offset: 1.8,
+        width: 1.0,
+        height: 2.1,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("invalid");
+    });
+
+    it("uses default values when optional params omitted", async () => {
+      const wallResult = await dispatchCommand("wall", {
+        start: [0, 0],
+        end: [10, 0],
+        height: 3.0,
+        thickness: 0.2,
+      });
+      const wallId = wallResult.elementCreated?.id;
+
+      const result = await dispatchCommand("opening", {
+        wall: wallId,
+        offset: 5.0,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.width).toBe(1.0);
+      expect(result.data?.height).toBe(2.1);
+      expect(result.data?.base_height).toBe(0);
     });
   });
 });
