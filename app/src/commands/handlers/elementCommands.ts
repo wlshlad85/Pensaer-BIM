@@ -791,6 +791,51 @@ function validateDoorPlacement(
   return { valid: true, wallLength, requiredSpace: width };
 }
 
+/**
+ * Check if a new hosted element overlaps with existing hosted elements on the same wall.
+ */
+export function checkHostedElementOverlap(
+  wall: Element,
+  newOffset: number,
+  newWidth: number,
+  excludeId?: string,
+): { overlaps: boolean; conflictId?: string; message?: string } {
+  const TOLERANCE = 0.001;
+  const newStart = newOffset - newWidth / 2;
+  const newEnd = newOffset + newWidth / 2;
+  const hostedIds = (wall.relationships.hosts as string[]) || [];
+  const elements = useModelStore.getState().elements;
+
+  for (const hostedId of hostedIds) {
+    if (hostedId === excludeId) continue;
+    const hosted = elements.find((el) => el.id === hostedId);
+    if (!hosted) continue;
+    const existingOffset = hosted.properties.offset as number | undefined;
+    if (existingOffset === undefined) continue;
+
+    const existingWidthStr = hosted.properties.width as string | undefined;
+    let existingWidth = 0;
+    if (existingWidthStr) {
+      existingWidth = parseFloat(existingWidthStr.replace("mm", "")) / 1000;
+    }
+    if (!existingWidth || existingWidth <= 0) {
+      existingWidth = hosted.type === "door" ? 0.9 : 1.2;
+    }
+
+    const existStart = existingOffset - existingWidth / 2;
+    const existEnd = existingOffset + existingWidth / 2;
+
+    if (newStart < existEnd - TOLERANCE && newEnd > existStart + TOLERANCE) {
+      return {
+        overlaps: true,
+        conflictId: hostedId,
+        message: `Overlaps with existing ${hosted.type} ${hostedId} at offset ${existingOffset.toFixed(2)}m`,
+      };
+    }
+  }
+  return { overlaps: false };
+}
+
 async function placeDoorHandler(
   args: Record<string, unknown>,
   context: CommandContext
@@ -845,6 +890,16 @@ async function placeDoorHandler(
         door_width: effectiveWidth,
         offset: doorOffset,
       },
+    };
+  }
+
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, doorOffset, effectiveWidth);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Door placement invalid: ${overlap.message}`,
+      data: { wall_id: targetWallId, offset: doorOffset, width: effectiveWidth, conflict_element: overlap.conflictId },
     };
   }
 
