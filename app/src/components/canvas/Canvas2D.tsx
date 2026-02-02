@@ -32,6 +32,7 @@ import {
   WindowElement,
   RoomElement,
 } from "./elements";
+import { SecurityBadge } from "./elements/SecurityBadge";
 
 const CANVAS_WIDTH = 2000;
 const CANVAS_HEIGHT = 1500;
@@ -823,18 +824,31 @@ export function Canvas2D() {
       onMouseLeave: () => setHovered(null),
     };
 
+    let rendered: React.ReactNode = null;
     switch (element.type) {
       case "wall":
-        return <WallElement key={element.id} {...commonProps} />;
+        rendered = <WallElement key={element.id} {...commonProps} />;
+        break;
       case "door":
-        return <DoorElement key={element.id} {...commonProps} />;
+        rendered = <DoorElement key={element.id} {...commonProps} />;
+        break;
       case "window":
-        return <WindowElement key={element.id} {...commonProps} />;
+        rendered = <WindowElement key={element.id} {...commonProps} />;
+        break;
       case "room":
-        return <RoomElement key={element.id} {...commonProps} />;
+        rendered = <RoomElement key={element.id} {...commonProps} />;
+        break;
       default:
         return null;
     }
+
+    // Overlay security badge for elements with elevated classification
+    return (
+      <g key={element.id}>
+        {rendered}
+        <SecurityBadge element={element} />
+      </g>
+    );
   };
 
   // Filter visible elements (respect layer visibility)

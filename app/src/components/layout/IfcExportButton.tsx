@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { downloadIfcFile, type IfcExportResult } from "../../services";
 import { useModelStore } from "../../stores";
+import { isElevatedSecurity, getSecurityLabel } from "../../types/elements";
 
 type ExportState = "idle" | "loading" | "success" | "error";
 
@@ -16,6 +17,7 @@ export function IfcExportButton() {
   const [exportStats, setExportStats] = useState<IfcExportResult["stats"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
 
   const elements = useModelStore((s) => s.elements);
 
@@ -26,6 +28,22 @@ export function IfcExportButton() {
       setShowTooltip(true);
       setTimeout(() => setShowTooltip(false), 3000);
       return;
+    }
+
+    // ISO 19650-5: Check for elevated security classifications before export
+    const elevatedElements = elements.filter(
+      (el) => el.securityClassification && isElevatedSecurity(el.securityClassification)
+    );
+    if (elevatedElements.length > 0) {
+      const summary = elevatedElements
+        .map((el) => `${el.name}: ${getSecurityLabel(el.securityClassification!)}`)
+        .join(", ");
+      const msg = `⚠️ ${elevatedElements.length} element(s) have elevated security classification: ${summary}. Export may violate ISO 19650-5 requirements.`;
+      setSecurityWarning(msg);
+      // Proceed but warn — in production this could block or require confirmation
+      console.warn("[ISO 19650-5]", msg);
+    } else {
+      setSecurityWarning(null);
     }
 
     setExportState("loading");
@@ -119,6 +137,14 @@ export function IfcExportButton() {
                   {exportStats.windows > 0 && <div>Windows: {exportStats.windows}</div>}
                   {exportStats.rooms > 0 && <div>Rooms: {exportStats.rooms}</div>}
                 </div>
+              </div>
+            )}
+            {exportState === "success" && securityWarning && (
+              <div className="text-yellow-400 mt-1 border-t border-gray-700 pt-1">
+                <div className="font-medium text-xs">
+                  <i className="fa-solid fa-lock mr-1"></i>Security Warning
+                </div>
+                <div className="text-[10px] max-w-xs">{securityWarning}</div>
               </div>
             )}
             {exportState === "error" && (

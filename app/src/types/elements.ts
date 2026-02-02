@@ -64,6 +64,65 @@ export type ElementType =
   | "stair";
 
 // ============================================
+// ISO 19650-5 SECURITY CLASSIFICATION
+// ============================================
+
+/**
+ * Security classification levels per ISO 19650-5.
+ * Used for security triage of built asset information.
+ */
+export type SecurityClassification =
+  | "Official"
+  | "OfficialSensitive"
+  | "Secret"
+  | "TopSecret";
+
+/**
+ * Access control metadata for elements with elevated security.
+ */
+export interface AccessControl {
+  /** Whether access is restricted to need-to-know basis */
+  needToKnow: boolean;
+  /** List of roles/persons with access */
+  restrictedTo: string[];
+}
+
+/**
+ * Check if a security classification is elevated (above Official).
+ */
+export function isElevatedSecurity(classification: SecurityClassification): boolean {
+  return classification !== "Official";
+}
+
+/**
+ * Get display label for a security classification.
+ */
+export function getSecurityLabel(classification: SecurityClassification): string {
+  const labels: Record<SecurityClassification, string> = {
+    Official: "OFFICIAL",
+    OfficialSensitive: "OFFICIAL-SENSITIVE",
+    Secret: "SECRET",
+    TopSecret: "TOP SECRET",
+  };
+  return labels[classification];
+}
+
+/**
+ * Parse a CLI-friendly security level string to SecurityClassification.
+ */
+export function parseSecurityLevel(level: string): SecurityClassification | null {
+  const map: Record<string, SecurityClassification> = {
+    official: "Official",
+    "official-sensitive": "OfficialSensitive",
+    officialsensitive: "OfficialSensitive",
+    secret: "Secret",
+    "top-secret": "TopSecret",
+    topsecret: "TopSecret",
+  };
+  return map[level.toLowerCase()] ?? null;
+}
+
+// ============================================
 // BASE ELEMENT INTERFACE
 // ============================================
 
@@ -110,6 +169,12 @@ export interface BaseElement {
 
   /** Timestamp when element was last modified */
   modifiedAt?: number;
+
+  /** ISO 19650-5 security classification. Defaults to Official. */
+  securityClassification?: SecurityClassification;
+
+  /** Access control metadata for elements with elevated security */
+  accessControl?: AccessControl;
 }
 
 // ============================================

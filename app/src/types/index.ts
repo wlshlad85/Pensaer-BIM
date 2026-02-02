@@ -27,6 +27,8 @@ export type {
   BeamElement,
   StairElement,
   Element,
+  SecurityClassification,
+  AccessControl,
 } from "./elements";
 
 export {
@@ -43,6 +45,9 @@ export {
   isStair,
   isHostElement,
   isHostedElement,
+  isElevatedSecurity,
+  getSecurityLabel,
+  parseSecurityLevel,
 } from "./elements";
 
 // Relationship types
