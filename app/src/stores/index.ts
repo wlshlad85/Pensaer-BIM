@@ -12,6 +12,19 @@ export {
 } from "./historyStore";
 export { useTokenStore } from "./tokenStore";
 export { useMacroStore } from "./macroStore";
+export {
+  useNamingStore,
+  TYPE_CODES,
+  DISCIPLINE_CODES,
+  ELEMENT_DISCIPLINE_MAP,
+  levelToCode,
+  padNumber,
+  type NamingConfig,
+  type IsoName,
+} from "./namingStore";
+
+// ISO 19650 naming middleware
+export { initializeNamingMiddleware } from "./namingMiddleware";
 
 // Self-healing utilities
 export {

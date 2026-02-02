@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useUIStore, initializeHistory } from "./stores";
+import { useUIStore, initializeHistory, initializeNamingMiddleware } from "./stores";
 import { useKeyboardShortcuts, usePersistence, useBreakpoints } from "./hooks";
 import { Canvas2D, Canvas3D } from "./components/canvas";
 import {
@@ -27,9 +27,10 @@ import { ScreenReaderAnnouncer } from "./components/accessibility/ScreenReaderAn
 import clsx from "clsx";
 
 function App() {
-  // Initialize history on first render
+  // Initialize history and naming on first render
   useEffect(() => {
     initializeHistory();
+    initializeNamingMiddleware();
   }, []);
 
   // Initialize keyboard shortcuts
