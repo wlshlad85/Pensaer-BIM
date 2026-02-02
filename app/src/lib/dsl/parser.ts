@@ -15,6 +15,7 @@ import type {
   CreateFloorCommand,
   CreateRoofCommand,
   CreateRoomCommand,
+  CreateStairCommand,
   PlaceDoorCommand,
   PlaceWindowCommand,
   CreateOpeningCommand,
@@ -31,6 +32,7 @@ import {
   SwingDirection,
   RoofType,
   RoomType,
+  StairType,
   VariableRef,
 } from "./ast";
 import { findSimilar, KNOWN_COMMANDS } from "./errors";
@@ -181,6 +183,8 @@ export class Parser {
       return this.parseRoofCommand();
     } else if (this.match(TokenType.ROOM)) {
       return this.parseRoomCommand();
+    } else if (this.match(TokenType.STAIR)) {
+      return this.parseStairCommand();
     } else if (this.match(TokenType.DOOR)) {
       return this.parseDoorCommand();
     } else if (this.match(TokenType.WINDOW)) {
@@ -615,6 +619,144 @@ export class Parser {
   }
 
   // =========================================================================
+  // Stair Command
+  // =========================================================================
+
+  private parseStairCommand(): CreateStairCommand | null {
+    const startToken = this.advance(); // consume 'stair'
+
+    let position: Point2D | null = null;
+    let risers = 14;
+    let riserHeight = 0.178;
+    let treadDepth = 0.28;
+    let stairWidth = 1.2;
+    let stairType: StairType = StairType.STRAIGHT;
+    let levelId: string | undefined;
+
+    // Parse options
+    while (this.isStairOption()) {
+      if (this.match(TokenType.LONG_POSITION, TokenType.POSITION)) {
+        this.advance();
+        position = this.parsePoint2D();
+        if (!position) {
+          this.error("Expected coordinates after --position. Example: stair --position 2,3");
+          return null;
+        }
+      } else {
+        const [optName, value] = this.parseStairOption();
+        if (optName === "width") stairWidth = value as number;
+        else if (optName === "risers") risers = value as number;
+        else if (optName === "riser-height") riserHeight = value as number;
+        else if (optName === "tread-depth") treadDepth = value as number;
+        else if (optName === "type") stairType = this.parseStairTypeValue(value) || StairType.STRAIGHT;
+        else if (optName === "level") levelId = String(value);
+      }
+    }
+
+    if (!position) {
+      this.error("Missing --position parameter. Example: stair --position 2,3 --risers 14");
+      return null;
+    }
+
+    if (risers < 1) {
+      this.error("Risers must be at least 1");
+      return null;
+    }
+
+    return {
+      type: "CreateStair",
+      position,
+      risers,
+      riserHeight,
+      treadDepth,
+      stairWidth,
+      stairType,
+      levelId,
+      line: startToken.line,
+      column: startToken.column,
+    };
+  }
+
+  private isStairOption(): boolean {
+    return this.match(
+      TokenType.LONG_POSITION,
+      TokenType.POSITION,
+      TokenType.LONG_WIDTH,
+      TokenType.WIDTH,
+      TokenType.OPT_W,
+      TokenType.LONG_RISERS,
+      TokenType.RISERS,
+      TokenType.LONG_RISER_HEIGHT,
+      TokenType.RISER_HEIGHT,
+      TokenType.LONG_TREAD_DEPTH,
+      TokenType.TREAD_DEPTH,
+      TokenType.LONG_TYPE,
+      TokenType.TYPE,
+      TokenType.LONG_LEVEL,
+      TokenType.LEVEL,
+    );
+  }
+
+  private parseStairOption(): [string, number | string] {
+    const type = this.currentType;
+    this.advance();
+
+    let name: string;
+    switch (type) {
+      case TokenType.LONG_WIDTH:
+      case TokenType.WIDTH:
+      case TokenType.OPT_W:
+        name = "width";
+        break;
+      case TokenType.LONG_RISERS:
+      case TokenType.RISERS:
+        name = "risers";
+        break;
+      case TokenType.LONG_RISER_HEIGHT:
+      case TokenType.RISER_HEIGHT:
+        name = "riser-height";
+        break;
+      case TokenType.LONG_TREAD_DEPTH:
+      case TokenType.TREAD_DEPTH:
+        name = "tread-depth";
+        break;
+      case TokenType.LONG_TYPE:
+      case TokenType.TYPE:
+        name = "type";
+        break;
+      case TokenType.LONG_LEVEL:
+      case TokenType.LEVEL:
+        name = "level";
+        break;
+      default:
+        name = "unknown";
+    }
+
+    const value = this.parseOptionValue();
+    return [name, value];
+  }
+
+  private parseStairTypeValue(value: unknown): StairType | undefined {
+    const str = String(value).toLowerCase();
+    switch (str) {
+      case "straight":
+        return StairType.STRAIGHT;
+      case "l-shaped":
+      case "l":
+        return StairType.L_SHAPED;
+      case "u-shaped":
+      case "u":
+        return StairType.U_SHAPED;
+      case "spiral":
+        return StairType.SPIRAL;
+      case "curved":
+        return StairType.CURVED;
+      default:
+        return undefined;
+    }
+  }
+
+  // =========================================================================
   // Door Commands
   // =========================================================================
 
@@ -793,6 +935,7 @@ export class Parser {
         TokenType.FLOOR,
         TokenType.ROOF,
         TokenType.ROOM,
+        TokenType.STAIR,
         TokenType.DOOR,
         TokenType.WINDOW,
         TokenType.OPENING
@@ -1145,6 +1288,12 @@ export class Parser {
         TokenType.AWNING,
         TokenType.HOPPER,
         TokenType.PIVOT,
+        // Stair types
+        TokenType.STRAIGHT,
+        TokenType.L_SHAPED,
+        TokenType.U_SHAPED,
+        TokenType.SPIRAL,
+        TokenType.CURVED,
         // Swing directions
         TokenType.LEFT,
         TokenType.RIGHT,

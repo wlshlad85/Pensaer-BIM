@@ -66,6 +66,19 @@ vi.mock("../../services/mcpClient", () => ({
             },
             event_id: "evt-126",
           });
+        case "create_stair":
+          return Promise.resolve({
+            success: true,
+            data: {
+              stair_id: "stair-test-123",
+              risers: args.risers || 14,
+              riser_height: args.riser_height || 0.178,
+              tread_depth: args.tread_depth || 0.28,
+              stair_width: args.stair_width || 1.2,
+              stair_type: args.stair_type || "straight",
+            },
+            event_id: "evt-130",
+          });
         case "detect_rooms":
           return Promise.resolve({
             success: true,
@@ -270,6 +283,84 @@ describe("Element Command Handlers", () => {
       });
 
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("Stair Command", () => {
+    it("creates stair with valid parameters", async () => {
+      const result = await dispatchCommand("stair", {
+        position: [2, 3],
+        width: 1.2,
+        risers: 14,
+        "riser-height": 0.178,
+        "tread-depth": 0.28,
+        type: "straight",
+        level: "Level 1",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("stair");
+      expect(result.data?.stair_id).toBeDefined();
+      expect(result.data?.risers).toBe(14);
+      expect(result.data?.stair_type).toBe("straight");
+    });
+
+    it("creates stair with defaults", async () => {
+      const result = await dispatchCommand("stair", {
+        position: [0, 0],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.risers).toBe(14);
+    });
+
+    it("fails without position", async () => {
+      const result = await dispatchCommand("stair", {
+        risers: 14,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("position");
+    });
+
+    it("fails with invalid risers", async () => {
+      const result = await dispatchCommand("stair", {
+        position: [0, 0],
+        risers: 0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("positive integer");
+    });
+
+    it("fails with out-of-range riser height", async () => {
+      const result = await dispatchCommand("stair", {
+        position: [0, 0],
+        "riser-height": 0.5,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("out of range");
+    });
+
+    it("adds stair element to model store", async () => {
+      await dispatchCommand("stair", {
+        position: [2, 3],
+        risers: 14,
+        type: "spiral",
+      });
+
+      const elements = useModelStore.getState().elements;
+      expect(elements.length).toBe(1);
+      expect(elements[0].type).toBe("stair");
+      expect(elements[0].properties.stairType).toBe("spiral");
+    });
+
+    it("registers stair command", () => {
+      const cmd = getCommand("stair");
+      expect(cmd).toBeDefined();
+      expect(cmd?.name).toBe("stair");
+      expect(cmd?.description).toContain("stair");
     });
   });
 

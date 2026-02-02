@@ -26,6 +26,7 @@ export enum TokenType {
   ROOM = "ROOM",
   DOOR = "DOOR",
   WINDOW = "WINDOW",
+  STAIR = "STAIR",
   OPENING = "OPENING",
   CREATE = "CREATE",
   PLACE = "PLACE",
@@ -85,6 +86,19 @@ export enum TokenType {
   AWNING = "AWNING",
   HOPPER = "HOPPER",
   PIVOT = "PIVOT",
+
+  // Stair Types
+  STRAIGHT = "STRAIGHT",
+  L_SHAPED = "L_SHAPED",
+  U_SHAPED = "U_SHAPED",
+  SPIRAL = "SPIRAL",
+  CURVED = "CURVED",
+
+  // Stair Property Keywords
+  RISERS = "RISERS",
+  RISER_HEIGHT = "RISER_HEIGHT",
+  TREAD_DEPTH = "TREAD_DEPTH",
+  POSITION = "POSITION",
 
   // Roof Types
   FLAT = "FLAT",
@@ -150,6 +164,10 @@ export enum TokenType {
   LONG_NUMBER = "LONG_NUMBER",
   LONG_MIN = "LONG_MIN",
   LONG_MAX = "LONG_MAX",
+  LONG_POSITION = "LONG_POSITION",
+  LONG_RISERS = "LONG_RISERS",
+  LONG_RISER_HEIGHT = "LONG_RISER_HEIGHT",
+  LONG_TREAD_DEPTH = "LONG_TREAD_DEPTH",
 
   // Variables
   VAR_LAST = "VAR_LAST",
@@ -195,6 +213,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   room: TokenType.ROOM,
   door: TokenType.DOOR,
   window: TokenType.WINDOW,
+  stair: TokenType.STAIR,
   opening: TokenType.OPENING,
   create: TokenType.CREATE,
   place: TokenType.PLACE,
@@ -230,6 +249,17 @@ export const KEYWORDS: Record<string, TokenType> = {
   points: TokenType.POINTS,
   name: TokenType.NAME,
   number: TokenType.NUMBER_KW,
+  // Stair types
+  straight: TokenType.STRAIGHT,
+  "l-shaped": TokenType.L_SHAPED,
+  "u-shaped": TokenType.U_SHAPED,
+  spiral: TokenType.SPIRAL,
+  curved: TokenType.CURVED,
+  // Stair properties
+  risers: TokenType.RISERS,
+  "riser-height": TokenType.RISER_HEIGHT,
+  "tread-depth": TokenType.TREAD_DEPTH,
+  position: TokenType.POSITION,
   // Wall types
   basic: TokenType.BASIC,
   structural: TokenType.STRUCTURAL,
@@ -316,6 +346,10 @@ export const LONG_OPTIONS: Record<string, TokenType> = {
   number: TokenType.LONG_NUMBER,
   min: TokenType.LONG_MIN,
   max: TokenType.LONG_MAX,
+  position: TokenType.LONG_POSITION,
+  risers: TokenType.LONG_RISERS,
+  "riser-height": TokenType.LONG_RISER_HEIGHT,
+  "tread-depth": TokenType.LONG_TREAD_DEPTH,
 };
 
 /**

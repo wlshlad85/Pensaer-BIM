@@ -1102,6 +1102,16 @@ async function placeWindowHandler(
     };
   }
 
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, windowOffset, width);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Window placement invalid: ${overlap.message}`,
+      data: { wall_id: targetWallId, offset: windowOffset, width, conflict_element: overlap.conflictId },
+    };
+  }
+
   // Call MCP tool for window placement
   const result = await callMcpTool("place_window", {
     wall_id: targetWallId,
@@ -1197,6 +1207,121 @@ async function placeWindowHandler(
         wall_length: validation.wallLength,
       },
       elementCreated: { id: windowId, type: "window" },
+    };
+  }
+
+  return result;
+}
+
+// ============================================
+// STAIR COMMAND
+// ============================================
+
+async function createStairHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const position = args.position as number[] | undefined;
+
+  if (!position || position.length < 2) {
+    return {
+      success: false,
+      message: "Missing required parameter: --position x,y",
+    };
+  }
+
+  const risers = (args.risers as number) ?? 14;
+  const riserHeight = (args["riser-height"] as number) ?? (args.riser_height as number) ?? 0.178;
+  const treadDepth = (args["tread-depth"] as number) ?? (args.tread_depth as number) ?? 0.28;
+  const stairWidth = (args.width as number) ?? 1.2;
+  const stairType = (args.type as string) || "straight";
+  const level = (args.level as string) || "Level 1";
+
+  // Validate risers
+  if (risers < 1 || !Number.isInteger(risers)) {
+    return {
+      success: false,
+      message: "Risers must be a positive integer",
+    };
+  }
+
+  // Validate riser height (building code: typically 150-200mm)
+  if (riserHeight <= 0 || riserHeight > 0.3) {
+    return {
+      success: false,
+      message: `Riser height ${riserHeight}m is out of range (0-0.3m)`,
+    };
+  }
+
+  // Validate tread depth (building code: typically 250-300mm)
+  if (treadDepth <= 0 || treadDepth > 0.5) {
+    return {
+      success: false,
+      message: `Tread depth ${treadDepth}m is out of range (0-0.5m)`,
+    };
+  }
+
+  // Calculate total stair run and rise
+  const totalRise = risers * riserHeight;
+  const totalRun = (risers - 1) * treadDepth; // treads = risers - 1
+
+  // Call MCP tool for stair creation
+  const result = await callMcpTool("create_stair", {
+    position,
+    risers,
+    riser_height: riserHeight,
+    tread_depth: treadDepth,
+    stair_width: stairWidth,
+    stair_type: stairType,
+    level,
+  });
+
+  if (result.success && result.data) {
+    const stairId = result.data.stair_id as string || `stair-${crypto.randomUUID().slice(0, 8)}`;
+
+    const stairElement: Element = {
+      id: stairId,
+      type: "stair",
+      name: `Stair ${stairId.slice(-4)}`,
+      x: position[0] * SCALE,
+      y: position[1] * SCALE,
+      width: stairWidth * SCALE,
+      height: totalRun * SCALE,
+      properties: {
+        risers,
+        riserHeight: `${riserHeight * 1000}mm`,
+        treadDepth: `${treadDepth * 1000}mm`,
+        stairWidth: `${stairWidth * 1000}mm`,
+        stairType,
+        totalRise: `${(totalRise * 1000).toFixed(0)}mm`,
+        totalRun: `${(totalRun * 1000).toFixed(0)}mm`,
+        level,
+        structural: true,
+      },
+      relationships: {
+        connectsLevels: [],
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    useModelStore.getState().addElement(stairElement);
+    useHistoryStore.getState().recordAction(`Create stair ${stairId}`);
+
+    return {
+      success: true,
+      message: `Created ${stairType} stair: ${stairId} (${risers} risers, ${(totalRise * 1000).toFixed(0)}mm rise)`,
+      data: {
+        stair_id: stairId,
+        risers,
+        riser_height: riserHeight,
+        tread_depth: treadDepth,
+        stair_width: stairWidth,
+        stair_type: stairType,
+        total_rise: totalRise.toFixed(3),
+        total_run: totalRun.toFixed(3),
+      },
+      elementCreated: { id: stairId, type: "stair" },
     };
   }
 
@@ -1475,6 +1600,18 @@ export function registerElementCommands(): void {
       "window --wall wall-001 --offset 2.5 --width 1.2 --height 1.5 --type awning",
     ],
     handler: placeWindowHandler,
+  });
+
+  registerCommand({
+    name: "stair",
+    description: "Create a stair element for vertical circulation",
+    usage: "stair --position x,y [--width w] [--risers n] [--riser-height h] [--tread-depth d] [--type straight|L|U|spiral] [--level l]",
+    examples: [
+      "stair --position 2,3 --risers 14",
+      "stair --position 0,0 --width 1.2 --risers 14 --riser-height 0.178 --tread-depth 0.28 --type straight --level \"Level 1\"",
+      "stair --position 5,2 --type spiral --risers 16 --width 1.5",
+    ],
+    handler: createStairHandler,
   });
 
   registerCommand({

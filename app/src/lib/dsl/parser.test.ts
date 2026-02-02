@@ -344,6 +344,57 @@ describe("Parser", () => {
     });
   });
 
+  describe("stair commands", () => {
+    it("parses stair command with all options", () => {
+      const result = parse('stair --position 2,3 --width 1.2 --risers 14 --riser-height 0.178 --tread-depth 0.28 --type straight --level "Level 1"');
+      expect(result.success).toBe(true);
+      expect(result.commands).toHaveLength(1);
+
+      const cmd = result.commands[0];
+      expect(cmd.type).toBe("CreateStair");
+      if (cmd.type === "CreateStair") {
+        expect(cmd.position).toEqual({ x: 2, y: 3 });
+        expect(cmd.stairWidth).toBe(1.2);
+        expect(cmd.risers).toBe(14);
+        expect(cmd.riserHeight).toBe(0.178);
+        expect(cmd.treadDepth).toBe(0.28);
+        expect(cmd.stairType).toBe("straight");
+        expect(cmd.levelId).toBe("Level 1");
+      }
+    });
+
+    it("parses stair with defaults", () => {
+      const result = parse("stair --position 0,0");
+      expect(result.success).toBe(true);
+
+      const cmd = result.commands[0];
+      if (cmd.type === "CreateStair") {
+        expect(cmd.risers).toBe(14);
+        expect(cmd.riserHeight).toBe(0.178);
+        expect(cmd.treadDepth).toBe(0.28);
+        expect(cmd.stairWidth).toBe(1.2);
+        expect(cmd.stairType).toBe("straight");
+      }
+    });
+
+    it("parses spiral stair type", () => {
+      const result = parse("stair --position 5,2 --type spiral --risers 16");
+      expect(result.success).toBe(true);
+
+      const cmd = result.commands[0];
+      if (cmd.type === "CreateStair") {
+        expect(cmd.stairType).toBe("spiral");
+        expect(cmd.risers).toBe(16);
+      }
+    });
+
+    it("fails without position", () => {
+      const result = parse("stair --risers 14");
+      expect(result.success).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("help command", () => {
     it("parses help command", () => {
       const result = parse("help");
