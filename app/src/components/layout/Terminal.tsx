@@ -258,9 +258,9 @@ export function Terminal({
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
-    // Handle input
+    // Handle input via ref to avoid stale closure
     terminal.onData((data) => {
-      handleInput(terminal, data);
+      handleInputRef.current?.(terminal, data);
     });
 
     return () => {
@@ -379,6 +379,9 @@ export function Terminal({
 
   // Track escape sequence state for history navigation (Up/Down arrows)
   const escapeBufferRef = useRef("");
+
+  // Ref to always hold the latest handleInput, avoiding stale closure in onData
+  const handleInputRef = useRef<(terminal: XTerminal, data: string) => void>();
 
   const handleInput = useCallback(
     (terminal: XTerminal, data: string) => {
@@ -552,6 +555,9 @@ export function Terminal({
     ],
   );
 
+  // Keep ref in sync so onData always calls the latest handleInput
+  handleInputRef.current = handleInput;
+
   // Format MCP result for terminal display
   const formatMcpResult = (
     terminal: XTerminal,
@@ -708,6 +714,13 @@ export function Terminal({
     return result;
   };
 
+  // Set of commands that should be routed through the DSL parser
+  // for natural syntax support (e.g., `wall 0,0 10,0 3`)
+  const DSL_COMMANDS = new Set([
+    "wall", "walls", "floor", "roof", "room", "door", "window",
+    "opening", "rect", "box",
+  ]);
+
   const processCommand = async (terminal: XTerminal, cmd: string) => {
     const trimmed = cmd.trim();
 
@@ -717,6 +730,36 @@ export function Terminal({
     }
 
     const [command, ...args] = trimmed.split(/\s+/);
+
+    // Route DSL-recognized element commands through the DSL parser
+    // This enables natural syntax like `wall 0,0 10,0 3` alongside `wall --start 0,0 --end 10,0`
+    if (DSL_COMMANDS.has(command.toLowerCase())) {
+      const selectedIds = useSelectionStore.getState().selectedIds;
+      const context: ExecutionContext = { selectedIds };
+
+      const dslResult = await executeDsl(trimmed, context);
+
+      if (dslResult.success && dslResult.commandResults.length > 0) {
+        dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
+        if (dslResult.createdElementIds.length > 1) {
+          terminal.writeln(
+            `\x1b[36mCreated ${dslResult.createdElementIds.length} element(s)\x1b[0m`
+          );
+        }
+      } else {
+        dslResult.terminalOutput.forEach((line) => terminal.writeln(line));
+        if (dslResult.terminalOutput.length === 0) {
+          terminal.writeln(`\x1b[31mFailed: ${dslResult.message}\x1b[0m`);
+        }
+      }
+
+      // Record command if recording
+      if (isRecording && command.toLowerCase() !== "macro" && trimmed.length > 0) {
+        setRecordingCommands((prev) => [...prev, trimmed]);
+      }
+      writePrompt(terminal);
+      return;
+    }
 
     switch (command.toLowerCase()) {
       case "help": {
@@ -954,132 +997,8 @@ export function Terminal({
         break;
       }
 
-      case "wall": {
-        const parsed = parseArgs(args);
-        if (!parsed.start || !parsed.end) {
-          terminal.writeln(
-            "\x1b[31mUsage: wall --start x,y --end x,y [--height h] [--thickness t]\x1b[0m",
-          );
-          terminal.writeln(
-            "  Example: wall --start 0,0 --end 5,0 --height 3.0",
-          );
-          break;
-        }
-        terminal.writeln("\x1b[33mCreating wall...\x1b[0m");
-        // Use command dispatcher to create wall and update model store
-        const result = await dispatchCommand("wall", parsed);
-        formatCommandResult(terminal, result, "wall");
-        break;
-      }
-
-      case "floor": {
-        const parsed = parseArgs(args);
-        if (!parsed.min || !parsed.max) {
-          terminal.writeln(
-            "\x1b[31mUsage: floor --min x,y --max x,y [--thickness t]\x1b[0m",
-          );
-          terminal.writeln("  Example: floor --min 0,0 --max 10,10");
-          break;
-        }
-        terminal.writeln("\x1b[33mCreating floor...\x1b[0m");
-        // Use command dispatcher to create floor and update model store
-        const result = await dispatchCommand("floor", parsed);
-        formatCommandResult(terminal, result, "floor");
-        break;
-      }
-
-      case "room": {
-        const parsed = parseArgs(args);
-        if (!parsed.min || !parsed.max) {
-          terminal.writeln(
-            "\x1b[31mUsage: room --min x,y --max x,y [--name name] [--number num]\x1b[0m",
-          );
-          terminal.writeln(
-            "  Example: room --min 0,0 --max 5,5 --name Kitchen",
-          );
-          break;
-        }
-        terminal.writeln("\x1b[33mCreating room...\x1b[0m");
-        // Use command dispatcher to create room and update model store
-        const result = await dispatchCommand("room", parsed);
-        formatCommandResult(terminal, result, "room");
-        break;
-      }
-
-      case "roof": {
-        const parsed = parseArgs(args);
-        if (!parsed.min || !parsed.max) {
-          terminal.writeln(
-            "\x1b[31mUsage: roof --min x,y --max x,y [--type flat|gable|hip] [--slope deg]\x1b[0m",
-          );
-          terminal.writeln(
-            "  Example: roof --min 0,0 --max 10,10 --type gable --slope 30",
-          );
-          break;
-        }
-        terminal.writeln("\x1b[33mCreating roof...\x1b[0m");
-        // Use command dispatcher to create roof and update model store
-        const result = await dispatchCommand("roof", parsed);
-        formatCommandResult(terminal, result, "roof");
-        break;
-      }
-
-      case "door": {
-        const parsed = parseArgs(args);
-        if (!parsed.wall) {
-          terminal.writeln(
-            "\x1b[31mUsage: door --wall <wall_id> --offset <m> [--width w] [--height h] [--type single|double|sliding]\x1b[0m",
-          );
-          terminal.writeln(
-            "  Example: door --wall wall-north --offset 2.5",
-          );
-          terminal.writeln(
-            "  Example: door --wall wall-south --offset 1.5 --type double",
-          );
-          terminal.writeln("");
-          terminal.writeln("  \x1b[36mOffset\x1b[0m: Distance from wall start (in meters)");
-          terminal.writeln("  \x1b[36mTypes\x1b[0m: single (default), double (2x width), sliding");
-          break;
-        }
-        const doorOffset = parsed.offset ?? parsed.position ?? 0.5;
-        terminal.writeln(`\x1b[33mPlacing door at offset ${doorOffset}m...\x1b[0m`);
-        // Use command dispatcher to create door and update model store
-        const result = await dispatchCommand("door", {
-          ...parsed,
-          offset: doorOffset,
-        });
-        formatCommandResult(terminal, result, "door");
-        break;
-      }
-
-      case "window": {
-        const parsed = parseArgs(args);
-        if (!parsed.wall) {
-          terminal.writeln(
-            "\x1b[31mUsage: window --wall <wall_id> --offset <m> [--width w] [--height h] [--sill s] [--type fixed|casement|awning]\x1b[0m",
-          );
-          terminal.writeln(
-            "  Example: window --wall wall-north --offset 2.0",
-          );
-          terminal.writeln(
-            "  Example: window --wall wall-north --offset 1.5 --sill 0.9 --type casement",
-          );
-          terminal.writeln("");
-          terminal.writeln("  \x1b[36mOffset\x1b[0m: Distance from wall start (in meters)");
-          terminal.writeln("  \x1b[36mSill\x1b[0m: Sill height from floor (default 0.9m)");
-          terminal.writeln("  \x1b[36mTypes\x1b[0m: fixed (default), casement, awning, sliding");
-          break;
-        }
-        const windowOffset = parsed.offset ?? parsed.position ?? 0.5;
-        terminal.writeln(`\x1b[33mPlacing window at offset ${windowOffset}m...\x1b[0m`);
-        // Use command dispatcher to create window and update model store
-        const result = await dispatchCommand("window", {
-          ...parsed,
-          offset: windowOffset,
-        });
-        formatCommandResult(terminal, result, "window");
-        break;
-      }
+      // wall, floor, roof, room, door, window, rect, box, walls, opening
+      // are now handled by the DSL parser above the switch statement
 
       case "detect-rooms": {
         terminal.writeln(

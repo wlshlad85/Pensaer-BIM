@@ -52,7 +52,7 @@ export interface ExecutionResult {
 
 const COMMAND_TO_TOOL: Record<string, string> = {
   CreateWall: "wall",
-  CreateRectWalls: "rect-walls",
+  CreateRectWalls: "__rect_walls__", // Handled specially in executeCommand
   ModifyWall: "modify",
   PlaceDoor: "door",
   ModifyDoor: "modify",
@@ -142,6 +142,11 @@ export async function executeCommand(
     };
   }
 
+  // Handle CreateRectWalls by expanding to 4 wall commands
+  if (command.type === "CreateRectWalls") {
+    return executeRectWalls(command as import("./ast").CreateRectWallsCommand, context);
+  }
+
   // Convert AST command to MCP arguments
   let args = commandToMcpArgs(command);
 
@@ -156,10 +161,16 @@ export async function executeCommand(
   // Resolve any variable references
   args = resolveVariablesInArgs(args, context);
 
+  // Map DSL arg names to command handler arg names
+  // DSL produces wall_id, command handler expects wall
+  if (args.wall_id && !args.wall) {
+    args.wall = args.wall_id;
+  }
+
   // Check for unresolved required references
   if (
     (command.type === "PlaceDoor" || command.type === "PlaceWindow") &&
-    !args.wall_id
+    !args.wall_id && !args.wall
   ) {
     return {
       success: false,
@@ -167,8 +178,57 @@ export async function executeCommand(
     };
   }
 
-  // Dispatch to MCP tool
+  // Dispatch to command handler
   return dispatchCommand(toolName, args);
+}
+
+/**
+ * Execute CreateRectWalls by creating 4 individual walls
+ */
+async function executeRectWalls(
+  command: import("./ast").CreateRectWallsCommand,
+  context: ExecutionContext
+): Promise<CommandResult> {
+  const { minPoint, maxPoint, height, thickness } = command;
+
+  // Define 4 walls: bottom, right, top, left
+  const walls: Array<{ start: number[]; end: number[] }> = [
+    { start: [minPoint.x, minPoint.y], end: [maxPoint.x, minPoint.y] }, // bottom
+    { start: [maxPoint.x, minPoint.y], end: [maxPoint.x, maxPoint.y] }, // right
+    { start: [maxPoint.x, maxPoint.y], end: [minPoint.x, maxPoint.y] }, // top
+    { start: [minPoint.x, maxPoint.y], end: [minPoint.x, minPoint.y] }, // left
+  ];
+
+  const createdIds: string[] = [];
+  for (const w of walls) {
+    const result = await dispatchCommand("wall", {
+      start: w.start,
+      end: w.end,
+      height,
+      thickness,
+    });
+    if (!result.success) {
+      return {
+        success: false,
+        message: `Failed creating rect wall: ${result.message}`,
+        data: { created_so_far: createdIds },
+      };
+    }
+    if (result.elementCreated) {
+      createdIds.push(result.elementCreated.id);
+      context.lastElementId = result.elementCreated.id;
+      context.wallId = result.elementCreated.id;
+    }
+  }
+
+  return {
+    success: true,
+    message: `Created 4 walls forming rectangle`,
+    data: { wall_ids: createdIds, count: 4 },
+    elementCreated: createdIds.length > 0
+      ? { id: createdIds[createdIds.length - 1], type: "wall" }
+      : undefined,
+  };
 }
 
 // =============================================================================
