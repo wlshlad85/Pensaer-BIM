@@ -27,6 +27,8 @@ export enum TokenType {
   DOOR = "DOOR",
   WINDOW = "WINDOW",
   OPENING = "OPENING",
+  COLUMN = "COLUMN",
+  BEAM = "BEAM",
   CREATE = "CREATE",
   PLACE = "PLACE",
   ADD = "ADD",
@@ -150,6 +152,9 @@ export enum TokenType {
   LONG_NUMBER = "LONG_NUMBER",
   LONG_MIN = "LONG_MIN",
   LONG_MAX = "LONG_MAX",
+  LONG_DEPTH = "LONG_DEPTH",
+  LONG_SHAPE = "LONG_SHAPE",
+  LONG_POSITION = "LONG_POSITION",
 
   // Variables
   VAR_LAST = "VAR_LAST",
@@ -196,6 +201,8 @@ export const KEYWORDS: Record<string, TokenType> = {
   door: TokenType.DOOR,
   window: TokenType.WINDOW,
   opening: TokenType.OPENING,
+  column: TokenType.COLUMN,
+  beam: TokenType.BEAM,
   create: TokenType.CREATE,
   place: TokenType.PLACE,
   add: TokenType.ADD,
@@ -316,6 +323,9 @@ export const LONG_OPTIONS: Record<string, TokenType> = {
   number: TokenType.LONG_NUMBER,
   min: TokenType.LONG_MIN,
   max: TokenType.LONG_MAX,
+  depth: TokenType.LONG_DEPTH,
+  shape: TokenType.LONG_SHAPE,
+  position: TokenType.LONG_POSITION,
 };
 
 /**

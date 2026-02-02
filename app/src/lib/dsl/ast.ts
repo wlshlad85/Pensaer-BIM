@@ -254,6 +254,35 @@ export interface CreateRoomCommand extends BaseCommand {
 }
 
 // =============================================================================
+// Column Command
+// =============================================================================
+
+export interface CreateColumnCommand extends BaseCommand {
+  type: "CreateColumn";
+  position: Point2D;
+  width: number;
+  depth: number;
+  height: number;
+  shape?: string;
+  material?: string;
+  levelId?: string;
+}
+
+// =============================================================================
+// Beam Command
+// =============================================================================
+
+export interface CreateBeamCommand extends BaseCommand {
+  type: "CreateBeam";
+  start: Point2D;
+  end: Point2D;
+  width: number;
+  depth: number;
+  material?: string;
+  levelId?: string;
+}
+
+// =============================================================================
 // Help Command
 // =============================================================================
 
@@ -278,6 +307,8 @@ export type Command =
   | PlaceWindowCommand
   | ModifyWindowCommand
   | CreateOpeningCommand
+  | CreateColumnCommand
+  | CreateBeamCommand
   | HelpCommand;
 
 // =============================================================================
@@ -399,6 +430,27 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
         ...(cmd.number && { number: cmd.number }),
         ...(cmd.roomType && { room_type: cmd.roomType }),
         height: cmd.height,
+        ...(cmd.levelId && { level_id: cmd.levelId }),
+      };
+
+    case "CreateColumn":
+      return {
+        position: [cmd.position.x, cmd.position.y],
+        width: cmd.width,
+        depth: cmd.depth,
+        height: cmd.height,
+        ...(cmd.shape && { shape: cmd.shape }),
+        ...(cmd.material && { material: cmd.material }),
+        ...(cmd.levelId && { level_id: cmd.levelId }),
+      };
+
+    case "CreateBeam":
+      return {
+        start: [cmd.start.x, cmd.start.y],
+        end: [cmd.end.x, cmd.end.y],
+        width: cmd.width,
+        depth: cmd.depth,
+        ...(cmd.material && { material: cmd.material }),
         ...(cmd.levelId && { level_id: cmd.levelId }),
       };
 

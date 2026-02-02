@@ -1204,6 +1204,207 @@ async function placeWindowHandler(
 }
 
 // ============================================
+// COLUMN COMMAND
+// ============================================
+
+async function createColumnHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  let position = args.position as number[] | undefined;
+  const positional = args._positional as unknown[] | undefined;
+
+  if (!position && positional && positional.length >= 1) {
+    const first = positional[0];
+    if (Array.isArray(first) && first.length >= 2) {
+      position = first as number[];
+    }
+  }
+
+  if (!position) {
+    return {
+      success: false,
+      message: "Missing required parameter: --position (or positional: column x,y)",
+    };
+  }
+
+  const width = (args.width as number) || 0.4;
+  const depth = (args.depth as number) || 0.4;
+  const height = (args.height as number) || 3.0;
+  const shape = (args.shape as string) || "rectangular";
+  const material = (args.material as string) || "Concrete";
+  const level = (args.level as string) || "Level 1";
+
+  const result = await callMcpTool("create_column", {
+    position,
+    width,
+    depth,
+    height,
+    shape,
+    material,
+    level,
+  });
+
+  if (result.success && result.data) {
+    const columnId = result.data.column_id as string || `col-${crypto.randomUUID().slice(0, 8)}`;
+
+    const columnElement: Element = {
+      id: columnId,
+      type: "column",
+      name: `Column ${columnId.slice(-4)}`,
+      x: position[0] * SCALE - (width * SCALE) / 2,
+      y: position[1] * SCALE - (depth * SCALE) / 2,
+      width: width * SCALE,
+      height: depth * SCALE,
+      properties: {
+        width: `${width * 1000}mm`,
+        depth: `${depth * 1000}mm`,
+        height: `${height * 1000}mm`,
+        shape,
+        material,
+        structural: true,
+        level,
+        position_x: position[0],
+        position_y: position[1],
+      },
+      relationships: {
+        supports: [],
+        supportedBy: [],
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    useModelStore.getState().addElement(columnElement);
+    useHistoryStore.getState().recordAction(`Create column ${columnId}`);
+
+    return {
+      success: true,
+      message: `Created column: ${columnId}`,
+      data: {
+        column_id: columnId,
+        position,
+        width,
+        depth,
+        height,
+        shape,
+        material,
+      },
+      elementCreated: { id: columnId, type: "column" },
+    };
+  }
+
+  return result;
+}
+
+// ============================================
+// BEAM COMMAND
+// ============================================
+
+async function createBeamHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  let start = args.start as number[] | undefined;
+  let end = args.end as number[] | undefined;
+  const positional = args._positional as unknown[] | undefined;
+
+  if (!start && !end && positional && positional.length >= 2) {
+    const first = positional[0];
+    const second = positional[1];
+    if (Array.isArray(first) && first.length >= 2) {
+      start = first as number[];
+    }
+    if (Array.isArray(second) && second.length >= 2) {
+      end = second as number[];
+    }
+  }
+
+  if (!start || !end) {
+    return {
+      success: false,
+      message: "Missing required parameters: --start and --end (or positional: beam x1,y1 x2,y2)",
+    };
+  }
+
+  if (start[0] === end[0] && start[1] === end[1]) {
+    return {
+      success: false,
+      message: "Beam start and end points cannot be the same",
+    };
+  }
+
+  const width = (args.width as number) || 0.3;
+  const depth = (args.depth as number) || 0.5;
+  const material = (args.material as string) || "Steel";
+  const level = (args.level as string) || "Level 1";
+
+  const span = Math.sqrt(
+    Math.pow(end[0] - start[0], 2) + Math.pow(end[1] - start[1], 2)
+  );
+
+  const result = await callMcpTool("create_beam", {
+    start,
+    end,
+    width,
+    depth,
+    material,
+    level,
+  });
+
+  if (result.success && result.data) {
+    const beamId = result.data.beam_id as string || `beam-${crypto.randomUUID().slice(0, 8)}`;
+    const isHorizontal = Math.abs(end[0] - start[0]) >= Math.abs(end[1] - start[1]);
+
+    const beamElement: Element = {
+      id: beamId,
+      type: "beam",
+      name: `Beam ${beamId.slice(-4)}`,
+      x: start[0] * SCALE,
+      y: start[1] * SCALE,
+      width: isHorizontal ? span * SCALE : width * SCALE,
+      height: isHorizontal ? width * SCALE : span * SCALE,
+      properties: {
+        width: `${width * 1000}mm`,
+        depth: `${depth * 1000}mm`,
+        span: `${span.toFixed(2)}m`,
+        material,
+        structural: true,
+        level,
+        start_x: start[0],
+        start_y: start[1],
+        end_x: end[0],
+        end_y: end[1],
+      },
+      relationships: {
+        supports: [],
+        supportedBy: [],
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    useModelStore.getState().addElement(beamElement);
+    useHistoryStore.getState().recordAction(`Create beam ${beamId}`);
+
+    return {
+      success: true,
+      message: `Created beam: ${beamId} (span: ${span.toFixed(2)}m)`,
+      data: {
+        beam_id: beamId,
+        span: span.toFixed(2),
+        width,
+        depth,
+        material,
+      },
+      elementCreated: { id: beamId, type: "beam" },
+    };
+  }
+
+  return result;
+}
+
+// ============================================
 // DELETE COMMAND
 // ============================================
 
@@ -1451,6 +1652,30 @@ export function registerElementCommands(): void {
       "room --points 0,0 6,0 6,4 3,4 3,2 0,2 --name \"L-Shaped Room\"",
     ],
     handler: createRoomHandler,
+  });
+
+  registerCommand({
+    name: "column",
+    description: "Create a column element",
+    usage: "column --position x,y [--width w] [--depth d] [--height h] [--shape rect|circular] [--material m]",
+    examples: [
+      "column 5,3",
+      "column --position 5,3 --width 0.4 --depth 0.4 --height 3.0",
+      "column --position 2,2 --shape circular --material Steel",
+    ],
+    handler: createColumnHandler,
+  });
+
+  registerCommand({
+    name: "beam",
+    description: "Create a beam element",
+    usage: "beam --start x,y --end x,y [--width w] [--depth d] [--material m]",
+    examples: [
+      "beam 0,0 10,0",
+      "beam --start 0,0 --end 10,0 --width 0.3 --depth 0.5",
+      "beam --start 0,0 --end 5,5 --material Concrete",
+    ],
+    handler: createBeamHandler,
   });
 
   registerCommand({
