@@ -10,6 +10,18 @@ import { immer } from "zustand/middleware/immer";
 import type { Element, ElementType, Level } from "../types";
 import { createInitialElements, createInitialLevels } from "./demo";
 
+/**
+ * Ensure an element has CDE default fields (WIP / S0 / empty history).
+ */
+function withCDEDefaults<T extends Element>(el: T): T {
+  return {
+    ...el,
+    cdeState: el.cdeState ?? "WIP",
+    suitabilityCode: el.suitabilityCode ?? "S0",
+    cdeHistory: el.cdeHistory ?? [],
+  };
+}
+
 // ============================================
 // STORE INTERFACE
 // ============================================
@@ -74,8 +86,8 @@ type ModelStore = ModelState & ModelActions;
 
 export const useModelStore = create<ModelStore>()(
   immer((set, get) => ({
-    // Initial State
-    elements: createInitialElements(),
+    // Initial State (with CDE defaults)
+    elements: createInitialElements().map(withCDEDefaults),
     levels: createInitialLevels(),
     isLoading: false,
     error: null,
@@ -83,7 +95,7 @@ export const useModelStore = create<ModelStore>()(
     // CRUD Operations
     addElement: (element) =>
       set((state) => {
-        state.elements.push(element);
+        state.elements.push(withCDEDefaults(element));
       }),
 
     updateElement: (id, updates) =>
@@ -148,7 +160,7 @@ export const useModelStore = create<ModelStore>()(
     // Bulk Operations
     setElements: (elements) =>
       set((state) => {
-        state.elements = elements;
+        state.elements = elements.map(withCDEDefaults);
       }),
 
     clearElements: () =>

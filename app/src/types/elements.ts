@@ -9,6 +9,7 @@
 
 import type { Relationships } from "./relationships";
 import type { Issue, Suggestion } from "./validation";
+import type { CDEState, SuitabilityCode, CDETransitionRecord } from "./cde";
 
 // ============================================
 // BRANDED TYPES
@@ -110,6 +111,15 @@ export interface BaseElement {
 
   /** Timestamp when element was last modified */
   modifiedAt?: number;
+
+  /** CDE workflow state per ISO 19650 */
+  cdeState: CDEState;
+
+  /** Suitability code (relevant when cdeState is 'Shared') */
+  suitabilityCode: SuitabilityCode;
+
+  /** Audit trail of CDE state transitions */
+  cdeHistory: CDETransitionRecord[];
 }
 
 // ============================================

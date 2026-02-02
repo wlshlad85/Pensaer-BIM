@@ -6,6 +6,7 @@
 
 export { registerElementCommands } from "./handlers/elementCommands";
 export { registerBuiltinCommands } from "./handlers/builtinCommands";
+export { registerCDECommands } from "./handlers/cdeCommands";
 
 // Re-export dispatcher types and functions
 export {
@@ -42,6 +43,7 @@ export {
 
 import { registerBuiltinCommands as _registerBuiltinCommands } from "./handlers/builtinCommands";
 import { registerElementCommands as _registerElementCommands } from "./handlers/elementCommands";
+import { registerCDECommands as _registerCDECommands } from "./handlers/cdeCommands";
 
 /**
  * Initialize all command handlers
@@ -53,4 +55,7 @@ export function initializeCommands(): void {
 
   // Register element commands (wall, floor, roof, etc.)
   _registerElementCommands();
+
+  // Register CDE workflow commands (share, publish, archive, cde status)
+  _registerCDECommands();
 }

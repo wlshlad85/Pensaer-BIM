@@ -11,6 +11,21 @@
 // RE-EXPORTS FROM SPECIALIZED MODULES
 // ============================================
 
+// CDE types (ISO 19650)
+export type {
+  CDEState,
+  SuitabilityCode,
+  CDETransitionRecord,
+} from "./cde";
+
+export {
+  CDE_STATES,
+  SUITABILITY_CODES,
+  VALID_TRANSITIONS,
+  CDE_STATE_COLOURS,
+  isValidTransition,
+} from "./cde";
+
 // Element types and type guards
 export type {
   ElementId,

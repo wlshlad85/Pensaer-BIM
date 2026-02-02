@@ -32,6 +32,7 @@ import {
   WindowElement,
   RoomElement,
 } from "./elements";
+import { CDEBadge } from "./CDEBadge";
 
 const CANVAS_WIDTH = 2000;
 const CANVAS_HEIGHT = 1500;
@@ -904,6 +905,11 @@ export function Canvas2D() {
 
         {/* Elements */}
         {sortedElements.map(renderElement)}
+
+        {/* CDE state badges (rendered on top of elements) */}
+        {sortedElements.map((el) => (
+          <CDEBadge key={`cde-${el.id}`} element={el} />
+        ))}
 
         {/* Drawing preview */}
         {isDrawing && (
