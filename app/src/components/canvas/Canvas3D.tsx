@@ -12,6 +12,7 @@ import { Evaluator, Brush, SUBTRACTION } from "three-bvh-csg";
 import { useModelStore, useSelectionStore } from "../../stores";
 import { ViewCube } from "./ViewCube";
 import { FPSCounter } from "../FPSCounter";
+import { useZoomToFit } from "../../hooks/useZoomToFit";
 import type { Element } from "../../types";
 import { getWallEndpoints, distance } from "../../utils/geometry";
 
@@ -397,6 +398,13 @@ export function Canvas3D() {
   const select = useSelectionStore((s) => s.select);
   const addToSelection = useSelectionStore((s) => s.addToSelection);
   const toggleSelection = useSelectionStore((s) => s.toggleSelection);
+
+  // Zoom to Fit — F key, toolbar button, and programmatic event
+  const zoomToFit = useZoomToFit({
+    camera: cameraRef.current,
+    controls: controlsRef.current,
+    elements,
+  });
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -1494,6 +1502,14 @@ export function Canvas3D() {
           }}
         >
           <i className="fa-solid fa-minus text-xs"></i>
+        </button>
+        <button
+          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white"
+          onClick={zoomToFit}
+          title="Zoom to Fit (F)"
+          data-testid="zoom-to-fit-btn"
+        >
+          <i className="fa-solid fa-expand text-xs"></i>
         </button>
       </div>
 

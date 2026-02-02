@@ -16,6 +16,7 @@ import {
   HIGH_RISE_METADATA,
 } from "./highRiseDemo";
 import { DEMO_COMMANDS } from "../services/demo";
+import { dispatchZoomToFit } from "../hooks/useZoomToFit";
 
 // ============================================
 // TIMING CONFIGURATION
@@ -266,6 +267,9 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
 
       // Completion
       if (!abortRef.current) {
+        // Auto-frame the model so the user sees the full building
+        dispatchZoomToFit();
+
         callbacks.writeLineToTerminal("");
         callbacks.writeLineToTerminal(
           "\x1b[1;32m╔══════════════════════════════════════════════╗\x1b[0m"
