@@ -859,6 +859,14 @@ export function Terminal({
               "  \x1b[32mclearance\x1b[0m         - Check clearance: clearance --element <id> --type door_swing",
             );
             terminal.writeln("");
+            terminal.writeln("\x1b[1;33mExport Commands:\x1b[0m");
+            terminal.writeln(
+              "  \x1b[32mexport ifc\x1b[0m            - Export model to IFC4 format (browser download)",
+            );
+            terminal.writeln(
+              "                            Options: --version IFC2X3|IFC4 --project --author --org --dry-run",
+            );
+            terminal.writeln("");
             terminal.writeln("\x1b[1;33mMacro Commands:\x1b[0m");
             terminal.writeln(
               "  \x1b[32mmacro record <name>\x1b[0m - Start recording commands to a macro",
@@ -1518,6 +1526,33 @@ export function Terminal({
             terminal.writeln(
               "  \x1b[32mmacro delete <name>\x1b[0m   - Delete a macro",
             );
+        }
+        break;
+      }
+
+      case "export": {
+        // Route through command dispatcher (handles "export ifc" subcommand)
+        const parsed = parseArgs(args);
+        // Pass 'ifc' (or whatever subcommand) as positional
+        if (!parsed._positional && args.length > 0) {
+          parsed._positional = args.filter((a: string) => !a.startsWith("--")).map((a: string) => a);
+        }
+        terminal.writeln("\x1b[33mExporting model...\x1b[0m");
+        const result = await dispatchCommand("export", parsed);
+        if (result.success) {
+          terminal.writeln(`\x1b[32m✓ ${result.message}\x1b[0m`);
+          if (result.data?.stats) {
+            const stats = result.data.stats as Record<string, number>;
+            const entries = Object.entries(stats).filter(([k, v]) => k !== "totalEntities" && v > 0);
+            if (entries.length > 0) {
+              terminal.writeln("  \x1b[36mExported:\x1b[0m");
+              for (const [type, count] of entries) {
+                terminal.writeln(`    ${type}: ${count}`);
+              }
+            }
+          }
+        } else {
+          terminal.writeln(`\x1b[31m✗ ${result.message}\x1b[0m`);
         }
         break;
       }

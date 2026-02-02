@@ -416,6 +416,7 @@ export const KNOWN_COMMANDS = [
   "rectangle",
   "box",
   "help",
+  "stair",
   "create",
   "place",
   "add",

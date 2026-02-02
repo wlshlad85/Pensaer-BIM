@@ -27,6 +27,7 @@ export enum TokenType {
   DOOR = "DOOR",
   WINDOW = "WINDOW",
   OPENING = "OPENING",
+  STAIR = "STAIR",
   CREATE = "CREATE",
   PLACE = "PLACE",
   ADD = "ADD",
@@ -103,6 +104,14 @@ export enum TokenType {
   STORAGE = "STORAGE",
   GENERIC = "GENERIC",
 
+  STRAIGHT = "STRAIGHT",
+  L_SHAPED = "L_SHAPED",
+  U_SHAPED = "U_SHAPED",
+  SPIRAL = "SPIRAL",
+  RISERS = "RISERS",
+  RISER_HEIGHT = "RISER_HEIGHT",
+  TREAD_DEPTH = "TREAD_DEPTH",
+
   // Swing Directions
   LEFT = "LEFT",
   RIGHT = "RIGHT",
@@ -150,6 +159,10 @@ export enum TokenType {
   LONG_NUMBER = "LONG_NUMBER",
   LONG_MIN = "LONG_MIN",
   LONG_MAX = "LONG_MAX",
+  LONG_POSITION = "LONG_POSITION",
+  LONG_RISERS = "LONG_RISERS",
+  LONG_RISER_HEIGHT = "LONG_RISER_HEIGHT",
+  LONG_TREAD_DEPTH = "LONG_TREAD_DEPTH",
 
   // Variables
   VAR_LAST = "VAR_LAST",
@@ -196,6 +209,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   door: TokenType.DOOR,
   window: TokenType.WINDOW,
   opening: TokenType.OPENING,
+  stair: TokenType.STAIR,
   create: TokenType.CREATE,
   place: TokenType.PLACE,
   add: TokenType.ADD,
@@ -264,7 +278,15 @@ export const KEYWORDS: Record<string, TokenType> = {
   office: TokenType.OFFICE,
   storage: TokenType.STORAGE,
   generic: TokenType.GENERIC,
-  // Swing directions
+  straight: TokenType.STRAIGHT,
+  "l-shaped": TokenType.L_SHAPED,
+  l: TokenType.L_SHAPED,
+  "u-shaped": TokenType.U_SHAPED,
+  u: TokenType.U_SHAPED,
+  spiral: TokenType.SPIRAL,
+  risers: TokenType.RISERS,
+  "riser-height": TokenType.RISER_HEIGHT,
+  "tread-depth": TokenType.TREAD_DEPTH,
   left: TokenType.LEFT,
   right: TokenType.RIGHT,
   both: TokenType.BOTH,
@@ -316,6 +338,10 @@ export const LONG_OPTIONS: Record<string, TokenType> = {
   number: TokenType.LONG_NUMBER,
   min: TokenType.LONG_MIN,
   max: TokenType.LONG_MAX,
+  position: TokenType.LONG_POSITION,
+  risers: TokenType.LONG_RISERS,
+  "riser-height": TokenType.LONG_RISER_HEIGHT,
+  "tread-depth": TokenType.LONG_TREAD_DEPTH,
 };
 
 /**
