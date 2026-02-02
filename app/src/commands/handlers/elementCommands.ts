@@ -14,6 +14,7 @@ import {
 import { useModelStore } from "../../stores/modelStore";
 import { useHistoryStore } from "../../stores/historyStore";
 import type { Element } from "../../types";
+import { detectWallJoins, applyJoinUpdates } from "../../services/wallJoinDetector";
 
 // Scale factor: 100 pixels per meter
 const SCALE = 100;
@@ -122,6 +123,21 @@ async function createWallHandler(
     };
 
     useModelStore.getState().addElement(wallElement);
+
+    // P1-008: Detect wall joins with existing walls
+    const store = useModelStore.getState();
+    const existingWalls = store.elements.filter(
+      (el) => el.type === "wall" && el.id !== wallElement.id
+    );
+    const joinResult = detectWallJoins(wallElement, existingWalls);
+    if (joinResult.joins.length > 0) {
+      applyJoinUpdates(
+        joinResult,
+        store.updateElement.bind(store),
+        store.getElementById.bind(store)
+      );
+    }
+
     useHistoryStore.getState().recordAction(`Create wall ${wallId}`);
 
     return {
