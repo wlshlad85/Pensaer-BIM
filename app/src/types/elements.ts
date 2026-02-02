@@ -61,7 +61,8 @@ export type ElementType =
   | "roof"
   | "column"
   | "beam"
-  | "stair";
+  | "stair"
+  | "gridline";
 
 // ============================================
 // BASE ELEMENT INTERFACE
@@ -392,6 +393,29 @@ export interface StairElement extends BaseElement {
   isEnclosed?: boolean;
 }
 
+/**
+ * GridLine element - reference/datum line for structural layout.
+ * Grid lines render as dashed lines spanning the canvas extent.
+ */
+export interface GridLineElement extends BaseElement {
+  readonly type: "gridline";
+
+  /** Grid line label (e.g. "A", "1", "B2") */
+  label: string;
+
+  /** Axis direction: x = vertical line, y = horizontal line */
+  axis: "x" | "y";
+
+  /** Position along the perpendicular axis in model space (meters) */
+  position: number;
+
+  /** Line color override */
+  lineColor?: string;
+
+  /** Bubble size in pixels */
+  bubbleSize?: number;
+}
+
 // ============================================
 // DISCRIMINATED UNION
 // ============================================
@@ -424,7 +448,8 @@ export type Element =
   | RoofElement
   | ColumnElement
   | BeamElement
-  | StairElement;
+  | StairElement
+  | GridLineElement;
 
 // ============================================
 // TYPE GUARDS
@@ -491,6 +516,13 @@ export function isBeam(element: Element): element is BeamElement {
  */
 export function isStair(element: Element): element is StairElement {
   return element.type === "stair";
+}
+
+/**
+ * Type guard to check if an element is a GridLineElement.
+ */
+export function isGridLine(element: Element): element is GridLineElement {
+  return element.type === "gridline";
 }
 
 /**
