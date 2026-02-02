@@ -15,6 +15,7 @@ import type {
   CreateFloorCommand,
   CreateRoofCommand,
   CreateRoomCommand,
+  PassthroughCommand,
   PlaceDoorCommand,
   PlaceWindowCommand,
   CreateOpeningCommand,
@@ -191,23 +192,11 @@ export class Parser {
       return this.parseRectWallsCommand();
     } else if (this.match(TokenType.HELP)) {
       return this.parseHelpCommand();
+    } else if (this.match(TokenType.IDENTIFIER)) {
+      // Unknown command — treat as passthrough to command handler registry
+      return this.parsePassthroughCommand();
     } else {
-      // Try to provide helpful suggestions for unknown commands
-      const tokenValue = this.current.value;
-      if (this.match(TokenType.IDENTIFIER) && typeof tokenValue === "string") {
-        const suggestions = findSimilar(tokenValue, KNOWN_COMMANDS);
-        if (suggestions.length > 0) {
-          this.error(
-            `Unknown command: '${tokenValue}'. Did you mean: ${suggestions.join(", ")}?`
-          );
-        } else {
-          this.error(
-            `Unknown command: '${tokenValue}'. Type 'help' for available commands.`
-          );
-        }
-      } else {
-        this.error(`Unexpected token: ${this.currentType}`);
-      }
+      this.error(`Unexpected token: ${this.currentType}`);
       this.advance();
       return null;
     }
@@ -808,6 +797,104 @@ export class Parser {
       line: startToken.line,
       column: startToken.column,
     };
+  }
+
+  // =========================================================================
+  // Passthrough Commands (non-DSL commands routed through unified pipeline)
+  // =========================================================================
+
+  /**
+   * Parse an unrecognized command as a passthrough.
+   * Collects all remaining tokens on the line as raw arguments,
+   * and parses --key value pairs into a structured args map.
+   */
+  private parsePassthroughCommand(): PassthroughCommand {
+    const startToken = this.advance(); // consume command name identifier
+    const commandName = String(startToken.value ?? startToken.raw);
+    const rawArgs: string[] = [];
+    const parsedArgs: Record<string, unknown> = {};
+
+    // Collect all tokens until newline or EOF
+    while (!this.match(TokenType.NEWLINE, TokenType.EOF)) {
+      const tok = this.current;
+
+      // Handle --key value long options (both known and unknown)
+      const isLongOption = tok.type === TokenType.LONG_OPTION_UNKNOWN || tok.raw.startsWith("--");
+      if (isLongOption) {
+        const key = String(tok.value ?? tok.raw).replace(/^--/, "");
+        this.advance();
+        // Check if next token is a value (not another flag or end)
+        const nextIsValue = !this.match(TokenType.NEWLINE, TokenType.EOF)
+          && this.current.type !== TokenType.LONG_OPTION_UNKNOWN
+          && !this.current.raw.startsWith("--");
+        if (nextIsValue) {
+          // Collect value, handling comma-separated coordinates like 5,5
+          const valTok = this.advance();
+          let value: unknown = valTok.value ?? valTok.raw;
+          let valStr = String(value);
+
+          // Check for coordinate pattern: NUMBER COMMA NUMBER [COMMA NUMBER]*
+          if (this.match(TokenType.COMMA) && (valTok.type === TokenType.INTEGER || valTok.type === TokenType.FLOAT)) {
+            const coords: number[] = [Number(value)];
+            while (this.match(TokenType.COMMA)) {
+              this.advance(); // consume comma
+              if (this.match(TokenType.INTEGER, TokenType.FLOAT)) {
+                const numTok = this.advance();
+                coords.push(numTok.value as number);
+              }
+            }
+            value = coords;
+            valStr = coords.join(",");
+          }
+
+          rawArgs.push(`--${key}`, valStr);
+          parsedArgs[key] = typeof value === "object" ? value : this.parsePassthroughValue(valStr);
+        } else {
+          // Boolean flag
+          rawArgs.push(`--${key}`);
+          parsedArgs[key] = true;
+        }
+        continue;
+      }
+
+      // Handle variable references — resolve later in executor
+      if (this.match(TokenType.VAR_LAST, TokenType.VAR_SELECTED, TokenType.VAR_WALL)) {
+        rawArgs.push(tok.raw);
+        this.advance();
+        continue;
+      }
+
+      // Any other token: collect as raw arg
+      rawArgs.push(String(tok.value ?? tok.raw));
+      this.advance();
+    }
+
+    return {
+      type: "Passthrough",
+      commandName,
+      rawArgs,
+      parsedArgs,
+      line: startToken.line,
+      column: startToken.column,
+    };
+  }
+
+  /**
+   * Parse a string value to number, boolean, coordinate array, or string.
+   */
+  private parsePassthroughValue(v: string): unknown {
+    // Coordinate pairs: "0,0" or "5,5,0"
+    if (/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?)+$/.test(v)) {
+      return v.split(",").map(Number);
+    }
+    // Numbers
+    if (/^-?\d+(\.\d+)?$/.test(v)) {
+      return Number(v);
+    }
+    // Booleans
+    if (v.toLowerCase() === "true") return true;
+    if (v.toLowerCase() === "false") return false;
+    return v;
   }
 
   // =========================================================================

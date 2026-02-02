@@ -177,10 +177,13 @@ describe("Lexer", () => {
       expect(tokens[0].type).toBe(TokenType.OPT_W);
     });
 
-    it("reports error for unknown long option", () => {
+    it("produces LONG_OPTION_UNKNOWN for unknown long option", () => {
       const { tokens, errors } = tokenize("--unknown");
-      expect(errors).toHaveLength(1);
-      expect(errors[0].message).toContain("Unknown option");
+      expect(errors).toHaveLength(0);
+      // Should be LONG_OPTION_UNKNOWN + EOF
+      const optToken = tokens.find(t => t.type === "LONG_OPTION_UNKNOWN");
+      expect(optToken).toBeDefined();
+      expect(optToken!.value).toBe("unknown");
     });
   });
 

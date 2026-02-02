@@ -272,9 +272,8 @@ export class Lexer {
       return this.makeToken(LONG_OPTIONS[optionName], optionName, raw);
     }
 
-    // Unknown option
-    this.addError(`Unknown option: --${optionName}`, raw);
-    return this.makeToken(TokenType.ERROR, raw, raw);
+    // Unknown option — pass through for passthrough commands
+    return this.makeToken(TokenType.LONG_OPTION_UNKNOWN, optionName, raw);
   }
 
   /**

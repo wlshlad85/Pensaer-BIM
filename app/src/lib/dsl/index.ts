@@ -60,6 +60,7 @@ export {
   type ModifyWindowCommand,
   type CreateOpeningCommand,
   type HelpCommand,
+  type PassthroughCommand,
   type ParseError,
   type ParseResult,
   // Functions

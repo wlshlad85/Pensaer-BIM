@@ -1102,6 +1102,16 @@ async function placeWindowHandler(
     };
   }
 
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, windowOffset, width);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Window placement invalid: ${overlap.message}`,
+      data: { wall_id: targetWallId, offset: windowOffset, width, conflict_element: overlap.conflictId },
+    };
+  }
+
   // Call MCP tool for window placement
   const result = await callMcpTool("place_window", {
     wall_id: targetWallId,
