@@ -13,6 +13,7 @@ import {
 } from "../../services/commandDispatcher";
 import { useModelStore } from "../../stores/modelStore";
 import { useHistoryStore } from "../../stores/historyStore";
+import { resolveLevel } from "../../utils/levelResolver";
 import type { Element } from "../../types";
 
 // Scale factor: 100 pixels per meter
@@ -61,8 +62,11 @@ async function createWallHandler(
   const height = (args.height as number) || 3.0;
   const thickness = (args.thickness as number) || 0.2;
   const material = (args.material as string) || "Concrete";
-  const level = (args.level as string) || "Level 1";
   const wallType = (args.type as string) || (args.wall_type as string) || "basic";
+  // P1-009: Validate level
+  const levelRes = resolveLevel(args.level as string | undefined);
+  if (!levelRes.ok) return { success: false, message: levelRes.error! };
+  const level = levelRes.levelName!;
 
   // Call MCP tool for geometry calculation
   const result = await callMcpTool("create_wall", {
@@ -199,8 +203,11 @@ async function createFloorHandler(
   }
 
   const thickness = (args.thickness as number) || 0.15;
-  const level = (args.level as string) || "Level 1";
   const material = (args.material as string) || "Concrete";
+  // P1-009: Validate level
+  const levelRes = resolveLevel(args.level as string | undefined);
+  if (!levelRes.ok) return { success: false, message: levelRes.error! };
+  const level = levelRes.levelName!;
 
   // Calculate area using shoelace formula
   const area = calculatePolygonArea(boundaryPoints);
@@ -327,8 +334,11 @@ async function createRoofHandler(
   const roofType = (args.type as string) || "gable";
   const slope = (args.slope as number) || 30;
   const overhang = (args.overhang as number) || 0.5;
-  const level = (args.level as string) || "Level 1";
   const material = (args.material as string) || "Metal Standing Seam";
+  // P1-009: Validate level
+  const levelRes = resolveLevel(args.level as string | undefined);
+  if (!levelRes.ok) return { success: false, message: levelRes.error! };
+  const level = levelRes.levelName!;
   const ridgeDirection = (args.ridge as string) || "auto"; // auto, x, y
 
   // Calculate footprint area
@@ -648,6 +658,10 @@ async function createRoomHandler(
   // Parse room type
   const roomType = ((args.type as string) || "other").toLowerCase() as RoomType;
   const typeInfo = getRoomTypeInfo(roomType);
+  // P1-009: Validate level
+  const levelRes = resolveLevel(args.level as string | undefined);
+  if (!levelRes.ok) return { success: false, message: levelRes.error! };
+  const roomLevel = levelRes.levelName!;
 
   // Call MCP tool for room creation
   const result = await callMcpTool("create_room", {
@@ -684,7 +698,7 @@ async function createRoomHandler(
         finishFloor: typeInfo.defaultFinishFloor,
         finishCeiling: "Painted",
         finishWalls: typeInfo.defaultFinishWalls,
-        level: "Level 1",
+        level: roomLevel,
         number: (args.number as string) || "",
         // Store boundary points for polygon rendering
         boundary_points: JSON.stringify(boundaryPoints),
@@ -896,7 +910,7 @@ async function placeDoorHandler(
         swingDirection: swing === "left" ? "Left" : "Right",
         handleSide: swing === "left" ? "Right" : "Left",
         offset: doorOffset,
-        level: wall.properties.level as string || "Level 1",
+        level: wall.properties.level as string || resolveLevel().levelName || "Level 1",
       },
       relationships: {
         hostedBy: targetWallId,
@@ -1102,6 +1116,16 @@ async function placeWindowHandler(
     };
   }
 
+  // Check for overlap with existing hosted elements
+  const overlap = checkHostedElementOverlap(wall, windowOffset, width);
+  if (overlap.overlaps) {
+    return {
+      success: false,
+      message: `Window placement invalid: ${overlap.message}`,
+      data: { wall_id: targetWallId, offset: windowOffset, width, conflict_element: overlap.conflictId },
+    };
+  }
+
   // Call MCP tool for window placement
   const result = await callMcpTool("place_window", {
     wall_id: targetWallId,
@@ -1159,7 +1183,7 @@ async function placeWindowHandler(
         window_type: windowType,
         frame: "Aluminum",
         offset: windowOffset,
-        level: wall.properties.level as string || "Level 1",
+        level: wall.properties.level as string || resolveLevel().levelName || "Level 1",
       },
       relationships: {
         hostedBy: targetWallId,
@@ -1328,6 +1352,130 @@ async function listElementsHandler(
 }
 
 // ============================================
+// STAIR COMMAND
+// ============================================
+
+type StairType = "straight" | "L" | "U" | "spiral";
+
+async function createStairHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const position = args.position as number[] | undefined;
+
+  if (!position || position.length < 2) {
+    return {
+      success: false,
+      message: "Missing required parameter: --position x,y",
+    };
+  }
+
+  const stairWidth = (args.width as number) || 1.0;
+  const risers = args.risers as number | undefined;
+  const riserHeight = (args["riser-height"] as number) || (args.riser_height as number) || 0.17;
+  const treadDepth = (args["tread-depth"] as number) || (args.tread_depth as number) || 0.28;
+  const stairType = ((args.type as string) || "straight") as StairType;
+  // P1-009: Validate level
+  const levelRes = resolveLevel(args.level as string | undefined);
+  if (!levelRes.ok) return { success: false, message: levelRes.error! };
+  const level = levelRes.levelName!;
+
+  if (!risers || risers < 1) {
+    return {
+      success: false,
+      message: "Missing or invalid --risers (must be >= 1)",
+    };
+  }
+
+  const validTypes: StairType[] = ["straight", "L", "U", "spiral"];
+  if (!validTypes.includes(stairType)) {
+    return {
+      success: false,
+      message: `Invalid stair type: ${stairType}. Valid types: ${validTypes.join(", ")}`,
+    };
+  }
+
+  const totalRise = risers * riserHeight;
+  const totalRun = (risers - 1) * treadDepth;
+
+  const result = await callMcpTool("create_stair", {
+    position,
+    width: stairWidth,
+    risers,
+    riser_height: riserHeight,
+    tread_depth: treadDepth,
+    stair_type: stairType,
+    level,
+  });
+
+  if (result.success && result.data) {
+    const stairId = result.data.stair_id as string || `stair-${crypto.randomUUID().slice(0, 8)}`;
+
+    let bbWidth = stairWidth * SCALE;
+    let bbHeight = totalRun * SCALE;
+
+    if (stairType === "L") {
+      bbWidth = Math.max(stairWidth, totalRun / 2) * SCALE;
+      bbHeight = (stairWidth + totalRun / 2) * SCALE;
+    } else if (stairType === "U") {
+      bbWidth = stairWidth * 2 * SCALE;
+      bbHeight = (totalRun / 2) * SCALE;
+    } else if (stairType === "spiral") {
+      const diameter = stairWidth * 2;
+      bbWidth = diameter * SCALE;
+      bbHeight = diameter * SCALE;
+    }
+
+    const stairElement: Element = {
+      id: stairId,
+      type: "stair",
+      name: `Stair ${stairId.slice(-4)}`,
+      x: position[0] * SCALE,
+      y: position[1] * SCALE,
+      width: bbWidth,
+      height: bbHeight,
+      properties: {
+        risers,
+        riser_height: `${riserHeight * 1000}mm`,
+        tread_depth: `${treadDepth * 1000}mm`,
+        stair_width: `${stairWidth * 1000}mm`,
+        stair_type: stairType,
+        total_rise: `${totalRise * 1000}mm`,
+        total_run: `${totalRun * 1000}mm`,
+        level,
+        structural: true,
+      },
+      relationships: {
+        connectsLevels: [],
+      },
+      issues: [],
+      aiSuggestions: [],
+    };
+
+    useModelStore.getState().addElement(stairElement);
+    useHistoryStore.getState().recordAction(`Create stair ${stairId}`);
+
+    return {
+      success: true,
+      message: `Created ${stairType} stair: ${stairId}`,
+      data: {
+        stair_id: stairId,
+        risers,
+        riser_height: riserHeight,
+        tread_depth: treadDepth,
+        width: stairWidth,
+        stair_type: stairType,
+        total_rise: totalRise.toFixed(3),
+        total_run: totalRun.toFixed(3),
+      },
+      elementCreated: { id: stairId, type: "stair" },
+    };
+  }
+
+  return result;
+}
+
+// ============================================
 // DETECT ROOMS COMMAND
 // ============================================
 
@@ -1475,6 +1623,19 @@ export function registerElementCommands(): void {
       "window --wall wall-001 --offset 2.5 --width 1.2 --height 1.5 --type awning",
     ],
     handler: placeWindowHandler,
+  });
+
+  registerCommand({
+    name: "stair",
+    description: "Create a stair element for vertical circulation",
+    usage: "stair --position x,y --width w --risers n --riser-height h --tread-depth d --type straight|L|U|spiral [--level l]",
+    examples: [
+      "stair --position 2,3 --width 1.2 --risers 14 --riser-height 0.17 --tread-depth 0.28 --type straight",
+      "stair --position 0,0 --risers 20 --type L",
+      "stair --position 5,5 --width 1.5 --risers 24 --type U --level \"Level 2\"",
+      "stair --position 3,3 --width 0.9 --risers 18 --type spiral",
+    ],
+    handler: createStairHandler,
   });
 
   registerCommand({
