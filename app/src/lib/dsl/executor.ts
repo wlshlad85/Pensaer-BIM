@@ -62,6 +62,8 @@ const COMMAND_TO_TOOL: Record<string, string> = {
   CreateFloor: "floor",
   CreateRoof: "roof",
   CreateRoom: "room",
+  CreateColumn: "column",
+  CreateBeam: "beam",
   Help: "help",
 };
 
