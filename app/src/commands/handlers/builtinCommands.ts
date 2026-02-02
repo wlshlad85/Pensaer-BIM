@@ -67,7 +67,7 @@ async function helpHandler(
   const commands = getAllCommands();
 
   // Group commands by category
-  const builtinCommands = ["help", "clear", "status", "version", "echo", "macro"];
+  const builtinCommands = ["help", "clear", "status", "version", "echo", "macro", "undo", "redo", "select", "deselect"];
   const elementCommands = ["wall", "floor", "roof", "room", "door", "window", "delete", "get", "list"];
   const analysisCommands = ["detect-rooms", "analyze", "clash", "clash-between"];
 
@@ -456,6 +456,178 @@ async function macroHandler(
 }
 
 // ============================================
+// UNDO COMMAND
+// ============================================
+
+async function undoHandler(
+  _args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const history = useHistoryStore.getState();
+
+  if (!history.canUndo()) {
+    return {
+      success: false,
+      message: "Nothing to undo",
+    };
+  }
+
+  const description = history.getUndoDescription();
+  history.undo();
+
+  return {
+    success: true,
+    message: `Undone: ${description || "last action"}`,
+    data: {
+      can_undo: useHistoryStore.getState().canUndo(),
+      can_redo: useHistoryStore.getState().canRedo(),
+    },
+  };
+}
+
+// ============================================
+// REDO COMMAND
+// ============================================
+
+async function redoHandler(
+  _args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const history = useHistoryStore.getState();
+
+  if (!history.canRedo()) {
+    return {
+      success: false,
+      message: "Nothing to redo",
+    };
+  }
+
+  const description = history.getRedoDescription();
+  history.redo();
+
+  return {
+    success: true,
+    message: `Redone: ${description || "next action"}`,
+    data: {
+      can_undo: useHistoryStore.getState().canUndo(),
+      can_redo: useHistoryStore.getState().canRedo(),
+    },
+  };
+}
+
+// ============================================
+// SELECT COMMAND
+// ============================================
+
+const VALID_ELEMENT_TYPES: ElementType[] = [
+  "wall", "door", "window", "room", "floor", "roof", "column", "beam", "stair",
+];
+
+async function selectHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const selectionStore = useSelectionStore.getState();
+  const modelStore = useModelStore.getState();
+  const allFlag = args.all as boolean | undefined;
+  const typeFlag = args.type as string | undefined;
+  const rawArgs = args._raw as string[] | undefined;
+  const id = rawArgs?.[0] as string | undefined;
+
+  // select --all
+  if (allFlag) {
+    const allIds = modelStore.elements.map((e) => e.id);
+    selectionStore.selectAll(allIds);
+    return {
+      success: true,
+      message: `Selected ${allIds.length} element(s)`,
+      data: { count: allIds.length },
+    };
+  }
+
+  // select --type wall
+  if (typeFlag) {
+    const t = typeFlag.toLowerCase() as ElementType;
+    if (!VALID_ELEMENT_TYPES.includes(t)) {
+      return {
+        success: false,
+        message: `Unknown element type: ${typeFlag}. Valid types: ${VALID_ELEMENT_TYPES.join(", ")}`,
+      };
+    }
+    const matching = modelStore.elements.filter((e) => e.type === t);
+    const ids = matching.map((e) => e.id);
+    selectionStore.selectMultiple(ids);
+    return {
+      success: true,
+      message: `Selected ${ids.length} ${t}(s)`,
+      data: { count: ids.length, type: t, ids },
+    };
+  }
+
+  // select <id>
+  if (id) {
+    const el = modelStore.getElementById(id);
+    if (!el) {
+      return {
+        success: false,
+        message: `Element not found: ${id}`,
+      };
+    }
+    selectionStore.select(id);
+    return {
+      success: true,
+      message: `Selected ${el.type} "${el.name || id}"`,
+      data: { id, type: el.type },
+    };
+  }
+
+  return {
+    success: false,
+    message: "Usage: select <id> | select --type <type> | select --all",
+  };
+}
+
+// ============================================
+// DESELECT COMMAND
+// ============================================
+
+async function deselectHandler(
+  args: Record<string, unknown>,
+  _context: CommandContext
+): Promise<CommandResult> {
+  const selectionStore = useSelectionStore.getState();
+  const allFlag = args.all as boolean | undefined;
+  const rawArgs = args._raw as string[] | undefined;
+  const id = rawArgs?.[0] as string | undefined;
+
+  // deselect <id>
+  if (id && !allFlag) {
+    const wasSelected = selectionStore.isSelected(id);
+    if (!wasSelected) {
+      return {
+        success: false,
+        message: `Element ${id} is not selected`,
+      };
+    }
+    selectionStore.removeFromSelection(id);
+    return {
+      success: true,
+      message: `Deselected ${id}`,
+      data: { id },
+    };
+  }
+
+  // deselect / deselect --all
+  const count = selectionStore.selectedIds.length;
+  selectionStore.clearSelection();
+  return {
+    success: true,
+    message: count > 0 ? `Deselected ${count} element(s)` : "Nothing was selected",
+    data: { count },
+  };
+}
+
+// ============================================
 // REGISTER ALL COMMANDS
 // ============================================
 
@@ -512,5 +684,45 @@ export function registerBuiltinCommands(): void {
       "macro delete my-building",
     ],
     handler: macroHandler,
+  });
+
+  registerCommand({
+    name: "undo",
+    description: "Undo the last action",
+    usage: "undo",
+    examples: ["undo"],
+    handler: undoHandler,
+  });
+
+  registerCommand({
+    name: "redo",
+    description: "Redo the last undone action",
+    usage: "redo",
+    examples: ["redo"],
+    handler: redoHandler,
+  });
+
+  registerCommand({
+    name: "select",
+    description: "Select elements by ID, type, or all",
+    usage: "select <id> | select --type <type> | select --all",
+    examples: [
+      "select wall-1",
+      "select --type wall",
+      "select --all",
+    ],
+    handler: selectHandler,
+  });
+
+  registerCommand({
+    name: "deselect",
+    description: "Deselect elements",
+    usage: "deselect [id] | deselect --all",
+    examples: [
+      "deselect",
+      "deselect wall-1",
+      "deselect --all",
+    ],
+    handler: deselectHandler,
   });
 }
