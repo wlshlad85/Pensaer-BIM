@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores(["dist", "e2e"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
@@ -18,6 +18,9 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        project: './tsconfig.json',
+      },
     },
     rules: {
       // Allow underscore-prefixed unused variables (common pattern for intentionally unused params)
