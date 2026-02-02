@@ -6,6 +6,7 @@
 
 export { registerElementCommands } from "./handlers/elementCommands";
 export { registerBuiltinCommands } from "./handlers/builtinCommands";
+export { registerExportCommands } from "./handlers/exportCommands";
 
 // Re-export dispatcher types and functions
 export {
@@ -42,6 +43,7 @@ export {
 
 import { registerBuiltinCommands as _registerBuiltinCommands } from "./handlers/builtinCommands";
 import { registerElementCommands as _registerElementCommands } from "./handlers/elementCommands";
+import { registerExportCommands as _registerExportCommands } from "./handlers/exportCommands";
 
 /**
  * Initialize all command handlers
@@ -53,4 +55,7 @@ export function initializeCommands(): void {
 
   // Register element commands (wall, floor, roof, etc.)
   _registerElementCommands();
+
+  // Register export commands (export ifc)
+  _registerExportCommands();
 }
