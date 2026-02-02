@@ -7,6 +7,7 @@
 export { registerElementCommands } from "./handlers/elementCommands";
 export { registerBuiltinCommands } from "./handlers/builtinCommands";
 export { registerSelectionCommands } from "./handlers/selectionCommands";
+export { registerMoveModifyCommands } from "./handlers/moveModifyCommands";
 
 // Re-export dispatcher types and functions
 export {
@@ -44,6 +45,7 @@ export {
 import { registerBuiltinCommands as _registerBuiltinCommands } from "./handlers/builtinCommands";
 import { registerElementCommands as _registerElementCommands } from "./handlers/elementCommands";
 import { registerSelectionCommands as _registerSelectionCommands } from "./handlers/selectionCommands";
+import { registerMoveModifyCommands as _registerMoveModifyCommands } from "./handlers/moveModifyCommands";
 
 /**
  * Initialize all command handlers
@@ -58,4 +60,7 @@ export function initializeCommands(): void {
 
   // Register selection commands (select, deselect)
   _registerSelectionCommands();
+
+  // Register move/modify commands (P1-006)
+  _registerMoveModifyCommands();
 }
