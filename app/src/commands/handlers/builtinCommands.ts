@@ -67,7 +67,7 @@ async function helpHandler(
   const commands = getAllCommands();
 
   // Group commands by category
-  const builtinCommands = ["help", "clear", "status", "version", "echo", "macro"];
+  const builtinCommands = ["help", "clear", "status", "version", "echo", "macro", "undo", "redo"];
   const elementCommands = ["wall", "floor", "roof", "room", "door", "window", "delete", "get", "list"];
   const analysisCommands = ["detect-rooms", "analyze", "clash", "clash-between"];
 
