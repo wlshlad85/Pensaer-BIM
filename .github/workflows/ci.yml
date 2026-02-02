@@ -93,7 +93,7 @@ jobs:
         run: maturin develop --features python
 
       - name: Test with pytest
-        run: pytest -v --tb=short --ignore=mcp-servers/geometry-server
+        run: pytest -v --tb=short
 
   # ===========================================================================
   # Kernel (Rust)
