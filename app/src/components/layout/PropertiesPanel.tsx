@@ -11,6 +11,7 @@ import {
   useSelectionStore,
   useUIStore,
   useHistoryStore,
+  useNamingStore,
 } from "../../stores";
 import type { Element, Issue } from "../../types";
 import { validateModel, getValidationSummary, getIssueFix } from "../../utils/validation";
@@ -303,6 +304,9 @@ function SelectedElementView({
   elements: Element[];
   setSelected: (id: string) => void;
 }) {
+  // ISO 19650 naming
+  const isoName = useNamingStore((s) => s.getName(element.id));
+
   // Per-property inline editing state
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
@@ -391,6 +395,11 @@ function SelectedElementView({
             <div className="text-xs text-gray-400">
               {element.type.charAt(0).toUpperCase() + element.type.slice(1)}
             </div>
+            {isoName && (
+              <div className="text-[10px] text-cyan-400 font-mono mt-0.5" title="ISO 19650 Name">
+                {isoName.fullName}
+              </div>
+            )}
           </div>
         </div>
       </div>
