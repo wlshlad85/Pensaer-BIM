@@ -277,6 +277,7 @@ export const PENSAER_GRAMMAR: PensaerGrammar = {
       nonTerminal("floor_command"),
       nonTerminal("roof_command"),
       nonTerminal("room_command"),
+      nonTerminal("stair_command"),
       nonTerminal("door_command"),
       nonTerminal("window_command"),
       nonTerminal("opening_command"),
@@ -319,6 +320,15 @@ export const PENSAER_GRAMMAR: PensaerGrammar = {
       nonTerminal("point2d"),
       many(nonTerminal("wall_option"))
     ),
+
+    // Stair command
+    stair_command: seq(terminal("STAIR"), terminal("LONG_POSITION"), nonTerminal("point2d"), many(nonTerminal("stair_option"))),
+    stair_option: alt(nonTerminal("width_opt"), nonTerminal("risers_opt"), nonTerminal("riser_height_opt"), nonTerminal("tread_depth_opt"), nonTerminal("stair_type_opt"), nonTerminal("level_opt")),
+    risers_opt: seq(alt(terminal("RISERS"), terminal("LONG_RISERS")), nonTerminal("number")),
+    riser_height_opt: seq(alt(terminal("RISER_HEIGHT"), terminal("LONG_RISER_HEIGHT")), nonTerminal("number")),
+    tread_depth_opt: seq(alt(terminal("TREAD_DEPTH"), terminal("LONG_TREAD_DEPTH")), nonTerminal("number")),
+    stair_type_opt: seq(alt(terminal("TYPE"), terminal("LONG_TYPE")), nonTerminal("stair_type")),
+    stair_type: alt(terminal("STRAIGHT"), terminal("L_SHAPED"), terminal("U_SHAPED"), terminal("SPIRAL")),
 
     // Door command
     door_command: seq(

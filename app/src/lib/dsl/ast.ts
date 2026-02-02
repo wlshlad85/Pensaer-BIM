@@ -62,6 +62,13 @@ export enum RoomType {
   GENERIC = "generic",
 }
 
+export enum StairType {
+  STRAIGHT = "straight",
+  L = "L",
+  U = "U",
+  SPIRAL = "spiral",
+}
+
 export enum VariableRef {
   LAST = "$last",
   SELECTED = "$selected",
@@ -254,6 +261,21 @@ export interface CreateRoomCommand extends BaseCommand {
 }
 
 // =============================================================================
+// Stair Command
+// =============================================================================
+
+export interface CreateStairCommand extends BaseCommand {
+  type: "CreateStair";
+  position: Point2D;
+  width: number;
+  risers: number;
+  riserHeight: number;
+  treadDepth: number;
+  stairType?: StairType;
+  levelId?: string;
+}
+
+// =============================================================================
 // Help Command
 // =============================================================================
 
@@ -278,6 +300,7 @@ export type Command =
   | PlaceWindowCommand
   | ModifyWindowCommand
   | CreateOpeningCommand
+  | CreateStairCommand
   | HelpCommand;
 
 // =============================================================================
@@ -400,6 +423,17 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
         ...(cmd.roomType && { room_type: cmd.roomType }),
         height: cmd.height,
         ...(cmd.levelId && { level_id: cmd.levelId }),
+      };
+
+    case "CreateStair":
+      return {
+        position: [cmd.position.x, cmd.position.y],
+        width: cmd.width,
+        risers: cmd.risers,
+        riser_height: cmd.riserHeight,
+        tread_depth: cmd.treadDepth,
+        ...(cmd.stairType && { type: cmd.stairType }),
+        ...(cmd.levelId && { level: cmd.levelId }),
       };
 
     case "Help":
