@@ -62,6 +62,14 @@ export enum RoomType {
   GENERIC = "generic",
 }
 
+export enum StairType {
+  STRAIGHT = "straight",
+  L_SHAPED = "L-shaped",
+  U_SHAPED = "U-shaped",
+  SPIRAL = "spiral",
+  CURVED = "curved",
+}
+
 export enum VariableRef {
   LAST = "$last",
   SELECTED = "$selected",
@@ -254,6 +262,28 @@ export interface CreateRoomCommand extends BaseCommand {
 }
 
 // =============================================================================
+// Stair Command
+// =============================================================================
+
+export interface CreateStairCommand extends BaseCommand {
+  type: "CreateStair";
+  /** Position of the stair base */
+  position: Point2D;
+  /** Number of risers */
+  risers: number;
+  /** Riser height in meters */
+  riserHeight: number;
+  /** Tread depth in meters */
+  treadDepth: number;
+  /** Stair width in meters */
+  stairWidth: number;
+  /** Stair type/configuration */
+  stairType: StairType;
+  /** Level ID string */
+  levelId?: string;
+}
+
+// =============================================================================
 // Help Command
 // =============================================================================
 
@@ -273,6 +303,7 @@ export type Command =
   | CreateFloorCommand
   | CreateRoofCommand
   | CreateRoomCommand
+  | CreateStairCommand
   | PlaceDoorCommand
   | ModifyDoorCommand
   | PlaceWindowCommand
@@ -399,6 +430,17 @@ export function commandToMcpArgs(cmd: Command): Record<string, unknown> {
         ...(cmd.number && { number: cmd.number }),
         ...(cmd.roomType && { room_type: cmd.roomType }),
         height: cmd.height,
+        ...(cmd.levelId && { level_id: cmd.levelId }),
+      };
+
+    case "CreateStair":
+      return {
+        position: [cmd.position.x, cmd.position.y],
+        risers: cmd.risers,
+        riser_height: cmd.riserHeight,
+        tread_depth: cmd.treadDepth,
+        stair_width: cmd.stairWidth,
+        stair_type: cmd.stairType,
         ...(cmd.levelId && { level_id: cmd.levelId }),
       };
 

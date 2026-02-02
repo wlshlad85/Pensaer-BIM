@@ -409,6 +409,7 @@ export function findSimilar(
 export const KNOWN_COMMANDS = [
   "wall",
   "walls",
+  "stair",
   "door",
   "window",
   "opening",
