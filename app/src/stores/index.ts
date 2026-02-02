@@ -12,6 +12,7 @@ export {
 } from "./historyStore";
 export { useTokenStore } from "./tokenStore";
 export { useMacroStore } from "./macroStore";
+export { useEIRStore } from "./eirStore";
 
 // Self-healing utilities
 export {
