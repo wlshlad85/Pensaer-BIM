@@ -1,13 +1,12 @@
 /**
  * DemoRunner — Auto-Play Component for Pensaer BIM Demos
  *
- * Provides a React component and hook that type commands into the terminal
+ * Provides a React hook that types commands into the terminal
  * with configurable delays for dramatic presentation effect.
  *
- * Usage:
- *   import { useDemoRunner } from './demo/DemoRunner';
- *   const { startDemo, stopDemo, isRunning } = useDemoRunner(executeCommand, terminalRef);
- *   startDemo('highrise');
+ * KEY FIX: Wall IDs are UUIDs generated at runtime. The demo runner
+ * captures wall IDs after each wall command and resolves {{ref}}
+ * placeholders in subsequent door/window commands.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -18,8 +17,11 @@ import {
 import {
   INVESTOR_DEMO_COMMANDS,
   INVESTOR_DEMO_METADATA,
+  resolveWallRefs,
+  type WallRefs,
 } from "./investorDemo";
 import { DEMO_COMMANDS } from "../services/demo";
+import { useModelStore } from "../stores/modelStore";
 
 // ============================================
 // TIMING CONFIGURATION
@@ -75,7 +77,37 @@ export interface DemoScript {
   description: string;
   commands: string[];
   metadata?: Record<string, unknown>;
+  /**
+   * If true, wall IDs are captured after each `wall` command
+   * and {{ref}} placeholders are resolved in door/window commands.
+   */
+  captureWallIds?: boolean;
+  /**
+   * Order of wall reference names (matches wall command order).
+   * Used when captureWallIds is true.
+   */
+  wallNameOrder?: string[];
+  /**
+   * If true, clear all model data before starting the demo.
+   */
+  cleanStart?: boolean;
+  /**
+   * If true, trigger a "zoom to fit" after the demo completes.
+   */
+  zoomToFit?: boolean;
 }
+
+/** Wall name order for the investor demo (must match wall command order) */
+const INVESTOR_WALL_NAMES: string[] = [
+  "south",        // wall 0: south facade
+  "east",         // wall 1: east facade
+  "north",        // wall 2: north facade
+  "west",         // wall 3: west facade
+  "corridor",     // wall 4: corridor divider
+  "receptionDiv", // wall 5: reception partition
+  "meetingDiv",   // wall 6: meeting room partition
+  "kitchenDiv",   // wall 7: kitchen partition
+];
 
 export const DEMO_SCRIPTS: DemoScript[] = [
   {
@@ -101,6 +133,10 @@ export const DEMO_SCRIPTS: DemoScript[] = [
       `modern office with ${INVESTOR_DEMO_METADATA.rooms} rooms`,
     commands: INVESTOR_DEMO_COMMANDS,
     metadata: INVESTOR_DEMO_METADATA,
+    captureWallIds: true,
+    wallNameOrder: INVESTOR_WALL_NAMES,
+    cleanStart: true,
+    zoomToFit: true,
   },
 ];
 
@@ -117,6 +153,8 @@ export interface DemoRunnerCallbacks {
   executeCommand: (command: string) => Promise<void>;
   /** Clear the terminal */
   clearTerminal: () => void;
+  /** Optional: trigger zoom-to-fit on the 3D view */
+  zoomToFit?: () => void;
 }
 
 export interface DemoRunnerState {
@@ -150,7 +188,6 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
         const tick = () => {
           if (abortRef.current) return resolve();
           if (Date.now() - start >= ms) return resolve();
-          // While paused, keep ticking without advancing
           if (pauseRef.current) {
             requestAnimationFrame(tick);
           } else {
@@ -165,7 +202,6 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
   const typeCommand = useCallback(
     async (command: string, charDelay: number) => {
       const { writeToTerminal } = callbacks;
-      // Show prompt
       writeToTerminal("\x1b[32mpensaer\x1b[0m:\x1b[34m~\x1b[0m$ ");
 
       if (charDelay === 0) {
@@ -190,9 +226,14 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
       scriptIdOrCommands: string | string[],
       timingPreset: keyof typeof TIMING_PRESETS = "presentation"
     ) => {
+      // Find script config
+      const script = !Array.isArray(scriptIdOrCommands)
+        ? DEMO_SCRIPTS.find((s) => s.id === scriptIdOrCommands)
+        : undefined;
+
       const commands = Array.isArray(scriptIdOrCommands)
         ? scriptIdOrCommands
-        : DEMO_SCRIPTS.find((s) => s.id === scriptIdOrCommands)?.commands;
+        : script?.commands;
 
       if (!commands || commands.length === 0) {
         callbacks.writeLineToTerminal(
@@ -206,6 +247,13 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
       abortRef.current = false;
       pauseRef.current = false;
 
+      // ── Clean start: wipe model store before demo ──
+      if (script?.cleanStart) {
+        const store = useModelStore.getState();
+        store.clearElements();
+        store.setLevels([]);
+      }
+
       setState({
         isRunning: true,
         isPaused: false,
@@ -214,6 +262,12 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
         commandIndex: 0,
         totalCommands: commands.length,
       });
+
+      // ── Wall ID capture state ──
+      const wallRefs: Partial<WallRefs> = {};
+      let wallCommandIndex = 0;
+      const wallNameOrder = script?.wallNameOrder ?? [];
+      const captureWallIds = script?.captureWallIds ?? false;
 
       // Intro banner
       callbacks.writeLineToTerminal("");
@@ -237,7 +291,7 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
       for (let i = 0; i < commands.length; i++) {
         if (abortRef.current) break;
 
-        const cmd = commands[i];
+        let cmd = commands[i];
 
         setState((prev) => ({
           ...prev,
@@ -249,19 +303,34 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
         // Handle comments
         if (cmd.startsWith("#")) {
           const text = cmd.slice(2);
-          // Section headers get extra pause
           const isSection = text.startsWith("▸") || text.startsWith("═");
           callbacks.writeLineToTerminal(`\x1b[36m${cmd}\x1b[0m`);
           await delay(isSection ? timing.sectionPause : timing.commentPause);
           continue;
         }
 
-        // Handle clear
+        // Handle clear — also purge model on cleanStart demos
         if (cmd === "clear") {
+          if (script?.cleanStart) {
+            const store = useModelStore.getState();
+            store.clearElements();
+            store.setLevels([]);
+          }
           callbacks.clearTerminal();
           await delay(200);
           continue;
         }
+
+        // ── Resolve wall ref placeholders ──
+        if (captureWallIds && cmd.includes("{{")) {
+          cmd = resolveWallRefs(cmd, wallRefs);
+        }
+
+        // Snapshot element count before executing (for wall ID capture)
+        const elementsBefore = captureWallIds
+          ? useModelStore.getState().elements.length
+          : 0;
+        const isWallCommand = captureWallIds && cmd.startsWith("wall ");
 
         // Type and execute
         await typeCommand(cmd, timing.charDelay);
@@ -272,6 +341,20 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
           callbacks.writeLineToTerminal(
             `\x1b[31mError: ${err instanceof Error ? err.message : String(err)}\x1b[0m`
           );
+        }
+
+        // ── Capture wall ID after wall command ──
+        if (isWallCommand && wallCommandIndex < wallNameOrder.length) {
+          const elementsAfter = useModelStore.getState().elements;
+          if (elementsAfter.length > elementsBefore) {
+            // The last added element should be our new wall
+            const newWall = elementsAfter[elementsAfter.length - 1];
+            if (newWall.type === "wall") {
+              const refName = wallNameOrder[wallCommandIndex] as keyof WallRefs;
+              wallRefs[refName] = newWall.id;
+            }
+          }
+          wallCommandIndex++;
         }
 
         await delay(timing.postCommandPause);
@@ -290,6 +373,15 @@ export function useDemoRunner(callbacks: DemoRunnerCallbacks) {
           "\x1b[1;32m╚══════════════════════════════════════════════╝\x1b[0m"
         );
         callbacks.writeLineToTerminal("");
+
+        // ── Zoom to fit after demo ──
+        if (script?.zoomToFit) {
+          if (callbacks.zoomToFit) {
+            callbacks.zoomToFit();
+          }
+          // Also fire a custom event that Canvas3D listens for
+          window.dispatchEvent(new CustomEvent("pensaer:zoomToFit"));
+        }
       } else {
         callbacks.writeLineToTerminal("");
         callbacks.writeLineToTerminal("\x1b[33mDemo stopped by user.\x1b[0m");

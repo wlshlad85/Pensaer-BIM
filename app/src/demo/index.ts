@@ -12,6 +12,8 @@ export {
   generateInvestorDemoCommands,
   INVESTOR_DEMO_COMMANDS,
   INVESTOR_DEMO_METADATA,
+  resolveWallRefs,
+  type WallRefs,
 } from "./investorDemo";
 
 export {

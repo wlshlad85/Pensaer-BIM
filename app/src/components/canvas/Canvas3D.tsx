@@ -458,8 +458,8 @@ export function Canvas3D() {
     purpleLight.position.set(5, 3, -5);
     scene.add(purpleLight);
 
-    // Ground plane
-    const groundGeometry = new THREE.PlaneGeometry(30, 30);
+    // Ground plane — large enough for 20m×12m buildings (50m×50m minimum)
+    const groundGeometry = new THREE.PlaneGeometry(60, 60);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x16213e,
       roughness: 0.9,
@@ -467,11 +467,13 @@ export function Canvas3D() {
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
+    ground.name = "__ground__";
     scene.add(ground);
 
-    // Grid helper
-    const gridHelper = new THREE.GridHelper(20, 20, 0x3b82f6, 0x1e3a5f);
+    // Grid helper — 50m×50m with 1m divisions
+    const gridHelper = new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e3a5f);
     gridHelper.position.y = 0.01;
+    gridHelper.name = "__grid__";
     scene.add(gridHelper);
 
     // Handle resize
@@ -1339,6 +1341,44 @@ export function Canvas3D() {
     },
     []
   );
+
+  // Zoom to fit — frame all building meshes in the camera view
+  const zoomToFit = useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls || meshesRef.current.length === 0) return;
+
+    // Compute bounding box of all meshes
+    const box = new THREE.Box3();
+    for (const mesh of meshesRef.current) {
+      box.expandByObject(mesh);
+    }
+
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    // Position camera to see the whole model
+    const fov = camera.fov * (Math.PI / 180);
+    let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
+    cameraDistance *= 1.5; // Add some margin
+
+    // Set camera to a nice perspective angle
+    camera.position.set(
+      center.x + cameraDistance * 0.6,
+      center.y + cameraDistance * 0.5,
+      center.z + cameraDistance * 0.6,
+    );
+    controls.target.copy(center);
+    controls.update();
+  }, []);
+
+  // Listen for custom "pensaer:zoomToFit" events (fired by DemoRunner)
+  useEffect(() => {
+    const handler = () => zoomToFit();
+    window.addEventListener("pensaer:zoomToFit", handler);
+    return () => window.removeEventListener("pensaer:zoomToFit", handler);
+  }, [zoomToFit]);
 
   // Handle click for selection
   const handleClick = useCallback(
