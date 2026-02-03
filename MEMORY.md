@@ -137,16 +137,49 @@
 - `npx vitest run` in every agent = our automated quality gate
 
 ## Clawhatch Website
-- **Product:** Security hardening service for OpenClaw AI agents
-- **Site:** Next.js 15 + Tailwind v4 at `clawhatch/site/` → localhost:3000
+- **Product:** OpenClaw setup + security service
+- **Site:** Next.js 16 + Tailwind at `clawset/app/` → localhost:3000
 - **⚠️ CRITICAL:** Edit `src/app/page.tsx` NOT `index.html` — Next.js serves page.tsx!
-- **Logo:** Gemini-generated red claw from egg, transparent PNG at `public/logo-hero.png`
-- **Background color:** #040b1d (sampled from logo)
-- **Brand colors:** Coral #ff6b6b, Teal #00e5cc, Cyan #5ce1e6
-- **Fonts:** Space Grotesk (headings), Plus Jakarta Sans (body), JetBrains Mono (code)
-- **Skill:** `skills/clawhatch-web/SKILL.md` has full architecture + design rules
-- **Payments:** Lemon Squeezy integration in page.tsx
-- **Deploy:** Needs Vercel setup (CLA-124-127)
+- **🚨 NO PURPLE EVER** - Rich's explicit order (Feb 3, 2026)
+- **Color palette:** PINK (#ff2d87), CYAN (#00e5ff), YELLOW (#ffe135) - NO PURPLE
+- **Pages:** `/` (homepage), `/manual-setup`, `/wizard`, `/troubleshooting`
+- **Screenshots:** `clawset/screenshots/` - all 4 pages captured
+- **Core positioning (Town Hall):** "Clawhatch gets you set up safely, makes it yours, and keeps it running"
+- **Three pillars:** Safe Baseline + Personalised + Maintained
+- **Pricing:** £149/£299/£499 list with founding discount (effective ~£79/£149/£249)
+- **Payments:** Lemon Squeezy for digital, Stripe for services (split rails per Town Hall)
+- **Deploy:** Needs Vercel setup
+
+## Clawhatch Pricing (FINAL — Rich Override 2026-02-03)
+- Pro: $39 (list $79)
+- Enterprise: $79 (list $149)
+- Concierge: $149 (list $299)
+- Support: $19/mo
+- **Note:** This overrides Town Hall verdict pricing
+
+## TODO (Parked)
+- [ ] **Set up Stripe API for Clawhatch** — Requires Maton API key from maton.ai/settings, then connect Stripe via OAuth at ctrl.maton.ai. Skill installed at `skills/stripe-api/`. For Concierge payments.
+
+## Clawhatch Personality System (IMPLEMENTED 2026-02-03)
+**7 Pre-configured Bot Personalities:**
+1. ⚔️ **COMMANDER** — "Direct. Decisive. Gets shit done." (formal)
+2. 🦉 **SAGE** — "Thoughtful. Deep. Wisdom over speed." (formal)
+3. 🐕 **BUDDY** — "Friendly. Supportive. Always in your corner." (casual)
+4. 🔥 **MAVERICK** — "Bold. Creative. Breaks the rules." (snarky)
+5. 🎩 **BUTLER** — "Polished. Precise. Impeccable service." (formal)
+6. 💀 **HACKER** — "Technical. Fast. No bullshit." (snarky)
+7. 🏆 **COACH** — "Motivating. Challenging. Pushes you forward." (casual)
+
+**5-Question Trait Quiz** maps user preferences to best-fit personality:
+- Q1: How you prefer help (fast answer / explanation / encouragement / creative alternatives)
+- Q2: When things go wrong (fix first / analyze / morale / challenge me)
+- Q3: Communication style (punchy / detailed / casual / technical)
+- Q4: Decision-making (quick recs / pros-cons / boundary-pushing / polished)
+- Q5: What matters most (speed / accuracy / support / growth)
+
+**Wizard Flow:** Welcome → Platform → Channels → Model → Quiz → Match Result → Customize → API Keys → Security → Preview → Config → Tier → HATCH!
+
+**Hatch Button:** Downloads 4 files (config.yaml, SOUL.md, AGENTS.md, README.md) with personality-customized content
 
 ## Lessons Learned
 - **NEVER skip tests, mock dependencies, or fake things for speed.** Always do it properly. If CI needs a Rust kernel built, build the Rust kernel. If tests need a native module, compile the native module. Rich explicitly called this out — no shortcuts, no faking, no "skip for now." Do it right or don't do it.
@@ -241,6 +274,23 @@ S0=WIP, S1=coordination, S2=information, S3=review & comment, S4=stage approval
 - **Revenue target:** First dollar by end of Feb, $5K/mo by month 6-9
 - **Key insight:** Wizard = acquisition funnel, subscriptions = real business
 - **Files:** clawset/SPRINT-PLAN.md (execution), clawset/MISSION-CONTROL.md (status), clawset/research/ (12 docs)
+
+## Mission Progress (as of 2026-02-03)
+
+**Clawhatch Week 1 Sprint - 19 Tasks Complete:**
+- Created comprehensive marketing content across 4 channels (Twitter, LinkedIn, Reddit, Email, Fiverr)
+- Built PROJECTS.md autonomous work dashboard
+- Enriched USER.md with operational context (rhythm, priorities, financial reality)
+- Developed security audit checklist (100+ checkpoints, feeds wizard + manual sessions)
+- FIVERR-READY analysis: Fiverr can launch NOW (no Calendly dependency)
+- All work zero-cost, high-impact, execution-ready
+- **Critical blocker:** Rich needs to create Stripe + Calendly accounts (~1 hour) to unblock Reddit publishing and beta bookings
+- **First dollar target:** Feb 21 (18 days from now)
+- **Week 1 ends:** Feb 7 (4 days, also Tramshed pitch target)
+
+**Commit:** fbcaf9e (129 files, 38K+ lines added)
+
+---
 
 ## Mission Progress (as of 2026-02-02)
 - 19 PRs shipped Feb 2 (#11-#29) — entire P0+P1 backlog cleared
