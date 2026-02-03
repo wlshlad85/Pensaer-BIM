@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clawhatch — Launch Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #060608; --surface: #0c0c10; --card: #111118; --card-hover: #16161f;
+    --border: #1a1a2e; --border-hover: #2a2a44; --text: #e5e5ee; --text-dim: #666680;
+    --pink: #ff2d87; --cyan: #00e5ff; --yellow: #ffe135; --purple: #b44dff;
+    --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  /* ═══ HERO ═══ */
+  .hero-banner {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, #0a0612 0%, #060608 100%);
+    border-bottom: 2px solid rgba(255,45,135,0.3);
+    padding: 30px 24px 24px; text-align: center;
+  }
+  .hero-glow {
+    position: absolute; top: -60%; left: 50%; transform: translateX(-50%);
+    width: 1000px; height: 500px;
+    background: radial-gradient(ellipse, rgba(255,45,135,0.25) 0%, rgba(0,229,255,0.12) 30%, rgba(180,77,255,0.06) 50%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-glow2 {
+    position: absolute; top: -30%; left: 30%; transform: translateX(-50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(0,229,255,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-scanline {
+    position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+    opacity: 0.3;
+  }
+  .hero-title { position: relative; z-index: 1; }
+  .hero-pre {
+    display: block; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500; letter-spacing: 6px;
+    color: rgba(0,229,255,0.6); margin-bottom: 6px;
+  }
+  .hero-main {
+    display: block; font-family: 'Orbitron', sans-serif;
+    font-size: clamp(22px, 4vw, 42px); font-weight: 900;
+    letter-spacing: 3px; line-height: 1.1;
+    background: linear-gradient(135deg, #ff2d87 0%, #ffe135 35%, #00e5ff 65%, #b44dff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(255,45,135,0.5)) drop-shadow(0 0 40px rgba(0,229,255,0.3));
+    animation: heroShift 6s ease-in-out infinite;
+  }
+  .hero-sub {
+    display: block; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 400; letter-spacing: 6px;
+    color: rgba(255,255,255,0.3); margin-top: 8px;
+    text-transform: uppercase;
+  }
+  @keyframes heroShift {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(255,45,135,0.5)) drop-shadow(0 0 40px rgba(0,229,255,0.3)); }
+    33% { filter: drop-shadow(0 0 25px rgba(255,225,53,0.5)) drop-shadow(0 0 45px rgba(180,77,255,0.3)); }
+    66% { filter: drop-shadow(0 0 22px rgba(0,229,255,0.5)) drop-shadow(0 0 40px rgba(255,45,135,0.3)); }
+  }
+
+  /* ═══ GLOBAL CONTROLS BAR ═══ */
+  .controls-bar {
+    display: flex; gap: 12px; padding: 10px 24px; background: linear-gradient(180deg, #0d0d14, var(--surface));
+    border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap;
+  }
+  .ctrl-btn {
+    font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700;
+    padding: 8px 16px; border-radius: 6px; border: 2px solid var(--cyan);
+    background: rgba(0,229,255,0.06); color: var(--cyan); cursor: pointer;
+    transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ctrl-btn:hover { background: rgba(0,229,255,0.15); box-shadow: 0 0 15px rgba(0,229,255,0.2); transform: translateY(-1px); }
+  .ctrl-btn:active { transform: translateY(0); }
+  .ctrl-btn.launching-all { border-color: var(--yellow); color: var(--yellow); background: rgba(255,225,53,0.08); pointer-events: none; }
+  .ctrl-stats {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
+    display: flex; gap: 14px; align-items: center; margin-left: auto;
+  }
+  .ctrl-stats .s-running { color: var(--cyan); }
+  .ctrl-stats .s-done { color: var(--green); }
+  .ctrl-stats .s-todo { color: var(--text-dim); }
+  .ctrl-stats .s-failed { color: var(--red); }
+  .poll-indicator {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .poll-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    animation: pollBlink 2s ease-in-out infinite;
+  }
+  @keyframes pollBlink { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  /* ═══ STATS BAR ═══ */
+  .stats-bar {
+    display: flex; gap: 12px; padding: 10px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .stat-chip {
+    display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+    border-radius: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-chip .num { font-size: 16px; font-weight: 800; font-family: 'Orbitron', sans-serif; }
+
+  /* ═══ FILTER BAR ═══ */
+  .filter-bar {
+    display: flex; gap: 8px; padding: 8px 24px; background: var(--bg);
+    border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap;
+  }
+  .search-wrap { position: relative; display: inline-flex; align-items: center; }
+  .search-wrap::before { content: '🔍'; position: absolute; left: 8px; font-size: 11px; pointer-events: none; }
+  .search-input {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px 6px 28px; color: var(--text); font-size: 12px;
+    font-family: 'Inter', sans-serif; width: 220px; outline: none; transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--pink); }
+  .search-input::placeholder { color: var(--text-dim); }
+  .filter-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+  .filter-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 4px 8px;
+    border-radius: 4px; border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+  }
+  .filter-btn:hover { border-color: var(--text-dim); }
+  .filter-btn.active { border-color: var(--pink); color: var(--pink); background: rgba(255,45,135,0.08); }
+
+  /* ═══ BOARD ═══ */
+  .board {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; padding: 16px 24px; min-height: calc(100vh - 400px);
+    align-items: flex-start;
+  }
+  @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .board { grid-template-columns: 1fr; } }
+
+  .column { min-width: 0; }
+  .column-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px 10px 0 0; font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px;
+    font-family: 'Orbitron', sans-serif;
+  }
+  .column-header-left { display: flex; align-items: center; gap: 8px; }
+  .column-count {
+    padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .col-launch-btn {
+    font-size: 9px; padding: 3px 8px; border-radius: 4px; border: 1px solid;
+    background: transparent; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+    transition: all 0.15s; opacity: 0.6;
+  }
+  .col-launch-btn:hover { opacity: 1; transform: scale(1.05); }
+  .column-body {
+    display: flex; flex-direction: column; gap: 6px; padding: 6px;
+    background: rgba(255,255,255,0.01); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 10px 10px; min-height: 80px;
+  }
+
+  .col-w1 .column-header { border-color: rgba(255,45,135,0.25); color: var(--pink); }
+  .col-w1 .column-count { background: rgba(255,45,135,0.12); color: var(--pink); }
+  .col-w1 .col-launch-btn { border-color: var(--pink); color: var(--pink); }
+  .col-w2 .column-header { border-color: rgba(0,229,255,0.25); color: var(--cyan); }
+  .col-w2 .column-count { background: rgba(0,229,255,0.12); color: var(--cyan); }
+  .col-w2 .col-launch-btn { border-color: var(--cyan); color: var(--cyan); }
+  .col-w3 .column-header { border-color: rgba(255,225,53,0.25); color: var(--yellow); }
+  .col-w3 .column-count { background: rgba(255,225,53,0.12); color: var(--yellow); }
+  .col-w3 .col-launch-btn { border-color: var(--yellow); color: var(--yellow); }
+  .col-w4 .column-header { border-color: rgba(180,77,255,0.25); color: var(--purple); }
+  .col-w4 .column-count { background: rgba(180,77,255,0.12); color: var(--purple); }
+  .col-w4 .col-launch-btn { border-color: var(--purple); color: var(--purple); }
+
+  /* ═══ CARDS ═══ */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; cursor: pointer; transition: all 0.2s; user-select: none;
+    position: relative;
+  }
+  .card:hover { border-color: var(--border-hover); transform: translateY(-2px); background: var(--card-hover); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .card.hidden-card { display: none; }
+  .card.card-done { opacity: 0.5; border-left: 3px solid var(--green); }
+  .card.card-done .card-title { text-decoration: line-through; }
+  .card.card-in-progress { border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,225,53,0.15); }
+  .card.card-running { border-color: var(--cyan); animation: cyanPulse 1.5s ease-in-out infinite; }
+  .card.card-failed { border-left: 3px solid var(--red); }
+  @keyframes cyanPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(0,229,255,0.15); border-color: rgba(0,229,255,0.5); }
+    50% { box-shadow: 0 0 22px rgba(0,229,255,0.4); border-color: rgba(0,229,255,0.9); }
+  }
+  @keyframes yellowPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,225,53,0.1); }
+    50% { box-shadow: 0 0 18px rgba(255,225,53,0.25); }
+  }
+  .card-status-icon {
+    position: absolute; top: 8px; right: 10px; font-size: 20px; line-height: 1;
+  }
+  .card-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; line-height: 1.3; padding-right: 28px; }
+  .card-desc { font-size: 10px; color: var(--text-dim); line-height: 1.4; margin-bottom: 8px; }
+  .card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+  .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 2px 6px;
+    border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tag-content { background: rgba(255,45,135,0.1); color: var(--pink); border: 1px solid rgba(255,45,135,0.15); }
+  .tag-dev { background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid rgba(0,229,255,0.15); }
+  .tag-brand { background: rgba(180,77,255,0.1); color: var(--purple); border: 1px solid rgba(180,77,255,0.15); }
+  .tag-marketing { background: rgba(255,225,53,0.1); color: var(--yellow); border: 1px solid rgba(255,225,53,0.15); }
+  .tag-outreach { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.15); }
+  .tag-business { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.15); }
+  .tag-design { background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.15); }
+  .tag-video { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.15); }
+  .card-time {
+    font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    margin-left: auto; background: rgba(255,255,255,0.04); padding: 2px 6px; border-radius: 4px;
+  }
+
+  /* ═══ CARD PROGRESS BAR ═══ */
+  .card-progress { margin-top: 8px; }
+  .card-progress-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .card-progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .card-progress-label {
+    font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    margin-top: 3px; display: flex; justify-content: space-between;
+  }
+
+  /* ═══ PROGRESS BAR ═══ */
+  .progress-bar-wrap { margin: 0 24px 0; padding: 8px 0; }
+  .progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--pink), var(--cyan), var(--yellow), var(--purple));
+    background-size: 200% 100%;
+    animation: progressShimmer 3s ease-in-out infinite;
+    transition: width 0.5s ease;
+  }
+  @keyframes progressShimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .progress-label {
+    display: flex; justify-content: space-between; margin-top: 6px;
+    font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ═══ TOAST ═══ */
+  .toast-container {
+    position: fixed; bottom: 80px; right: 20px; z-index: 9999;
+    display: flex; flex-direction: column-reverse; gap: 8px;
+  }
+  .toast {
+    background: var(--card); border: 1px solid var(--cyan); border-radius: 8px;
+    padding: 10px 16px; font-size: 12px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; max-width: 400px;
+    animation: toastIn 0.3s ease forwards;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .toast.toast-success { border-color: var(--green); }
+  .toast.toast-error { border-color: var(--red); }
+  .toast.toast-launch { border-color: var(--cyan); }
+  .toast.removing { animation: toastOut 0.3s ease forwards; }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(30px); } }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+
+  /* ═══ DETAIL OVERLAY + PANEL ═══ */
+  .detail-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .detail-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .detail-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 100vw);
+    background: var(--bg); border-left: 2px solid var(--border);
+    z-index: 1001; transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .detail-panel.open { transform: translateX(0); }
+
+  .detail-top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 2;
+  }
+  .detail-nav-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+  }
+  .detail-nav-btn:hover { border-color: var(--pink); color: var(--pink); }
+  .detail-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .detail-nav-btn:disabled:hover { border-color: var(--border); color: var(--text-dim); }
+  .detail-close-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 6px; width: 32px; height: 32px; cursor: pointer; font-size: 16px;
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+  }
+  .detail-close-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .detail-header { padding: 24px 24px 16px; }
+  .detail-tag-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .detail-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 4px 10px;
+    border-radius: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-time { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+  .detail-status {
+    font-size: 10px; padding: 4px 10px; border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600; text-transform: uppercase;
+  }
+  .status-todo { background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border); }
+  .status-in-progress { background: rgba(255,225,53,0.1); color: var(--yellow); border: 1px solid rgba(255,225,53,0.25); }
+  .status-done { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .status-running { background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid rgba(0,229,255,0.25); }
+  .status-failed { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+
+  .detail-title {
+    font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 800;
+    line-height: 1.2; margin-bottom: 4px;
+  }
+
+  .detail-actions {
+    display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .action-btn {
+    padding: 10px 20px; border-radius: 8px; border: 2px solid; font-family: 'Orbitron', sans-serif;
+    font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .action-btn:hover { transform: scale(1.03); }
+  .btn-launch {
+    border-color: var(--cyan); background: rgba(0,229,255,0.08); color: var(--cyan);
+  }
+  .btn-launch:hover { background: rgba(0,229,255,0.18); box-shadow: 0 0 20px rgba(0,229,255,0.2); }
+  .btn-launch.launching { border-color: var(--yellow); color: var(--yellow); background: rgba(255,225,53,0.08); pointer-events: none; }
+  .btn-launch.launched { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.08); }
+  .btn-relaunch {
+    border-color: var(--amber); background: rgba(245,158,11,0.08); color: var(--amber);
+  }
+  .btn-relaunch:hover { background: rgba(245,158,11,0.18); }
+  .btn-done {
+    border-color: var(--green); background: rgba(34,197,94,0.08); color: var(--green);
+  }
+  .btn-done:hover { background: rgba(34,197,94,0.18); }
+  .btn-done.completed { background: var(--green); color: #000; }
+  .btn-back {
+    border-color: var(--border); background: transparent; color: var(--text-dim);
+  }
+  .btn-back:hover { border-color: var(--text-dim); color: var(--text); }
+
+  .launch-spinner {
+    width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor;
+    border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
+  }
+  .launching .launch-spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .detail-section {
+    padding: 0 24px 20px; border-top: 1px solid var(--border); margin-top: 0; padding-top: 20px;
+  }
+  .detail-section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px;
+    color: var(--text-dim);
+  }
+  .detail-desc { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+
+  .criteria-item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; line-height: 1.4;
+  }
+  .criteria-item:last-child { border-bottom: none; }
+  .criteria-check {
+    flex-shrink: 0; font-size: 18px; cursor: pointer; user-select: none;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; transition: all 0.15s; margin-top: -2px;
+  }
+  .criteria-check:hover { background: rgba(255,255,255,0.06); }
+  .criteria-check.checked { color: var(--green); }
+  .criteria-item.checked-item span:last-child { text-decoration: line-through; color: var(--text-dim); }
+  .card-checkbox {
+    position: absolute; top: 8px; left: 10px; font-size: 18px; cursor: pointer;
+    user-select: none; z-index: 2; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .card-checkbox:hover { background: rgba(255,255,255,0.08); }
+  .card-checkbox.checked { color: var(--green); }
+
+  .file-link {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 6px; text-decoration: none; color: var(--cyan); font-size: 12px;
+    transition: all 0.15s; font-family: 'JetBrains Mono', monospace;
+  }
+  .file-link:hover { border-color: var(--cyan); background: rgba(0,229,255,0.05); }
+
+  .prompt-wrap { position: relative; }
+  .prompt-block {
+    background: #0a0a12; border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word;
+    max-height: 300px; overflow-y: auto;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px;
+    color: var(--text-dim); cursor: pointer; font-size: 10px;
+    font-family: 'JetBrains Mono', monospace; transition: all 0.15s; z-index: 1;
+  }
+  .copy-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+  /* Agent output */
+  .agent-output-block {
+    background: #080812; border: 1px solid rgba(0,229,255,0.2); border-radius: 8px;
+    padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word;
+    max-height: 400px; overflow-y: auto;
+  }
+
+  .detail-notes {
+    width: 100%; min-height: 80px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; color: var(--text); font-size: 13px;
+    font-family: 'Inter', sans-serif; resize: vertical; outline: none; transition: border-color 0.2s;
+  }
+  .detail-notes:focus { border-color: var(--pink); }
+  .detail-notes::placeholder { color: var(--text-dim); }
+  .notes-saved {
+    font-size: 10px; color: var(--green); font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px; opacity: 0; transition: opacity 0.3s;
+  }
+  .notes-saved.show { opacity: 1; }
+
+  /* ═══ AGENT CHAT PANEL ═══ */
+  .chat-panel {
+    background: #080810; border: 1px solid rgba(0,229,255,0.2); border-radius: 10px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .chat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: rgba(0,229,255,0.05);
+    border-bottom: 1px solid rgba(0,229,255,0.15);
+    font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700;
+    color: var(--cyan); text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .chat-header-actions { display: flex; gap: 6px; }
+  .chat-header-btn {
+    font-size: 9px; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(0,229,255,0.3);
+    background: transparent; color: var(--cyan); cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+  }
+  .chat-header-btn:hover { background: rgba(0,229,255,0.1); border-color: var(--cyan); }
+  .chat-messages {
+    height: 320px; overflow-y: auto; padding: 12px; display: flex;
+    flex-direction: column; gap: 8px; scroll-behavior: smooth;
+  }
+  .chat-msg {
+    max-width: 85%; padding: 8px 12px; border-radius: 10px;
+    font-size: 12px; line-height: 1.5; word-break: break-word;
+    animation: chatMsgIn 0.2s ease;
+  }
+  @keyframes chatMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .chat-msg.assistant {
+    align-self: flex-start; background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.12); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    white-space: pre-wrap; border-bottom-left-radius: 2px;
+  }
+  .chat-msg.user {
+    align-self: flex-end; background: rgba(255,45,135,0.12);
+    border: 1px solid rgba(255,45,135,0.2); color: var(--text);
+    font-family: 'Inter', sans-serif; border-bottom-right-radius: 2px;
+  }
+  .chat-msg.system {
+    align-self: center; background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-align: center; max-width: 90%;
+  }
+  .chat-msg .msg-role {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 3px; opacity: 0.5;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .chat-msg.assistant .msg-role { color: var(--cyan); }
+  .chat-msg.user .msg-role { color: var(--pink); }
+  .chat-msg-text { max-height: 200px; overflow-y: auto; }
+  .chat-msg-text::-webkit-scrollbar { width: 3px; }
+  .chat-msg-text::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .chat-input-row {
+    display: flex; gap: 0; border-top: 1px solid rgba(0,229,255,0.15);
+  }
+  .chat-input {
+    flex: 1; padding: 10px 14px; background: rgba(0,0,0,0.3); border: none;
+    color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px;
+    outline: none;
+  }
+  .chat-input::placeholder { color: var(--text-dim); }
+  .chat-input:focus { background: rgba(0,229,255,0.03); }
+  .chat-send-btn {
+    padding: 10px 18px; background: rgba(0,229,255,0.1); border: none;
+    border-left: 1px solid rgba(0,229,255,0.15);
+    color: var(--cyan); font-family: 'Orbitron', sans-serif; font-size: 11px;
+    font-weight: 700; cursor: pointer; transition: all 0.15s;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .chat-send-btn:hover { background: rgba(0,229,255,0.2); }
+  .chat-send-btn:disabled { opacity: 0.3; cursor: default; }
+  .chat-send-btn:disabled:hover { background: rgba(0,229,255,0.1); }
+  .chat-loading {
+    display: flex; align-items: center; justify-content: center;
+    padding: 30px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; gap: 8px;
+  }
+  .chat-loading .spinner {
+    width: 14px; height: 14px; border: 2px solid transparent;
+    border-top-color: var(--cyan); border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  .chat-empty {
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 20px; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    text-align: center; line-height: 1.6;
+  }
+
+  /* ═══ ACTIVITY FEED ═══ */
+  .activity-toggle {
+    position: fixed; bottom: 20px; left: 20px; z-index: 999;
+    width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--pink);
+    background: var(--card); color: var(--pink); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  }
+  .activity-toggle:hover { background: rgba(255,45,135,0.15); transform: scale(1.1); }
+  .activity-toggle .badge {
+    position: absolute; top: -4px; right: -4px; background: var(--pink); color: #fff;
+    font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .activity-panel {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 998;
+    background: var(--surface); border-top: 2px solid var(--pink);
+    max-height: 250px; overflow-y: auto; transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+  }
+  .activity-panel.open { transform: translateY(0); }
+  .activity-panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px; border-bottom: 1px solid var(--border);
+    font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+    color: var(--pink); text-transform: uppercase; letter-spacing: 2px;
+    position: sticky; top: 0; background: var(--surface); z-index: 1;
+  }
+  .activity-clear {
+    font-size: 9px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px;
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .activity-clear:hover { border-color: var(--red); color: var(--red); }
+  .activity-entry {
+    padding: 6px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-dim); border-bottom: 1px solid rgba(255,255,255,0.02);
+    display: flex; gap: 10px;
+  }
+  .activity-entry .at { color: var(--text-dim); opacity: 0.5; min-width: 45px; }
+  .activity-entry .ae { color: var(--text); }
+  .activity-empty {
+    padding: 20px; text-align: center; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+
+  /* ═══ PROGRESS RING (SVG on cards) ═══ */
+  .card-ring {
+    position: absolute; bottom: 8px; right: 10px; width: 24px; height: 24px;
+  }
+  .card-ring circle { fill: none; stroke-width: 2.5; }
+  .card-ring .ring-bg { stroke: rgba(255,255,255,0.06); }
+  .card-ring .ring-fg { stroke-linecap: round; transition: stroke-dashoffset 0.4s; transform: rotate(-90deg); transform-origin: center; }
+</style>
+</head>
+<body>
+
+<div class="hero-banner">
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-scanline"></div>
+  <h1 class="hero-title">
+    <span class="hero-pre">🦞 CLAWHATCH SETUP WIZARD</span>
+    <span class="hero-main">LAUNCH SEQUENCE</span>
+    <span class="hero-sub">30 DAYS TO LIFTOFF — BUILD · SHIP · SCALE</span>
+  </h1>
+</div>
+
+<!-- Global Controls Bar -->
+<div class="controls-bar" id="controls-bar">
+  <button class="ctrl-btn" id="launch-all-btn" onclick="launchAllUnblocked()">🚀 Launch All Todo</button>
+  <div class="ctrl-stats" id="ctrl-stats"></div>
+  <div class="poll-indicator"><div class="poll-dot"></div><span id="poll-time">polling...</span></div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div class="progress-bar-wrap">
+  <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="progress-label"><span id="progress-text">0 / 0 tasks</span><span id="progress-pct">0%</span></div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-wrap">
+    <input type="text" class="search-input" id="search-input" placeholder="Search tasks... ( / )" oninput="applyFilters()">
+  </div>
+  <div class="filter-sep"></div>
+  <button class="filter-btn" data-tag="content" onclick="toggleFilter(this)">content</button>
+  <button class="filter-btn" data-tag="dev" onclick="toggleFilter(this)">dev</button>
+  <button class="filter-btn" data-tag="brand" onclick="toggleFilter(this)">brand</button>
+  <button class="filter-btn" data-tag="marketing" onclick="toggleFilter(this)">marketing</button>
+  <button class="filter-btn" data-tag="outreach" onclick="toggleFilter(this)">outreach</button>
+  <button class="filter-btn" data-tag="business" onclick="toggleFilter(this)">business</button>
+  <button class="filter-btn" data-tag="design" onclick="toggleFilter(this)">design</button>
+  <button class="filter-btn" data-tag="video" onclick="toggleFilter(this)">video</button>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Activity Feed -->
+<button class="activity-toggle" id="activity-toggle" onclick="toggleActivity()">📡<span class="badge" id="activity-badge" style="display:none">0</span></button>
+<div class="activity-panel" id="activity-panel">
+  <div class="activity-panel-header">
+    <span>📡 Activity Feed</span>
+    <button class="activity-clear" onclick="clearActivity()">Clear</button>
+  </div>
+  <div id="activity-list"></div>
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-top-bar">
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="detail-nav-btn" id="prev-btn" onclick="navTask(-1)">← Prev</button>
+      <button class="detail-nav-btn" id="next-btn" onclick="navTask(1)">Next →</button>
+    </div>
+    <button class="detail-close-btn" onclick="closeDetail()">✕</button>
+  </div>
+  <div id="detail-content"></div>
+</div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:18789';
+const AUTH_TOKEN = '702d437e3a2ef4d4bd7b7b76c4d752335d2e210d0249ade1';
+const HEADERS = { 'Authorization': `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' };
+
+const COLUMNS = [
+  { key: 'w1', title: 'WEEK 1: Foundation', css: 'col-w1' },
+  { key: 'w2', title: 'WEEK 2: Build MVP', css: 'col-w2' },
+  { key: 'w3', title: 'WEEK 3: Launch', css: 'col-w3' },
+  { key: 'w4', title: 'WEEK 4: Scale', css: 'col-w4' },
+];
+
+const TAG_CSS = {
+  content: 'tag-content', dev: 'tag-dev', brand: 'tag-brand',
+  marketing: 'tag-marketing', outreach: 'tag-outreach', business: 'tag-business',
+  design: 'tag-design', video: 'tag-video'
+};
+const TAG_COLORS = {
+  content: 'var(--pink)', dev: 'var(--cyan)', brand: 'var(--purple)',
+  marketing: 'var(--yellow)', outreach: 'var(--green)', business: 'var(--amber)',
+  design: 'var(--blue)', video: 'var(--red)'
+};
+
+const CARDS = {
+  w1: [
+    { id:'w1-1', title:'Name Research & Decision', desc:'Research naming options — Clawhatch confirmed. Buy domain, check social handles, confirm no trademark conflicts.', tag:'brand', time:'3h',
+      criteria: ['Domain purchased (clawhatch.com or clawhatch.dev)', 'Twitter/X handle secured', 'GitHub org name reserved', 'No trademark conflicts found', 'Name documented in brand guide'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/competitor-analysis.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Research and finalize the brand name "Clawhatch" for our OpenClaw setup wizard business. Check domain availability for clawhatch.com and clawhatch.dev. Check Twitter/X handle availability. Check GitHub org name availability. Search USPTO and UK IPO trademark databases for conflicts. Document findings in clawhatch/research/brand-research.md. Reference the competitor analysis at clawhatch/research/competitor-analysis.md to ensure differentiation. Output a decision document with the chosen name, all handles/domains secured, and reasoning.'
+    },
+    { id:'w1-2', title:'Logo Design', desc:'Design a bold, memorable logo. Lobster/claw motif with neon energy. Create variants for dark/light backgrounds and favicon.', tag:'brand', time:'4h',
+      criteria: ['Primary logo SVG on dark background', 'Light background variant', '32x32 and 16x16 favicons', 'PNG exports at 128, 256, 512px', 'Logo uses brand colors from style guide'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/competitor-analysis.md'],
+      prompt: 'Design a logo for Clawhatch — an OpenClaw setup wizard service. The concept is "The Closet Door" — an ajar door with a claw handle, neon energy aesthetic. Use our brand colors: neon pink (#ff2d87), cyan (#00e5ff), purple (#b44dff). Create: 1) Primary SVG logo on dark background, 2) Light background variant, 3) Favicon versions (32x32, 16x16), 4) PNG exports at multiple sizes. Reference clawhatch/research/brand-research.md for brand direction and clawhatch/research/competitor-analysis.md to differentiate from competitors. The logo should feel bold, techy, and memorable.'
+    },
+    { id:'w1-3', title:'Brand Colors & Style Guide', desc:'Define primary palette (neon pink/cyan/purple), typography, tone of voice, and visual language for all touchpoints.', tag:'brand', time:'2h',
+      criteria: ['Color palette defined with hex codes', 'Primary and body fonts chosen', 'Tone of voice documented', 'Social media templates created', 'Style guide document complete (1-2 pages)'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/competitor-analysis.md'],
+      prompt: 'Create a comprehensive brand style guide for Clawhatch. Define: 1) Primary color palette — neon pink (#ff2d87), cyan (#00e5ff), purple (#b44dff), yellow (#ffe135) with secondary/neutral colors for text and backgrounds, 2) Typography — heading font (Orbitron) and body font (Inter), 3) Tone of voice — friendly expert, no BS, genuinely helpful, 4) Visual language guidelines, 5) Social media templates (profile pic, banner, post formats). Reference clawhatch/research/brand-research.md for market positioning. Output as a markdown document.'
+    },
+    { id:'w1-4', title:'Create Landing Page', desc:'Simple, one-page site with clear value prop, pricing tiers, testimonials placeholder, and email capture. Make it gorgeous.', tag:'design', time:'6h',
+      criteria: ['Hero section with clear value prop', 'Pricing section with 3 tiers (Free/$39 Pro/$19 Support)', 'Email capture form working', 'Mobile responsive', 'Deployed to Vercel', 'Page load under 3 seconds'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/pricing-research.md', 'clawhatch/research/onboarding-ux.md', 'clawhatch/research/competitor-analysis.md', 'clawhatch/BUSINESS-PLAN.md', 'clawhatch/SPRINT-PLAN.md'],
+      prompt: 'Build the Clawhatch landing page as a Next.js + Tailwind + shadcn/ui project. Reference clawhatch/research/pricing-research.md for tier pricing ($39 Pro Setup, $19/mo Support, free DIY guide). Reference clawhatch/research/onboarding-ux.md for UX patterns. Reference clawhatch/BUSINESS-PLAN.md for positioning. Include: 1) Hero section — "Set up OpenClaw in 10 minutes, not 10 hours", 2) How it works (3 steps), 3) Pricing table with 3 tiers, 4) Social proof placeholder, 5) FAQ section addressing top objections from clawhatch/research/pain-points.md, 6) Email capture form, 7) Neon dark theme matching our brand. Deploy to Vercel.'
+    },
+    { id:'w1-5', title:'Set Up Twitter/X Account', desc:'Create dedicated account for Clawhatch content. Bio, banner, pinned tweet. Follow key accounts in the ecosystem.', tag:'marketing', time:'1h',
+      criteria: ['Account created with brand name', 'Profile picture and banner uploaded', 'Bio clearly states what we do', 'Pinned tweet explains the service', 'Following 50+ key accounts'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Plan the Clawhatch Twitter/X account setup. Write: 1) A compelling bio (160 chars max) that positions us as THE OpenClaw setup expert, 2) A pinned tweet thread (5-7 tweets) introducing Clawhatch and what we offer, 3) A list of 50 key accounts to follow in the AI/OpenClaw ecosystem, 4) Banner image copy/concept brief. Reference clawhatch/research/distribution.md for channel strategy and clawhatch/research/brand-research.md for tone of voice. The account should feel like a helpful expert, not a corporate brand.'
+    },
+    { id:'w1-6', title:'Write Setup Guide Blog Post', desc:'"The Complete OpenClaw Setup Guide for Non-Developers" — target the primary SEO keyword. Genuinely helpful, not salesy.', tag:'content', time:'4h',
+      criteria: ['2000-3000 word comprehensive guide', 'Covers Windows, Mac, Linux', 'Screenshots for every major step', 'Troubleshooting section', 'Soft CTA at the end', 'SEO meta tags optimized'],
+      files: ['clawhatch/research/pain-points.md', 'clawhatch/research/onboarding-ux.md', 'clawhatch/research/systems-research.md', 'clawhatch/research/tech-architecture.md'],
+      prompt: 'Write "The Complete OpenClaw Setup Guide for Non-Developers" — a 2500-word blog post targeting the SEO keyword "how to set up OpenClaw". Reference clawhatch/research/pain-points.md for the exact problems users face. Reference clawhatch/research/systems-research.md and clawhatch/research/tech-architecture.md for technical accuracy. Structure: 1) Intro — who this is for, 2) Prerequisites checklist, 3) Step-by-step walkthrough (Windows + Mac), 4) Common mistakes section (from pain-points.md), 5) Troubleshooting FAQ, 6) Soft CTA — "Need help? Clawhatch offers setup services." Make it genuinely the best setup guide on the internet.'
+    },
+    { id:'w1-7', title:'Post Guide to Reddit', desc:'Share the guide on r/ClaudeAI and r/selfhosted. Lead with value, be helpful in comments. No hard selling.', tag:'outreach', time:'1h',
+      criteria: ['Posted to r/ClaudeAI with Reddit-native formatting', 'Cross-posted to r/selfhosted', 'All comments replied to within 24h', 'No rule violations', 'Positive engagement ratio'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md'],
+      prompt: 'Write Reddit posts for sharing the Clawhatch setup guide. Create: 1) A r/ClaudeAI post — Reddit-native title and intro, not just a link dump. Lead with the value ("I wrote the guide I wish existed when I set up OpenClaw"), 2) A r/selfhosted variant with different framing for that community, 3) Reply templates for common follow-up questions. Reference clawhatch/research/distribution.md for Reddit strategy and clawhatch/research/pain-points.md for the problems users mention. The tone should be helpful community member, never salesy.'
+    },
+    { id:'w1-8', title:'Start Daily Reddit Engagement', desc:'Answer 5-10 OpenClaw questions on Reddit daily. Build reputation as "the setup person". Free value first, always.', tag:'outreach', time:'30min/day',
+      criteria: ['Saved searches set up for key terms', 'Answering 5-10 questions daily', 'FAQ document built from common questions', '100+ karma in r/ClaudeAI within first week', 'No self-promotion in first 5 days'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md', 'clawhatch/research/ecosystem-size.md'],
+      prompt: 'Create a Reddit engagement playbook for Clawhatch. Include: 1) List of search terms to monitor ("openclaw setup", "clawdbot help", "openclaw error", etc.), 2) Template helpful responses for the top 10 most common questions (reference clawhatch/research/pain-points.md), 3) Guidelines for when to mention the service vs just help for free, 4) Karma-building strategy, 5) Subreddit priority list. Reference clawhatch/research/ecosystem-size.md for audience data and clawhatch/research/distribution.md for channel strategy. Goal: become the recognized OpenClaw setup expert on Reddit within 2 weeks.'
+    },
+    { id:'w1-9', title:'Record YouTube Setup Video', desc:'"OpenClaw Complete Setup Guide 2026" — 20-30 min definitive walkthrough. Screen recording with voiceover. THE video.', tag:'video', time:'8h',
+      criteria: ['20-30 minute comprehensive walkthrough', 'Covers Windows and Mac', 'Chapter markers added', 'Custom thumbnail designed', 'SEO-optimized title, description, tags', 'Audio quality is clear and professional'],
+      files: ['clawhatch/research/pain-points.md', 'clawhatch/research/onboarding-ux.md', 'clawhatch/research/systems-research.md'],
+      prompt: 'Write a detailed video script for "OpenClaw Complete Setup Guide 2026" — a 25-minute YouTube walkthrough. Reference clawhatch/research/pain-points.md for what confuses users most. Reference clawhatch/research/systems-research.md for technical steps. Structure: 1) Hook (0:00-0:30) — "By the end of this video, OpenClaw will be running on your phone", 2) Prerequisites (0:30-2:00), 3) Installation walkthrough (2:00-15:00), 4) Configuration (15:00-20:00), 5) Testing & first message (20:00-23:00), 6) Troubleshooting common issues (23:00-25:00). Include chapter timestamps, thumbnail concept, and SEO-optimized title/description/tags.'
+    },
+    { id:'w1-10', title:'Wizard UX Flow Design', desc:'Map the complete user journey: intake form → payment → scheduling → setup session → handoff → follow-up. Every touchpoint matters.', tag:'design', time:'3h',
+      criteria: ['Complete user journey mapped', 'Intake form fields defined', 'Scheduling flow designed', 'Handoff checklist created', 'Follow-up sequence planned', 'Flow diagram created'],
+      files: ['clawhatch/research/wizard-ux-flow.md', 'clawhatch/research/onboarding-ux.md', 'clawhatch/research/pain-points.md', 'clawhatch/SPRINT-PLAN.md'],
+      prompt: 'Design the complete Clawhatch wizard UX flow. Reference clawhatch/research/wizard-ux-flow.md for the 11-screen wizard structure. Reference clawhatch/research/onboarding-ux.md for UX best practices. Reference clawhatch/research/pain-points.md for what to address at each step. Design: 1) Multi-step wizard UI flow (OS detection → config quiz → payment gate → script generation → download), 2) Intake form fields, 3) Error states and recovery paths, 4) Post-setup handoff checklist, 5) Follow-up email sequence (24h check-in, 7-day review). Output as a detailed flow document with screen descriptions.'
+    },
+    { id:'w1-11', title:'Landing Page Design', desc:'Wireframe and high-fidelity mockups for the main landing page. Hero section, features, pricing, social proof, CTA flow.', tag:'design', time:'5h',
+      criteria: ['Wireframes for all sections', 'High-fidelity hero section mockup', 'Pricing table design', 'Mobile responsive designs', 'Design follows brand style guide', 'Feedback incorporated from 2-3 people'],
+      files: ['clawhatch/research/brand-research.md', 'clawhatch/research/pricing-research.md', 'clawhatch/research/competitor-analysis.md', 'clawhatch/research/onboarding-ux.md'],
+      prompt: 'Create high-fidelity landing page designs for Clawhatch. Reference clawhatch/research/brand-research.md for visual identity. Reference clawhatch/research/pricing-research.md for tier structure. Reference clawhatch/research/competitor-analysis.md to differentiate from Clawhatch and others. Design sections: 1) Hero — neon dark theme, "Setup OpenClaw in 10 minutes" with animated CTA, 2) "How it works" 3-step section, 3) Feature comparison (Manual vs Clawhatch), 4) Pricing table ($39 Pro / $19 Support / Free DIY), 5) Social proof section, 6) FAQ, 7) Final CTA. Neon pink/cyan/purple aesthetic. Mobile-first responsive.'
+    },
+  ],
+  w2: [
+    { id:'w2-1', title:'Twitter Thread: Setup Mistakes', desc:'"I\'ve been helping people set up OpenClaw. Here\'s what everyone gets wrong 🧵" — expertise-building thread.', tag:'content', time:'2h',
+      criteria: ['7-10 tweet thread written', 'Each mistake has a clear solution', 'Compelling hook tweet', 'CTA in final tweet', 'Scheduled for peak hours'],
+      files: ['clawhatch/research/pain-points.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Write a viral Twitter thread: "I\'ve helped 50+ people set up OpenClaw. Here\'s what everyone gets wrong 🧵". Reference clawhatch/research/pain-points.md for the real mistakes users make. Structure as 8-10 tweets: 1) Hook tweet, 2-8) One mistake per tweet with solution, 9) Summary, 10) CTA (follow + DM for help). Each tweet should be punchy, standalone, and under 280 chars. Reference clawhatch/research/distribution.md for Twitter best practices. Make it genuinely helpful — the kind of thread people bookmark.'
+    },
+    { id:'w2-2', title:'Blog: Cost Breakdown', desc:'"OpenClaw Costs Explained: API vs Pro vs Max" — address the #1 concern. Real numbers, honest comparisons.', tag:'content', time:'3h',
+      criteria: ['Real cost calculations for all tiers', 'Comparison tables included', 'Hidden costs addressed', 'Money-saving tips section', 'SEO-optimized for cost queries'],
+      files: ['clawhatch/research/pricing-research.md', 'clawhatch/research/pain-points.md', 'clawhatch/research/monetization-deep-dive.md'],
+      prompt: 'Write "OpenClaw Costs Explained: The Complete 2026 Breakdown" — a blog post answering the #1 question people have. Reference clawhatch/research/pricing-research.md for real pricing data. Reference clawhatch/research/pain-points.md for cost concerns. Include: 1) API pricing breakdown (per-token costs, monthly estimates), 2) Pro vs Max comparison, 3) Self-hosted vs cloud costs, 4) Hidden costs people forget (domain, VPS, API overages), 5) Money-saving tips, 6) "Is Clawhatch worth $39?" honest assessment. Use real numbers. Be honest about trade-offs.'
+    },
+    { id:'w2-3', title:'Post Cost Guide to Reddit', desc:'Share the cost breakdown on r/ClaudeAI. This is the content people are desperately searching for.', tag:'outreach', time:'30min',
+      criteria: ['Reddit-native format (not just a link)', 'TL;DR at the top', 'All comments replied to within 24h', 'Positive reception'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pricing-research.md'],
+      prompt: 'Adapt the Clawhatch cost breakdown blog post into a Reddit-native post for r/ClaudeAI. Reference clawhatch/research/distribution.md for Reddit strategy. Include: 1) Engaging title with real numbers, 2) TL;DR at top, 3) Full breakdown in Reddit markdown, 4) Reply templates for common follow-up questions about pricing. The post should be self-contained — readers shouldn\'t need to click a link to get value.'
+    },
+    { id:'w2-4', title:'YouTube Short: Quick Demo', desc:'< 60 second demo showing the magic moment. Hook → setup → "wow it works on my phone". Vertical format.', tag:'video', time:'2h',
+      criteria: ['Under 60 seconds', 'Vertical format (1080x1920)', 'Clear hook in first 3 seconds', 'Shows the "wow" moment', 'Cross-posted to TikTok and Reels'],
+      files: ['clawhatch/research/onboarding-ux.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Write a script for a 45-second YouTube Short demoing Clawhatch. Structure: 0-3s: Hook — "OpenClaw running on your phone in 10 minutes?", 3-15s: Show the wizard interface, 15-35s: Speed-run through setup, 35-45s: Magic moment — phone notification + AI response. Include text overlay suggestions and background music mood. Reference clawhatch/research/onboarding-ux.md for the user flow. This should make viewers think "I want that" and click through.'
+    },
+    { id:'w2-5', title:'Blog: Security Guide', desc:'"Is OpenClaw Safe? Security Best Practices" — address security concerns and anxiety.', tag:'content', time:'3h',
+      criteria: ['Addresses Keychain anxiety', 'Security hardening checklist', 'Honest risk assessment', 'FAQ section', 'Schema markup for featured snippets'],
+      files: ['clawhatch/research/pain-points.md', 'clawhatch/research/systems-research.md', 'clawhatch/research/tech-architecture.md'],
+      prompt: 'Write "Is OpenClaw Safe? The Complete Security Guide" — addressing the #2 concern from clawhatch/research/pain-points.md. Reference clawhatch/research/tech-architecture.md for technical security details. Include: 1) What OpenClaw actually accesses and why, 2) Keychain/permissions explained honestly, 3) Security hardening checklist (firewall, HTTPS, 2FA, API key rotation), 4) "Red flags" — things NOT to do, 5) Data privacy FAQ, 6) Our security practices at Clawhatch. Be honest about risks — transparency builds trust.'
+    },
+    { id:'w2-6', title:'Payment Integration', desc:'Set up Lemon Squeezy for payment processing. Create product tiers, checkout flow, license keys, and receipt emails.', tag:'dev', time:'4h',
+      criteria: ['Lemon Squeezy account verified', 'Pro Setup product ($39) created', 'Support subscription ($19/mo) created', 'Checkout flow tested end-to-end', 'License key generation working', 'Receipt emails branded'],
+      files: ['clawhatch/research/pricing-research.md', 'clawhatch/research/monetization-deep-dive.md', 'clawhatch/SPRINT-PLAN.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Set up the Clawhatch payment integration with Lemon Squeezy. Reference clawhatch/research/pricing-research.md for tier structure and clawhatch/research/monetization-deep-dive.md for revenue strategy. Create: 1) Pro Setup product ($39 one-time) with license key delivery, 2) Support subscription ($19/mo) with recurring billing, 3) Webhook integration for automatic delivery (email with guide link or scheduling link), 4) Branded receipt email templates, 5) Checkout overlay integration with the Next.js landing page. Reference clawhatch/SPRINT-PLAN.md for the soft-gate approach (show manual way, offer easy way).'
+    },
+    { id:'w2-7', title:'Video Recording: Walkthroughs', desc:'Record 3-5 short walkthrough videos covering common setup scenarios: Windows, Mac, WhatsApp pairing, skill installation.', tag:'video', time:'6h',
+      criteria: ['3-5 walkthrough videos recorded', 'Each covers a specific scenario', 'Chapter markers added', 'Thumbnails designed', 'All uploaded with SEO optimization'],
+      files: ['clawhatch/research/pain-points.md', 'clawhatch/research/systems-research.md', 'clawhatch/research/tech-architecture.md'],
+      prompt: 'Plan and script 5 short (5-8 min) YouTube walkthrough videos for Clawhatch: 1) "OpenClaw Windows Setup in 5 Minutes", 2) "OpenClaw Mac Setup Guide", 3) "Connect OpenClaw to WhatsApp", 4) "Install Your First OpenClaw Skill", 5) "OpenClaw Troubleshooting: Top 5 Errors Fixed". Reference clawhatch/research/pain-points.md for common issues. Reference clawhatch/research/systems-research.md for technical accuracy. Each script should include: intro hook, step-by-step walkthrough, common mistakes, thumbnail concept, and SEO title/description/tags.'
+    },
+    { id:'w2-8', title:'Twitter/Community Engagement', desc:'Continue daily engagement on Twitter and Reddit. Reply to OpenClaw tweets, share tips, build the following.', tag:'outreach', time:'20min/day',
+      criteria: ['Daily Twitter engagement maintained', 'Reddit answers continued (3-5/day)', 'Engagement metrics tracked', 'Follower growth documented'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/ecosystem-size.md'],
+      prompt: 'Create a Week 2 community engagement checklist for Clawhatch. Reference clawhatch/research/distribution.md for strategy. Include: 1) Daily Twitter routine (search terms, reply templates, engagement targets), 2) Reddit engagement plan (which threads to prioritize), 3) Metrics to track (followers, impressions, profile clicks, DMs), 4) Content calendar for the week (what to tweet each day), 5) Escalation triggers (when to offer paid services vs free help). Reference clawhatch/research/ecosystem-size.md for audience sizing.'
+    },
+    { id:'w2-9', title:'Freelancing Setup (Fiverr/Upwork)', desc:'Create Fiverr/Upwork profiles for OpenClaw setup services. Parallel income stream while building the product.', tag:'business', time:'3h',
+      criteria: ['Fiverr gig live and optimized', 'Upwork profile complete', 'Pricing set ($49 starter)', 'Intake form created', 'First gig proposal templates written'],
+      files: ['clawhatch/research/pricing-research.md', 'clawhatch/research/competitor-analysis.md', 'clawhatch/research/monetization-deep-dive.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Set up freelancing profiles for Clawhatch on Fiverr and Upwork. Reference clawhatch/research/competitor-analysis.md for competitive pricing (Clawhatch charges $99/setup). Reference clawhatch/research/pricing-research.md for our positioning. Create: 1) Fiverr gig — title, description, pricing tiers ($49/$99/$199), FAQs, requirements, 2) Upwork profile — headline, overview, skills, portfolio items, 3) Proposal templates for different client types, 4) Intake questionnaire to qualify clients. Undercut competitors while delivering more value.'
+    },
+    { id:'w2-10', title:'Content Creation Pipeline', desc:'Plan and batch-create content for YouTube, Reddit, and Twitter. Build a 2-week content calendar.', tag:'content', time:'3h',
+      criteria: ['2-week content calendar complete', 'Templates created for each platform', '5 Twitter threads pre-written', '3 blog outlines drafted', 'Scheduling tool configured'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Build a 2-week content pipeline for Clawhatch. Reference clawhatch/research/distribution.md for channel strategy. Reference clawhatch/research/pain-points.md for content topics that resonate. Create: 1) Content calendar (dates, topics, platforms, formats), 2) 5 pre-written Twitter threads on different topics, 3) 3 blog post outlines with key points, 4) Reddit post templates, 5) YouTube video ideas ranked by effort vs impact. Focus on SEO-driven content that answers real questions people are Googling.'
+    },
+  ],
+  w3: [
+    { id:'w3-1', title:'Post on r/SideProject', desc:'"I\'m building a setup service for OpenClaw — here\'s why" — build-in-public post sharing the journey.', tag:'marketing', time:'1h',
+      criteria: ['Honest build-in-public post written', 'Includes real numbers', 'Screenshots included', 'Asks a specific engaging question', 'All comments replied to'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/ecosystem-size.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Write a build-in-public Reddit post for r/SideProject about Clawhatch. Reference clawhatch/BUSINESS-PLAN.md for the business model and vision. Reference clawhatch/research/ecosystem-size.md for market size data. Structure: 1) Hook — "I quit my job to help people set up AI assistants. Here\'s week 3.", 2) The problem we solve, 3) Real numbers (hours spent, first revenue, costs), 4) What we\'ve learned, 5) Screenshots of the product, 6) Ask for specific feedback. Radically transparent — include failures too.'
+    },
+    { id:'w3-2', title:'Monitor Twitter for Leads', desc:'Actively search for people struggling with OpenClaw setup. Reply with value, offer service when relevant.', tag:'outreach', time:'20min/day',
+      criteria: ['Twitter search alerts configured', 'Reply templates for common issues', '3-5 help tweets daily', 'Lead tracking system in place'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md'],
+      prompt: 'Create a Twitter lead monitoring playbook for Clawhatch. Reference clawhatch/research/pain-points.md for the exact error messages and complaints to search for. Create: 1) Search query list ("openclaw help", "clawdbot setup", "openclaw error", "moltbot error", etc.), 2) Reply templates for top 10 issues — genuinely helpful, not salesy, 3) Decision tree: when to help for free vs mention paid service, 4) Lead tracking spreadsheet template, 5) Daily routine checklist (10 min morning, 10 min evening). Reference clawhatch/research/distribution.md for strategy.'
+    },
+    { id:'w3-3', title:'YouTube: Real Cost Video', desc:'"OpenClaw: How Much Does It REALLY Cost?" — the honest truth video with real monthly breakdowns.', tag:'video', time:'4h',
+      criteria: ['Video script complete with real numbers', 'Visual cost comparisons planned', '"Who should NOT pay" section included', 'Engaging thumbnail with dollar amounts', 'SEO-optimized description'],
+      files: ['clawhatch/research/pricing-research.md', 'clawhatch/research/pain-points.md', 'clawhatch/research/monetization-deep-dive.md'],
+      prompt: 'Write a video script for "OpenClaw: How Much Does It REALLY Cost in 2026?" Reference clawhatch/research/pricing-research.md for real pricing data. Structure: 1) Hook — "Everyone asks me this. Here\'s the truth.", 2) API costs breakdown with real calculations, 3) Pro vs Max tier comparison, 4) Hidden costs nobody mentions, 5) Monthly cost for light/medium/heavy users, 6) Money-saving tips, 7) "Who should NOT pay for this" (builds trust), 8) CTA. Include visual chart concepts and thumbnail design with real dollar amounts visible.'
+    },
+    { id:'w3-4', title:'Offer 3 FREE Setups', desc:'Find 3 ideal customers and offer free setups in exchange for video testimonials. This is your social proof.', tag:'business', time:'6h',
+      criteria: ['3 ideal clients identified', 'All 3 setups completed', 'Video testimonial recorded for each', 'Before/after documented', 'Written reviews collected'],
+      files: ['clawhatch/research/case-studies.md', 'clawhatch/research/pain-points.md', 'clawhatch/research/onboarding-ux.md'],
+      prompt: 'Create a plan for Clawhatch\'s 3 free setup-for-testimonial exchanges. Reference clawhatch/research/case-studies.md for what makes compelling case studies. Reference clawhatch/research/pain-points.md for ideal client profiles (people struggling most). Plan: 1) Ideal client criteria (active on social, articulate, real need), 2) Outreach templates (Reddit DM, Twitter DM, Discord message), 3) Setup session checklist, 4) Testimonial recording guide (specific questions to ask), 5) Follow-up sequence, 6) How to turn each into a written case study. Reference clawhatch/research/onboarding-ux.md for the setup flow.'
+    },
+    { id:'w3-5', title:'Build-in-Public Thread', desc:'Week 3 update: what you\'ve learned, clients, engagement numbers, lessons. Radically transparent.', tag:'marketing', time:'1h',
+      criteria: ['Thread includes real metrics', 'Wins AND losses shared', 'Specific numbers cited', 'Ends with next week plan', 'Strong engagement on thread'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Write a Week 3 build-in-public Twitter thread for Clawhatch. Template: 1) Hook — "Week 3 building Clawhatch. Here are the real numbers 🧵", 2) Revenue update (even if $0), 3) Traffic/engagement metrics, 4) Best performing content, 5) Biggest surprise/learning, 6) Biggest failure, 7) What we\'re changing, 8) Week 4 plan. Reference clawhatch/BUSINESS-PLAN.md for targets to compare against. Be radically honest — audiences love transparency about the messy middle.'
+    },
+    { id:'w3-6', title:'Blog: Best Skills Guide', desc:'"Best OpenClaw Skills 2026" — curated list with descriptions, use cases, and installation instructions.', tag:'content', time:'3h',
+      criteria: ['Top 10 skills reviewed in detail', 'Installation instructions for each', 'Use case descriptions', 'Difficulty ratings included', 'SEO optimized for "best openclaw skills"'],
+      files: ['clawhatch/research/systems-research.md', 'clawhatch/research/tech-architecture.md', 'clawhatch/research/pain-points.md'],
+      prompt: 'Write "The 10 Best OpenClaw Skills in 2026" — a comprehensive listicle blog post. Reference clawhatch/research/systems-research.md for skill architecture. Reference clawhatch/research/tech-architecture.md for compatibility details. For each skill: 1) What it does, 2) Why it\'s useful (real use case), 3) Installation command, 4) Difficulty rating (⭐-⭐⭐⭐), 5) Pros/cons. Include a "how to install skills" tutorial section at the top. Target the SEO keyword "best openclaw skills 2026". Make it genuinely useful — the definitive skills guide.'
+    },
+    { id:'w3-7', title:'Community Engagement: Discord', desc:'Join OpenClaw Discord and adjacent AI communities. Help people in support channels. Build reputation.', tag:'outreach', time:'2h',
+      criteria: ['Joined main OpenClaw/Anthropic Discord', 'Joined 3-5 adjacent AI Discord servers', 'Spent 30+ min answering questions', 'No premature self-promotion', 'Genuine relationships started'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/ecosystem-size.md'],
+      prompt: 'Create a Discord community engagement plan for Clawhatch. Reference clawhatch/research/distribution.md for community strategy. Reference clawhatch/research/ecosystem-size.md for where the audience lives. Plan: 1) Priority Discord servers to join (OpenClaw official, Anthropic, AI communities, selfhosted), 2) Introduction message templates, 3) Helpful reply templates for common support questions, 4) Guidelines — help for free first, mention service only when asked, 5) Weekly engagement schedule, 6) Relationship-building targets.'
+    },
+    { id:'w3-8', title:'Community Engagement: Reddit', desc:'Become a regular helpful presence in r/ClaudeAI, r/selfhosted, r/LocalLLaMA. Build trust through consistency.', tag:'outreach', time:'30min/day',
+      criteria: ['Daily engagement in 3+ subreddits', '10:1 helpful-to-promotional ratio', 'Profile visits growing week over week', 'Recognized as helpful by community'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md'],
+      prompt: 'Create a Week 3 Reddit engagement escalation plan for Clawhatch. Reference clawhatch/research/distribution.md for strategy evolution. By now we should have karma and recognition — plan: 1) Which threads to prioritize (high-visibility, unanswered questions), 2) How to naturally reference our blog posts when answering, 3) When to share our own content vs purely help, 4) Metrics to track, 5) Goal: get recognized as "the setup person" in r/ClaudeAI. Reference clawhatch/research/pain-points.md for answer templates.'
+    },
+  ],
+  w4: [
+    { id:'w4-1', title:'Launch Referral Programme', desc:'£25 off for both referrer and referee. Set up tracking, referral codes, and automated emails.', tag:'business', time:'3h',
+      criteria: ['Referral system designed', 'Unique codes/links generated', 'Tracking system in place', 'Invitation email template written', 'CTA added to post-setup flow'],
+      files: ['clawhatch/research/monetization-deep-dive.md', 'clawhatch/research/distribution.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Design and implement the Clawhatch referral programme. Reference clawhatch/research/monetization-deep-dive.md for revenue optimization. Reference clawhatch/research/distribution.md for growth strategy. Create: 1) Referral mechanics (£25 off for both parties), 2) Unique referral code/link system, 3) Tracking spreadsheet or Lemon Squeezy affiliate setup, 4) Email templates: invitation, reward notification, 5) Landing page for referrals, 6) Post-setup CTA integration, 7) Terms and conditions. Reference clawhatch/BUSINESS-PLAN.md for revenue impact projections.'
+    },
+    { id:'w4-2', title:'Post Testimonials & Case Studies', desc:'Share video testimonials from free clients. Write detailed case studies. Real results, real proof.', tag:'marketing', time:'3h',
+      criteria: ['Video testimonials edited and published', 'Written case studies complete', 'Before/after screenshots included', 'Added to landing page', 'Shared on Twitter'],
+      files: ['clawhatch/research/case-studies.md', 'clawhatch/research/brand-research.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Create and publish Clawhatch\'s social proof package. Reference clawhatch/research/case-studies.md for case study structure. Create: 1) Edit 3 video testimonials into 30-60 second polished clips, 2) Write detailed case studies (problem → solution → result format), 3) Create before/after screenshot comparisons, 4) "Wall of love" section for the landing page, 5) Twitter posts for each testimonial with context, 6) Reddit post: "Here\'s what happened when I helped 3 people set up OpenClaw for free". Reference clawhatch/research/brand-research.md for visual style.'
+    },
+    { id:'w4-3', title:'YouTube: Top 10 Skills', desc:'"Top 10 OpenClaw Skills You Need" — engaging showcase video with each skill demoed live.', tag:'video', time:'4h',
+      criteria: ['10 skills selected and demoed', 'Each demo is 30-45 seconds', 'Difficulty ratings shown', 'Engaging thumbnail designed', 'Timestamps in description'],
+      files: ['clawhatch/research/systems-research.md', 'clawhatch/research/tech-architecture.md'],
+      prompt: 'Write a video script for "Top 10 OpenClaw Skills You NEED in 2026". Reference clawhatch/research/systems-research.md for skill details. For each skill: 1) 5-second intro graphic, 2) 30-second live demo, 3) Difficulty rating and setup time. Structure: Hook (the #1 skill reveal), then countdown 10→1. Include: transition concepts, text overlay suggestions, thumbnail design (number + skill preview), SEO-optimized title/description/tags. Each demo should show the "wow" moment of that skill.'
+    },
+    { id:'w4-4', title:'Month 1 Numbers Thread', desc:'Full transparency: revenue, clients, content stats. The kind of thread that goes viral in the builder community.', tag:'marketing', time:'1h',
+      criteria: ['All metrics compiled', 'Revenue, expenses, profit included', 'Content performance analyzed', 'Key ratios calculated', 'Month 2 goals stated'],
+      files: ['clawhatch/BUSINESS-PLAN.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Write Clawhatch\'s Month 1 results Twitter thread. Template: 1) Hook — "I spent 30 days building an OpenClaw setup business. Here are ALL the numbers 🧵", 2) Revenue breakdown, 3) Expenses, 4) Content metrics (views, followers, engagement), 5) Conversion rates, 6) Customer acquisition cost, 7) What worked (top 3), 8) What failed (top 3), 9) Key lesson, 10) Month 2 targets. Reference clawhatch/BUSINESS-PLAN.md for target comparison. Be brutally honest — these threads go viral because of transparency.'
+    },
+    { id:'w4-5', title:'Consider ProductHunt Launch', desc:'If timing is right, launch on ProductHunt. Prepare assets, rally supporters, go big.', tag:'marketing', time:'4h',
+      criteria: ['Launch readiness assessed', 'All PH assets prepared (logo, gallery, description)', 'Maker comment drafted', '10-20 supporters lined up', 'Launch day chosen'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/brand-research.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Prepare a ProductHunt launch plan for Clawhatch. Reference clawhatch/research/distribution.md for launch strategy. Create: 1) Launch readiness checklist (do we have enough social proof?), 2) All PH assets — 240x240 logo, 5-8 gallery images, tagline (60 chars), description, 3) Maker comment draft (sets the tone, tells the story), 4) Supporter outreach plan (10-20 people to notify on launch day), 5) Day-of timeline (submit night before, monitor all day, reply to every comment), 6) Risk assessment — should we wait or go? Reference clawhatch/research/brand-research.md for visual assets.'
+    },
+    { id:'w4-6', title:'Review Analytics & Double Down', desc:'Which content drives the most leads? Which channels convert? Kill what doesn\'t work, 2x what does.', tag:'business', time:'2h',
+      criteria: ['Analytics exported from all platforms', 'Top 3 content pieces identified', 'Best converting channel identified', 'Bottom 2 channels paused', 'UTM tracking set up for month 2'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/monetization-deep-dive.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Create a Month 1 analytics review framework for Clawhatch. Reference clawhatch/research/distribution.md for channel list. Reference clawhatch/research/monetization-deep-dive.md for revenue metrics. Build: 1) Analytics export checklist (Twitter, YouTube, Reddit, website, Lemon Squeezy), 2) Metrics dashboard template (traffic, conversions, revenue by channel), 3) ROI calculation per channel (time invested vs revenue generated), 4) Decision framework: what to kill, what to 2x, 5) UTM tracking setup guide for month 2, 6) A/B testing plan for landing page. Reference clawhatch/BUSINESS-PLAN.md for targets.'
+    },
+    { id:'w4-7', title:'Plan Month 2 Strategy', desc:'Based on month 1 data: refine pricing, plan content, set revenue targets. The real work begins now.', tag:'business', time:'3h',
+      criteria: ['Month 2 revenue target set (2x month 1)', 'Pricing refined based on feedback', 'Content calendar for month 2', '2-3 new channels identified to test', 'Weekly milestones defined'],
+      files: ['clawhatch/BUSINESS-PLAN.md', 'clawhatch/SPRINT-PLAN.md', 'clawhatch/research/monetization-deep-dive.md', 'clawhatch/research/distribution.md'],
+      prompt: 'Create Clawhatch\'s Month 2 strategy document. Reference clawhatch/BUSINESS-PLAN.md for long-term vision and clawhatch/SPRINT-PLAN.md for sprint methodology. Include: 1) Revenue target (aim for 2x month 1), 2) Pricing adjustments based on month 1 data, 3) Content calendar optimized for best-performing formats, 4) New channels to test (Indie Hackers, Hacker News, newsletters), 5) Weekly milestone breakdown, 6) One "big swing" project (high effort, high reward), 7) Support tier operationalization. Reference clawhatch/research/monetization-deep-dive.md for revenue stack optimization.'
+    },
+    { id:'w4-8', title:'Content Creation: Batch Week', desc:'Record next month\'s YouTube videos, write blog posts, schedule Twitter content. Build a content machine.', tag:'content', time:'8h',
+      criteria: ['4 YouTube videos recorded', '4 blog drafts written', '20 Twitter posts scheduled', 'All thumbnails designed', 'Content scheduled for 4 weeks'],
+      files: ['clawhatch/research/distribution.md', 'clawhatch/research/pain-points.md'],
+      prompt: 'Plan a content batch production week for Clawhatch. Reference clawhatch/research/distribution.md for platform strategy. Reference clawhatch/research/pain-points.md for content topics. Create: 1) 4 YouTube video scripts (based on best-performing topics), 2) 4 blog post outlines, 3) 20 Twitter posts/threads pre-written, 4) Thumbnail concepts for all videos, 5) Batch production schedule (Day 1: all recording, Day 2: all editing, Day 3: all writing), 6) Scheduling plan (when to publish each piece). Goal: one month of content in 3 focused days.'
+    },
+    { id:'w4-9', title:'Scale Freelancing Income', desc:'Raise prices based on reviews. Upsell existing clients on maintenance. Target £500+/month.', tag:'business', time:'2h',
+      criteria: ['Prices raised by 25-50%', 'Maintenance upsell package created ($29/mo)', 'Past clients contacted about maintenance', 'Premium tier created ($249+)', 'Targeting £500+/month'],
+      files: ['clawhatch/research/pricing-research.md', 'clawhatch/research/monetization-deep-dive.md', 'clawhatch/BUSINESS-PLAN.md'],
+      prompt: 'Create a freelancing income scaling plan for Clawhatch. Reference clawhatch/research/pricing-research.md for pricing optimization. Reference clawhatch/research/monetization-deep-dive.md for upsell strategy. Plan: 1) Price increase justification (reviews as social proof), 2) New tier structure (Basic $69, Pro $149, Premium $249+), 3) Monthly maintenance upsell package ($29/mo — what\'s included), 4) Email template to past clients about maintenance, 5) Gig listing optimization based on what converts, 6) Revenue projection to hit £500+/month. Reference clawhatch/BUSINESS-PLAN.md for the revenue stack.'
+    },
+  ]
+};
+
+// ═══ STATE ═══
+const STORAGE_KEY = 'clawhatch-kanban-v2';
+const NOTES_KEY = 'clawhatch-kanban-notes';
+const AGENTS_KEY = 'clawhatch-agents-v1';
+const ACTIVITY_KEY = 'clawhatch-activity-v1';
+const RESULTS_KEY = 'clawhatch-results-v1';
+
+function loadState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
+function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadNotes() { try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch(e) { return {}; } }
+function saveNotes(n) { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); }
+function loadAgents() { try { return JSON.parse(localStorage.getItem(AGENTS_KEY) || '{}'); } catch(e) { return {}; } }
+function saveAgents(a) { localStorage.setItem(AGENTS_KEY, JSON.stringify(a)); }
+function loadActivity() { try { return JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]'); } catch(e) { return []; } }
+function saveActivity(a) { localStorage.setItem(ACTIVITY_KEY, JSON.stringify(a.slice(-50))); }
+function loadResults() { try { return JSON.parse(localStorage.getItem(RESULTS_KEY) || '{}'); } catch(e) { return {}; } }
+function saveResults(r) { localStorage.setItem(RESULTS_KEY, JSON.stringify(r)); }
+const PROMPTS_KEY = 'clawhatch-kanban-prompts';
+function loadPrompts() { try { return JSON.parse(localStorage.getItem(PROMPTS_KEY) || '{}'); } catch(e) { return {}; } }
+function savePrompts(p) { localStorage.setItem(PROMPTS_KEY, JSON.stringify(p)); }
+function getEffectivePrompt(cardId) {
+  const edited = loadPrompts()[cardId];
+  if (edited !== undefined) return edited;
+  const card = findCard(cardId);
+  return card ? card.prompt : '';
+}
+function isPromptEdited(cardId) { return loadPrompts().hasOwnProperty(cardId); }
+
+// Migrate
+(function migrate() {
+  try {
+    const old = JSON.parse(localStorage.getItem('openclaw-kanban-done') || 'null');
+    if (old && !localStorage.getItem(STORAGE_KEY)) {
+      const state = {};
+      for (const [id, done] of Object.entries(old)) state[id] = { status: done ? 'done' : 'todo' };
+      saveState(state);
+    }
+  } catch(e) {}
+})();
+
+function getCardState(id) {
+  const s = loadState();
+  return s[id] || { status: 'todo', criteriaChecked: {} };
+}
+function setCardState(id, status) {
+  const s = loadState();
+  s[id] = { ...s[id], status };
+  saveState(s);
+}
+function getCriteriaChecked(id) {
+  const s = loadState();
+  return (s[id] && s[id].criteriaChecked) || {};
+}
+function setCriteriaChecked(id, idx, val) {
+  const s = loadState();
+  if (!s[id]) s[id] = { status: 'todo', criteriaChecked: {} };
+  if (!s[id].criteriaChecked) s[id].criteriaChecked = {};
+  s[id].criteriaChecked[idx] = val;
+  saveState(s);
+}
+function getCriteriaProgress(cardId) {
+  const card = findCard(cardId);
+  if (!card || !card.criteria || !card.criteria.length) return { done: 0, total: 0, pct: 0 };
+  const checked = getCriteriaChecked(cardId);
+  const done = card.criteria.filter((_, i) => checked[i]).length;
+  return { done, total: card.criteria.length, pct: Math.round((done / card.criteria.length) * 100) };
+}
+function toggleCardDone(cardId, e) {
+  e.stopPropagation();
+  const state = getCardState(cardId);
+  const card = findCard(cardId);
+  if (state.status === 'done') {
+    setCardState(cardId, 'todo');
+    if (card && card.criteria) {
+      const s = loadState();
+      if (s[cardId]) s[cardId].criteriaChecked = {};
+      saveState(s);
+    }
+  } else {
+    setCardState(cardId, 'done');
+    if (card && card.criteria) {
+      const s = loadState();
+      if (!s[cardId]) s[cardId] = { status: 'done', criteriaChecked: {} };
+      card.criteria.forEach((_, i) => { s[cardId].criteriaChecked[i] = true; });
+      saveState(s);
+    }
+  }
+  renderBoard();
+  if (currentDetailId === cardId) renderDetailContent(cardId);
+}
+function toggleCriteria(cardId, idx) {
+  const checked = getCriteriaChecked(cardId);
+  setCriteriaChecked(cardId, idx, !checked[idx]);
+  const card = findCard(cardId);
+  if (card && card.criteria) {
+    const newChecked = getCriteriaChecked(cardId);
+    const allDone = card.criteria.every((_, i) => newChecked[i]);
+    if (allDone) {
+      setCardState(cardId, 'done');
+    } else {
+      const anyDone = card.criteria.some((_, i) => newChecked[i]);
+      const state = getCardState(cardId);
+      if (state.status === 'done') setCardState(cardId, anyDone ? 'in-progress' : 'todo');
+    }
+  }
+  renderBoard();
+  renderDetailContent(cardId);
+}
+
+let activeFilters = new Set();
+let currentDetailId = null;
+let activityOpen = false;
+let lastPollTime = null;
+let pollInterval = null;
+
+// ═══ AGENT STATUS TRACKING ═══
+function getAgentStatus(cardId) {
+  const agents = loadAgents();
+  return agents[cardId] || null; // { sessionKey, status: 'queued'|'running'|'done'|'failed', launchedAt }
+}
+
+function setAgentStatus(cardId, data) {
+  const agents = loadAgents();
+  agents[cardId] = { ...agents[cardId], ...data };
+  saveAgents(agents);
+}
+
+function getEffectiveStatus(cardId) {
+  const cardState = getCardState(cardId);
+  const agent = getAgentStatus(cardId);
+  if (agent && agent.status === 'running') return 'running';
+  if (agent && agent.status === 'failed') return 'failed';
+  return cardState.status;
+}
+
+const STATUS_ICONS = {
+  'todo': '',
+  'in-progress': '🔄',
+  'running': '🔄',
+  'done': '✅',
+  'failed': '❌',
+  'queued': '⏳'
+};
+
+// ═══ ACTIVITY FEED ═══
+function addActivity(msg) {
+  const entries = loadActivity();
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  entries.push({ time, msg, ts: now.toISOString() });
+  saveActivity(entries);
+  renderActivity();
+}
+
+function renderActivity() {
+  const entries = loadActivity();
+  const list = document.getElementById('activity-list');
+  if (!entries.length) {
+    list.innerHTML = '<div class="activity-empty">No activity yet. Launch an agent to get started.</div>';
+  } else {
+    list.innerHTML = entries.slice().reverse().map(e =>
+      `<div class="activity-entry"><span class="at">${e.time}</span><span class="ae">${e.msg}</span></div>`
+    ).join('');
+  }
+  const badge = document.getElementById('activity-badge');
+  if (entries.length > 0 && !activityOpen) {
+    badge.style.display = 'inline'; badge.textContent = entries.length;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleActivity() {
+  activityOpen = !activityOpen;
+  document.getElementById('activity-panel').classList.toggle('open', activityOpen);
+  if (activityOpen) document.getElementById('activity-badge').style.display = 'none';
+}
+
+function clearActivity() {
+  saveActivity([]);
+  renderActivity();
+}
+
+// ═══ POLLING ═══
+async function pollSessions() {
+  try {
+    const res = await fetch(`${API_BASE}/sessions?kinds=subagent&activeMinutes=60&messageLimit=1`, {
+      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    lastPollTime = Date.now();
+    updatePollIndicator();
+
+    const sessions = data.sessions || [];
+    const agents = loadAgents();
+    const allCardIds = Object.values(CARDS).flat().map(c => c.id);
+
+    for (const session of sessions) {
+      const label = session.label;
+      if (!label || !allCardIds.includes(label)) continue;
+
+      const agent = agents[label];
+      if (!agent) continue;
+
+      const wasRunning = agent.status === 'running' || agent.status === 'queued';
+      const isStopped = session.stopReason === 'stop' || session.stopReason === 'end_turn';
+      const isFailed = session.stopReason === 'error' || session.stopReason === 'timeout';
+
+      // Extract last assistant message
+      if (session.messages && session.messages.length > 0) {
+        const lastMsg = session.messages[session.messages.length - 1];
+        if (lastMsg.role === 'assistant' && lastMsg.content) {
+          const text = lastMsg.content.map(c => c.text || '').join('\n');
+          if (text) {
+            const results = loadResults();
+            results[label] = text;
+            saveResults(results);
+          }
+        }
+      }
+
+      if (isStopped && wasRunning) {
+        agent.status = 'done';
+        agents[label] = agent;
+        const card = findCard(label);
+        setCardState(label, 'done');
+        if (card) {
+          addActivity(`✅ Completed ${label}: ${card.title}`);
+          showToast(`✅ Task ${label} completed: ${card.title}`, 'toast-success');
+        }
+      } else if (isFailed && wasRunning) {
+        agent.status = 'failed';
+        agents[label] = agent;
+        const card = findCard(label);
+        if (card) {
+          addActivity(`❌ Failed ${label}: ${card.title}`);
+          showToast(`❌ Task ${label} failed: ${card.title}`, 'toast-error');
+        }
+      } else if (!isStopped && !isFailed && agent.status === 'queued') {
+        agent.status = 'running';
+        agents[label] = agent;
+      }
+    }
+
+    saveAgents(agents);
+    renderBoard();
+    updateControlStats();
+    if (currentDetailId) renderDetailContent(currentDetailId);
+  } catch (e) {
+    console.error('Poll error:', e);
+  }
+}
+
+function updatePollIndicator() {
+  const el = document.getElementById('poll-time');
+  if (!lastPollTime) { el.textContent = 'polling...'; return; }
+  const ago = Math.round((Date.now() - lastPollTime) / 1000);
+  el.textContent = `${ago}s ago`;
+}
+
+setInterval(updatePollIndicator, 1000);
+pollInterval = setInterval(pollSessions, 10000);
+setTimeout(pollSessions, 1000); // initial poll
+
+// ═══ TOASTS ═══
+function showToast(msg, cls = '') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${cls}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('removing'); setTimeout(() => el.remove(), 300); }, 4000);
+}
+
+function getAllCards() {
+  return COLUMNS.flatMap(col => (CARDS[col.key] || []).map(card => ({ ...card, colKey: col.key })));
+}
+function findCard(id) {
+  for (const col of Object.values(CARDS)) {
+    const c = col.find(x => x.id === id);
+    if (c) return c;
+  }
+  return null;
+}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function toggleFilter(btn) {
+  const tag = btn.dataset.tag;
+  if (activeFilters.has(tag)) { activeFilters.delete(tag); btn.classList.remove('active'); }
+  else { activeFilters.add(tag); btn.classList.add('active'); }
+  applyFilters();
+}
+
+function applyFilters() {
+  const query = document.getElementById('search-input').value.toLowerCase().trim();
+  document.querySelectorAll('.card').forEach(el => {
+    const id = el.dataset.id;
+    const card = findCard(id);
+    if (!card) return;
+    let visible = true;
+    if (activeFilters.size > 0 && !activeFilters.has(card.tag)) visible = false;
+    if (query) {
+      const text = (card.title + ' ' + card.desc + ' ' + card.tag).toLowerCase();
+      if (!text.includes(query)) visible = false;
+    }
+    el.classList.toggle('hidden-card', !visible);
+  });
+  updateColumnCounts();
+}
+
+// ═══ CONTROL STATS ═══
+function updateControlStats() {
+  const all = Object.values(CARDS).flat();
+  let running = 0, done = 0, todo = 0, failed = 0;
+  all.forEach(c => {
+    const es = getEffectiveStatus(c.id);
+    if (es === 'running') running++;
+    else if (es === 'done') done++;
+    else if (es === 'failed') failed++;
+    else todo++;
+  });
+  const el = document.getElementById('ctrl-stats');
+  let parts = [];
+  if (running > 0) parts.push(`<span class="s-running">🔄 ${running} running</span>`);
+  parts.push(`<span class="s-done">✅ ${done} done</span>`);
+  parts.push(`<span class="s-todo">⬜ ${todo} todo</span>`);
+  if (failed > 0) parts.push(`<span class="s-failed">❌ ${failed} failed</span>`);
+  el.innerHTML = parts.join('<span style="color:var(--border)">·</span>');
+}
+
+function updateStats() {
+  const all = Object.values(CARDS).flat();
+  const done = all.filter(c => getCardState(c.id).status === 'done').length;
+  const inProgress = all.filter(c => {
+    const es = getEffectiveStatus(c.id);
+    return es === 'in-progress' || es === 'running';
+  }).length;
+  const total = all.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const colColors = { w1: 'var(--pink)', w2: 'var(--cyan)', w3: 'var(--yellow)', w4: 'var(--purple)' };
+  const colNames = { w1: 'Week 1', w2: 'Week 2', w3: 'Week 3', w4: 'Week 4' };
+  const bar = document.getElementById('stats-bar');
+  bar.innerHTML = COLUMNS.map(c => {
+    const cards = CARDS[c.key] || [];
+    const d = cards.filter(x => getCardState(x.id).status === 'done').length;
+    return `<div class="stat-chip" style="background:${colColors[c.key]}11;border:1px solid ${colColors[c.key]}22">
+      <span class="num" style="color:${colColors[c.key]}">${d}/${cards.length}</span>
+      <span style="color:var(--text-dim);font-size:10px">${colNames[c.key]}</span>
+    </div>`;
+  }).join('') + `<div class="stat-chip" style="background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+    <span class="num" style="background:linear-gradient(135deg,var(--pink),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">${pct}%</span>
+    <span style="color:var(--text-dim);font-size:10px">Complete</span>
+  </div>`;
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${done} / ${total} tasks (${inProgress} active)`;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  updateControlStats();
+}
+
+function updateColumnCounts() {
+  document.querySelectorAll('.column-body').forEach(body => {
+    const visible = body.querySelectorAll('.card:not(.hidden-card)').length;
+    const countEl = body.parentElement.querySelector('.column-count');
+    if (countEl) countEl.textContent = visible;
+  });
+}
+
+// ═══ PROGRESS RING SVG ═══
+function progressRingSVG(pct, color) {
+  const r = 9, c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return `<svg class="card-ring" viewBox="0 0 24 24">
+    <circle class="ring-bg" cx="12" cy="12" r="${r}"/>
+    <circle class="ring-fg" cx="12" cy="12" r="${r}" stroke="${color}"
+      stroke-dasharray="${c}" stroke-dashoffset="${offset}"/>
+  </svg>`;
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  COLUMNS.forEach(col => {
+    const items = CARDS[col.key] || [];
+    const column = document.createElement('div');
+    column.className = `column ${col.css}`;
+
+    const colColor = { w1: 'var(--pink)', w2: 'var(--cyan)', w3: 'var(--yellow)', w4: 'var(--purple)' }[col.key];
+    column.innerHTML = `<div class="column-header">
+      <div class="column-header-left"><span>${col.title}</span><span class="column-count">${items.length}</span></div>
+      <button class="col-launch-btn" onclick="launchColumn('${col.key}', event)">🚀 Launch</button>
+    </div>`;
+
+    const body = document.createElement('div');
+    body.className = 'column-body';
+
+    items.forEach(card => {
+      const state = getCardState(card.id);
+      const effectiveStatus = getEffectiveStatus(card.id);
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.dataset.id = card.id;
+
+      if (state.status === 'done') div.classList.add('card-done');
+      if (effectiveStatus === 'running') div.classList.add('card-running');
+      else if (state.status === 'in-progress') div.classList.add('card-in-progress');
+      if (effectiveStatus === 'failed') div.classList.add('card-failed');
+
+      const prog = getCriteriaProgress(card.id);
+      const isDone = state.status === 'done';
+      const statusIcon = STATUS_ICONS[effectiveStatus] || STATUS_ICONS[state.status] || '';
+      const ringColor = prog.pct === 100 ? 'var(--green)' : prog.pct > 0 ? 'var(--yellow)' : 'rgba(255,255,255,0.1)';
+
+      div.innerHTML = `
+        <span class="card-checkbox ${isDone ? 'checked' : ''}" onclick="toggleCardDone('${card.id}', event)">${isDone ? '☑' : '☐'}</span>
+        <span class="card-status-icon">${statusIcon}</span>
+        <div class="card-title" style="padding-left:24px">${escHtml(card.title)}</div>
+        <div class="card-desc">${escHtml(card.desc)}</div>
+        <div class="card-meta">
+          <span class="tag ${TAG_CSS[card.tag] || ''}">${card.tag}</span>
+          <span class="card-time">⏱ ${card.time}</span>
+        </div>
+        ${card.criteria ? `<div class="card-progress">
+          <div class="card-progress-track"><div class="card-progress-fill" style="width:${prog.pct}%;background:${prog.pct === 100 ? 'var(--green)' : prog.pct > 0 ? 'var(--yellow)' : 'var(--border)'}"></div></div>
+          <div class="card-progress-label"><span>${prog.done}/${prog.total}</span><span>${prog.pct}%</span></div>
+        </div>` : ''}
+        ${card.criteria ? progressRingSVG(prog.pct, ringColor) : ''}`;
+
+      div.addEventListener('click', () => openDetail(card.id));
+      body.appendChild(div);
+    });
+
+    column.appendChild(body);
+    board.appendChild(column);
+  });
+
+  updateStats();
+  applyFilters();
+}
+
+// ═══ LAUNCH FUNCTIONS ═══
+async function launchTask(cardId) {
+  const card = findCard(cardId);
+  const prompt = getEffectivePrompt(cardId);
+  if (!card || !prompt) return;
+
+  const btn = document.getElementById('launch-btn');
+  const text = document.getElementById('launch-text');
+  if (btn) { btn.classList.add('launching'); text.textContent = 'Launching...'; }
+
+  try {
+    const res = await fetch(`${API_BASE}/tools/invoke`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ tool: 'sessions_spawn', args: { task: prompt, label: cardId } })
+    });
+
+    if (res.ok) {
+      const result = await res.json().catch(() => ({}));
+      setAgentStatus(cardId, { status: 'queued', launchedAt: Date.now(), sessionKey: result.sessionKey || null });
+      setCardState(cardId, 'in-progress');
+      addActivity(`🚀 Launched ${cardId}: ${card.title}`);
+      showToast(`🚀 Agent launched: ${card.title}`, 'toast-launch');
+      if (btn) { btn.classList.remove('launching'); btn.classList.add('launched'); text.textContent = 'Agent spawned ✓'; }
+      renderBoard();
+      if (currentDetailId === cardId) renderDetailContent(cardId);
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (err) {
+    if (btn) { btn.classList.remove('launching'); text.textContent = '🚀 Launch Agent'; }
+    showToast(`❌ Launch failed: ${err.message}`, 'toast-error');
+    addActivity(`❌ Launch failed for ${cardId}: ${err.message}`);
+  }
+}
+
+async function relaunchTask(cardId) {
+  // Clear previous results
+  const results = loadResults();
+  delete results[cardId];
+  saveResults(results);
+  const agents = loadAgents();
+  delete agents[cardId];
+  saveAgents(agents);
+  setCardState(cardId, 'todo');
+  renderBoard();
+  await launchTask(cardId);
+}
+
+async function launchColumn(colKey, e) {
+  e.stopPropagation();
+  const cards = CARDS[colKey] || [];
+  const todo = cards.filter(c => getCardState(c.id).status === 'todo');
+  if (!todo.length) { showToast('No todo cards to launch in this column'); return; }
+
+  const btn = e.target;
+  const origText = btn.textContent;
+  btn.disabled = true;
+
+  for (let i = 0; i < todo.length; i++) {
+    btn.textContent = `${i + 1}/${todo.length}...`;
+    await launchTask(todo[i].id);
+    if (i < todo.length - 1) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  btn.textContent = origText;
+  btn.disabled = false;
+}
+
+async function launchAllUnblocked() {
+  const all = Object.values(CARDS).flat();
+  const todo = all.filter(c => getCardState(c.id).status === 'todo');
+  if (!todo.length) { showToast('No todo cards to launch'); return; }
+
+  const btn = document.getElementById('launch-all-btn');
+  btn.classList.add('launching-all');
+  const origText = btn.textContent;
+
+  for (let i = 0; i < todo.length; i++) {
+    btn.textContent = `🚀 Launching ${i + 1}/${todo.length}...`;
+    await launchTask(todo[i].id);
+    if (i < todo.length - 1) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  btn.textContent = origText;
+  btn.classList.remove('launching-all');
+}
+
+// ═══ DETAIL PANEL ═══
+function openDetail(cardId) {
+  currentDetailId = cardId;
+  renderDetailContent(cardId);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  stopChatPoll();
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+  document.body.style.overflow = '';
+  currentDetailId = null;
+}
+
+function navTask(dir) {
+  if (!currentDetailId) return;
+  const all = getAllCards();
+  const idx = all.findIndex(c => c.id === currentDetailId);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= all.length) return;
+  currentDetailId = all[newIdx].id;
+  renderDetailContent(currentDetailId);
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+function renderDetailContent(cardId) {
+  const card = findCard(cardId);
+  if (!card) return;
+  const state = getCardState(cardId);
+  const effectiveStatus = getEffectiveStatus(cardId);
+  const agentInfo = getAgentStatus(cardId);
+  const tagColor = TAG_COLORS[card.tag] || 'var(--text-dim)';
+  const notes = loadNotes();
+  const noteText = notes[cardId] || '';
+  const results = loadResults();
+  const agentOutput = results[cardId] || '';
+
+  const statusMap = {
+    'todo': ['⬜ Todo', 'status-todo'],
+    'in-progress': ['🔄 In Progress', 'status-in-progress'],
+    'running': ['🔄 Running', 'status-running'],
+    'done': ['✅ Done', 'status-done'],
+    'failed': ['❌ Failed', 'status-failed'],
+    'queued': ['⏳ Queued', 'status-in-progress']
+  };
+  const esKey = effectiveStatus === 'running' ? 'running' : (agentInfo?.status === 'queued' ? 'queued' : state.status);
+  const [statusLabel, statusClass] = statusMap[esKey] || statusMap['todo'];
+
+  const all = getAllCards();
+  const idx = all.findIndex(c => c.id === cardId);
+  document.getElementById('prev-btn').disabled = idx <= 0;
+  document.getElementById('next-btn').disabled = idx >= all.length - 1;
+
+  const hasBeenLaunched = !!agentInfo;
+  const isRunning = effectiveStatus === 'running' || agentInfo?.status === 'queued';
+
+  const content = document.getElementById('detail-content');
+  content.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-tag-row">
+        <span class="detail-tag tag ${TAG_CSS[card.tag] || ''}">${card.tag}</span>
+        <span class="detail-time">⏱ ${card.time}</span>
+        <span class="detail-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="detail-title" style="color:${tagColor}">${escHtml(card.title)}</div>
+
+      <div class="detail-actions">
+        ${isRunning ? `<button class="action-btn btn-launch launched" disabled><span class="launch-spinner" style="display:inline-block"></span> Agent Running...</button>` :
+          hasBeenLaunched ? `<button class="action-btn btn-relaunch" onclick="relaunchTask('${cardId}')">🔄 Re-launch Agent</button>` :
+          `<button class="action-btn btn-launch" id="launch-btn" onclick="launchTask('${cardId}')"><span class="launch-spinner"></span><span id="launch-text">🚀 Launch Agent</span></button>`
+        }
+        <button class="action-btn btn-done ${state.status === 'done' ? 'completed' : ''}" onclick="markDone('${cardId}')">
+          ${state.status === 'done' ? '✅ Completed' : '✅ Mark Done'}
+        </button>
+        <button class="action-btn btn-back" onclick="closeDetail()">↩ Back</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">📋 Description</div>
+      <div class="detail-desc">${escHtml(card.desc)}</div>
+    </div>
+
+    ${card.criteria && card.criteria.length > 0 ? (() => {
+      const checked = getCriteriaChecked(cardId);
+      const prog = getCriteriaProgress(cardId);
+      return `<div class="detail-section">
+      <div class="detail-section-title">🎯 Acceptance Criteria <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10px;margin-left:8px">${prog.done}/${prog.total}</span></div>
+      ${card.criteria.map((c, i) => `<div class="criteria-item ${checked[i] ? 'checked-item' : ''}"><span class="criteria-check ${checked[i] ? 'checked' : ''}" onclick="toggleCriteria('${cardId}', ${i})">${checked[i] ? '☑' : '☐'}</span><span>${escHtml(c)}</span></div>`).join('')}
+    </div>`;
+    })() : ''}
+
+    ${agentOutput ? `<div class="detail-section">
+      <div class="detail-section-title">📋 Agent Output</div>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(agentOutput)}).then(()=>{this.textContent='✅ Copied!';setTimeout(()=>this.textContent='📋 Copy',2000)})">📋 Copy</button>
+        <div class="agent-output-block">${escHtml(agentOutput)}</div>
+      </div>
+    </div>` : ''}
+
+    ${agentInfo && agentInfo.sessionKey ? `<div class="detail-section">
+      <div class="detail-section-title">💬 Agent Chat</div>
+      <div class="chat-panel" id="chat-panel" data-session="${escHtml(agentInfo.sessionKey)}" data-card="${cardId}">
+        <div class="chat-header">
+          <span>💬 Session: ${escHtml(agentInfo.sessionKey.split(':').pop().slice(0,8))}…</span>
+          <div class="chat-header-actions">
+            <button class="chat-header-btn" onclick="chatReprompt()">🔄 Re-prompt</button>
+            <button class="chat-header-btn" onclick="chatRefresh()">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-loading"><div class="spinner"></div> Loading history…</div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" type="text" placeholder="Message the agent…"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}">
+          <button class="chat-send-btn" id="chat-send-btn" onclick="chatSend()">Send</button>
+        </div>
+      </div>
+    </div>` : (hasBeenLaunched ? '' : '')}
+
+    ${card.files && card.files.length > 0 ? `<div class="detail-section">
+      <div class="detail-section-title">📁 Related Files</div>
+      ${card.files.map(f => `<div class="file-link">📄 ${escHtml(f)}</div>`).join('')}
+    </div>` : ''}
+
+    ${card.prompt ? (() => {
+      const ep = getEffectivePrompt(cardId);
+      const edited = isPromptEdited(cardId);
+      return `<div class="detail-section">
+      <div class="detail-section-title">🤖 AI Prompt ${edited ? '<span style="font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--amber);margin-left:8px;padding:2px 6px;border:1px solid rgba(245,158,11,0.3);border-radius:4px;background:rgba(245,158,11,0.06)">✏️ edited</span>' : ''}</div>
+      <div class="prompt-wrap">
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button class="copy-btn" style="position:static" id="copy-prompt-btn" onclick="copyPrompt('${cardId}')">📋 Copy</button>
+          <button class="copy-btn" style="position:static;border-color:var(--green);color:var(--green)" onclick="savePromptEdit('${cardId}')">💾 Save Prompt</button>
+          ${edited ? `<button class="copy-btn" style="position:static;border-color:var(--amber);color:var(--amber)" onclick="resetPrompt('${cardId}')">↩ Reset to Default</button>` : ''}
+        </div>
+        <textarea class="prompt-block" id="prompt-textarea" style="resize:vertical;min-height:120px;outline:none;border-color:var(--border);transition:border-color 0.2s;cursor:text" onfocus="this.style.borderColor='var(--cyan)'" onblur="this.style.borderColor='var(--border)'">${escHtml(ep)}</textarea>
+      </div>
+    </div>`;
+    })() : ''}
+
+    <div class="detail-section" style="padding-bottom:40px">
+      <div class="detail-section-title">📝 Notes</div>
+      <textarea class="detail-notes" id="detail-notes-area" placeholder="Your notes for this task..."
+        oninput="saveNote('${cardId}')">${escHtml(noteText)}</textarea>
+      <div class="notes-saved" id="notes-saved-indicator">✓ Saved</div>
+    </div>
+  `;
+
+  // Initialize chat if panel exists
+  initChat();
+}
+
+// ═══ AGENT CHAT ═══
+let chatPollInterval = null;
+let chatMessageCount = 0;
+
+function initChat() {
+  stopChatPoll();
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  chatMessageCount = 0;
+  chatLoadHistory();
+  chatPollInterval = setInterval(chatLoadHistory, 5000);
+}
+
+function stopChatPoll() {
+  if (chatPollInterval) { clearInterval(chatPollInterval); chatPollInterval = null; }
+}
+
+async function chatLoadHistory() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel) { stopChatPoll(); return; }
+  const sessionKey = panel.dataset.session;
+  if (!sessionKey) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/tools/invoke`, {
+      method: 'POST', headers: HEADERS,
+      body: JSON.stringify({ tool: 'sessions_history', args: { sessionKey, limit: 50 } })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // data.result should contain messages array
+    let messages = [];
+    if (data.result && Array.isArray(data.result.messages)) {
+      messages = data.result.messages;
+    } else if (data.result && Array.isArray(data.result)) {
+      messages = data.result;
+    } else if (Array.isArray(data.messages)) {
+      messages = data.messages;
+    } else if (data.result && typeof data.result === 'string') {
+      // Try parsing as JSON
+      try { const parsed = JSON.parse(data.result); messages = parsed.messages || parsed || []; } catch(e) {}
+    }
+
+    // If still no messages, try the sessions list endpoint as fallback
+    if (!messages.length) {
+      try {
+        const res2 = await fetch(`${API_BASE}/sessions?kinds=subagent&activeMinutes=120&messageLimit=50`, {
+          headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+        });
+        if (res2.ok) {
+          const data2 = await res2.json();
+          const session = (data2.sessions || []).find(s => s.key === sessionKey || s.label === panel.dataset.card);
+          if (session && session.messages) messages = session.messages;
+        }
+      } catch(e) {}
+    }
+
+    renderChatMessages(messages);
+  } catch (e) {
+    const container = document.getElementById('chat-messages');
+    if (container && chatMessageCount === 0) {
+      container.innerHTML = `<div class="chat-empty">⚠️ Could not load history<br><span style="font-size:9px;opacity:0.5">${escHtml(e.message)}</span></div>`;
+    }
+  }
+}
+
+function renderChatMessages(messages) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  if (!messages || !messages.length) {
+    container.innerHTML = '<div class="chat-empty">No messages yet.<br>The agent is working…</div>';
+    chatMessageCount = 0;
+    return;
+  }
+
+  const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 30;
+  const newCount = messages.length;
+
+  // Only re-render if message count changed
+  if (newCount === chatMessageCount) return;
+  chatMessageCount = newCount;
+
+  container.innerHTML = messages.map(msg => {
+    const role = msg.role || 'system';
+    let text = '';
+    if (typeof msg.content === 'string') {
+      text = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      text = msg.content.map(c => c.text || c.content || '').filter(Boolean).join('\n');
+    }
+    if (!text.trim()) return '';
+
+    // Truncate very long messages for display
+    const displayText = text.length > 2000 ? text.slice(0, 2000) + '\n\n… [truncated — ' + text.length + ' chars total]' : text;
+
+    const roleLabel = role === 'assistant' ? '🤖 Agent' : role === 'user' ? '👤 You' : '⚙️ System';
+    return `<div class="chat-msg ${role}">
+      <div class="msg-role">${roleLabel}</div>
+      <div class="chat-msg-text">${escHtml(displayText)}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  // Scroll to bottom on new messages
+  if (shouldScroll || newCount > chatMessageCount - 2) {
+    requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+  }
+}
+
+async function chatSend() {
+  const panel = document.getElementById('chat-panel');
+  const input = document.getElementById('chat-input');
+  const btn = document.getElementById('chat-send-btn');
+  if (!panel || !input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  const sessionKey = panel.dataset.session;
+  input.value = '';
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  // Optimistically add user message to UI
+  const container = document.getElementById('chat-messages');
+  if (container) {
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-msg user';
+    msgEl.innerHTML = `<div class="msg-role">👤 You</div><div class="chat-msg-text">${escHtml(text)}</div>`;
+    container.appendChild(msgEl);
+    container.scrollTop = container.scrollHeight;
+    chatMessageCount++; // prevent re-render from clobbering
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/tools/invoke`, {
+      method: 'POST', headers: HEADERS,
+      body: JSON.stringify({ tool: 'sessions_send', args: { sessionKey, message: text } })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showToast('💬 Message sent to agent', 'toast-launch');
+    addActivity(`💬 Sent message to ${panel.dataset.card}`);
+    // Force a refresh shortly after to pick up the response
+    setTimeout(chatLoadHistory, 2000);
+    setTimeout(chatLoadHistory, 5000);
+  } catch (e) {
+    showToast(`❌ Send failed: ${e.message}`, 'toast-error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send';
+  }
+}
+
+function chatReprompt() {
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.value = 'Redo this task but ';
+    input.focus();
+    // Place cursor at end
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+
+function chatRefresh() {
+  chatMessageCount = 0; // Force re-render
+  const container = document.getElementById('chat-messages');
+  if (container) container.innerHTML = '<div class="chat-loading"><div class="spinner"></div> Refreshing…</div>';
+  chatLoadHistory();
+}
+
+function copyPrompt(cardId) {
+  const textarea = document.getElementById('prompt-textarea');
+  const text = textarea ? textarea.value : getEffectivePrompt(cardId);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-prompt-btn');
+    btn.textContent = '✅ Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function savePromptEdit(cardId) {
+  const textarea = document.getElementById('prompt-textarea');
+  if (!textarea) return;
+  const prompts = loadPrompts();
+  prompts[cardId] = textarea.value;
+  savePrompts(prompts);
+  showToast('💾 Prompt saved', 'toast-success');
+  renderDetailContent(cardId);
+}
+
+function resetPrompt(cardId) {
+  const prompts = loadPrompts();
+  delete prompts[cardId];
+  savePrompts(prompts);
+  showToast('↩ Prompt reset to default', '');
+  renderDetailContent(cardId);
+}
+
+function markDone(cardId) {
+  const state = getCardState(cardId);
+  const newStatus = state.status === 'done' ? 'todo' : 'done';
+  setCardState(cardId, newStatus);
+  const card = findCard(cardId);
+  showToast(newStatus === 'done' ? `✅ Done: ${card.title}` : `↩ Reopened: ${card.title}`, newStatus === 'done' ? 'toast-success' : '');
+  renderBoard();
+  renderDetailContent(cardId);
+}
+
+let noteSaveTimeout = null;
+function saveNote(cardId) {
+  clearTimeout(noteSaveTimeout);
+  noteSaveTimeout = setTimeout(() => {
+    const notes = loadNotes();
+    const textarea = document.getElementById('detail-notes-area');
+    if (textarea) {
+      notes[cardId] = textarea.value;
+      saveNotes(notes);
+      const ind = document.getElementById('notes-saved-indicator');
+      if (ind) { ind.classList.add('show'); setTimeout(() => ind.classList.remove('show'), 1500); }
+    }
+  }, 500);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+    if (e.key === 'Escape') { e.target.blur(); if (e.target.classList.contains('search-input')) { e.target.value = ''; applyFilters(); } }
+    return;
+  }
+  if (e.key === 'Escape' && currentDetailId) { closeDetail(); return; }
+  if (e.key === 'ArrowLeft' && currentDetailId) { navTask(-1); return; }
+  if (e.key === 'ArrowRight' && currentDetailId) { navTask(1); return; }
+  if (e.key === '/') { e.preventDefault(); document.getElementById('search-input').focus(); }
+});
+
+renderBoard();
+renderActivity();
+</script>
+</body>
+</html>

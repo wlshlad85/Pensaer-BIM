@@ -1,0 +1,44 @@
+// Clawhatch Template: Developer
+// For: software engineers wanting a coding assistant
+// Channels: Discord + webchat
+// Style: technical, full access, coding agent integrated
+{
+  "logging": { "level": "info" },
+  "agent": {
+    "model": "anthropic/claude-opus-4-5",
+    "workspace": "~/.openclaw/workspace",
+    "thinkingDefault": "high",
+    "timeoutSeconds": 1800,
+    "heartbeat": { "every": "30m" }
+  },
+  "channels": {
+    "discord": {
+      "botToken": "REPLACE_WITH_BOT_TOKEN",
+      "guilds": {
+        "REPLACE_WITH_GUILD_ID": {
+          "channels": ["REPLACE_WITH_CHANNEL_ID"]
+        }
+      }
+    }
+  },
+  "session": {
+    "scope": "per-sender",
+    "resetTriggers": ["/new", "/reset"],
+    "reset": {
+      "mode": "daily",
+      "atHour": 4,
+      "idleMinutes": 10080
+    }
+  },
+  "tools": {
+    "exec": {
+      "security": "full",
+      "ask": "off"
+    },
+    "web": {
+      "search": {
+        "apiKey": "REPLACE_WITH_BRAVE_KEY"
+      }
+    }
+  }
+}

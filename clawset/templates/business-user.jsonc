@@ -1,0 +1,36 @@
+// Clawhatch Template: Business User
+// For: non-technical users wanting an AI assistant
+// Channels: WhatsApp + Telegram
+// Style: conservative, safe, helpful assistant
+{
+  "logging": { "level": "info" },
+  "agent": {
+    "model": "anthropic/claude-sonnet-4-20250514",
+    "workspace": "~/.openclaw/workspace",
+    "thinkingDefault": "off",
+    "timeoutSeconds": 600,
+    "heartbeat": { "every": "0m" }
+  },
+  "channels": {
+    "whatsapp": {
+      "allowFrom": ["REPLACE_WITH_CLIENT_PHONE"],
+      "groups": {
+        "*": { "requireMention": true }
+      }
+    }
+  },
+  "session": {
+    "scope": "per-sender",
+    "resetTriggers": ["/new", "/reset"],
+    "reset": {
+      "mode": "daily",
+      "atHour": 4,
+      "idleMinutes": 1440
+    }
+  },
+  "tools": {
+    "exec": {
+      "security": "deny"
+    }
+  }
+}

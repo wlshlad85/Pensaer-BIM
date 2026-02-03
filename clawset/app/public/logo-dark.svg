@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" fill="none">
+  <!-- Egg with claw emerging - dark background variant -->
+  <g transform="translate(8, 8)">
+    <!-- Egg bottom half -->
+    <ellipse cx="32" cy="36" rx="22" ry="28" fill="#0f0f1a" stroke="#ff6b81" stroke-width="2.5"/>
+    <!-- Crack lines -->
+    <path d="M18 22 L24 28 L20 34 L26 38" stroke="#ff6b81" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M46 20 L40 26 L44 32" stroke="#ff6b81" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- Egg top half (lifted/breaking) -->
+    <path d="M14 24 Q14 8 32 8 Q50 8 50 24 L46 20 L42 24 L38 18 L34 24 L30 18 L26 24 L22 18 L18 22 Z" fill="#0f0f1a" stroke="#ff6b81" stroke-width="2.5" stroke-linejoin="round" transform="translate(-3,-6) rotate(-12, 32, 16)"/>
+    <!-- Claw emerging -->
+    <g transform="translate(26, 4)">
+      <path d="M2 20 Q-6 8 -2 0 Q0 -2 4 2 Q6 8 6 14" fill="#ff6b81" stroke="#e94560" stroke-width="1"/>
+      <path d="M10 20 Q18 8 14 0 Q12 -2 8 2 Q6 8 6 14" fill="#ff6b81" stroke="#e94560" stroke-width="1"/>
+    </g>
+  </g>
+  <!-- Text -->
+  <text x="72" y="38" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#ff6b81">Claw</text>
+  <text x="72" y="38" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#ffffff" dx="56">hatch</text>
+  <!-- Tagline -->
+  <text x="73" y="56" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="11" font-weight="400" fill="#aaa" letter-spacing="2">SETUP WIZARD</text>
+</svg>
