@@ -61,8 +61,8 @@ function Reveal({ children, className = "", delay = 0 }: { children: React.React
 /* ─── Constants ─── */
 const PINK = "#ff2d87";
 const CYAN = "#00e5ff";
-const PURPLE = "#b44dff";
 const YELLOW = "#ffe135";
+// NO CYAN - Rich's orders
 const VOID = "#0a0a0f";
 const CHARCOAL = "#14141f";
 const SLATE = "#1e1e2e";
@@ -78,7 +78,7 @@ function Hero() {
       <div
         className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at center, rgba(180,77,255,0.2) 0%, rgba(255,45,135,0.08) 40%, transparent 70%)`,
+          background: `radial-gradient(ellipse at center, rgba(0,229,255,0.2) 0%, rgba(255,45,135,0.08) 40%, transparent 70%)`,
           filter: "blur(80px)",
         }}
       />
@@ -116,7 +116,7 @@ function Hero() {
             <span
               className="bg-clip-text text-transparent"
               style={{
-                backgroundImage: `linear-gradient(135deg, ${PURPLE}, ${PINK}, ${CYAN})`,
+                backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
               }}
             >
               Set Up Safely
@@ -143,7 +143,7 @@ function Hero() {
               <button
                 className="group relative inline-flex items-center gap-2 px-8 py-4 rounded-[10px] text-white font-semibold text-base overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px] min-w-[44px]"
                 style={{
-                  background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`,
+                  background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
                   boxShadow: `0 0 0 rgba(255,45,135,0)`,
                 }}
                 onMouseEnter={(e) => {
@@ -278,7 +278,7 @@ function HowItWorks() {
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at 50% 0%, rgba(180,77,255,0.1) 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.1) 0%, transparent 70%)`,
         }}
       />
       <div className="relative z-10 max-w-[1200px] mx-auto">
@@ -307,7 +307,7 @@ function HowItWorks() {
                   backdropFilter: "blur(12px)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(180,77,255,0.3)";
+                  e.currentTarget.style.borderColor = "rgba(0,229,255,0.3)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
@@ -509,7 +509,7 @@ function Pricing() {
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at 50% 0%, rgba(180,77,255,0.1) 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.1) 0%, transparent 70%)`,
         }}
       />
       <div className="relative z-10 max-w-[960px] mx-auto">
@@ -552,7 +552,7 @@ function Pricing() {
                     ? "none"
                     : "1px solid rgba(255,255,255,0.08)",
                   backgroundImage: tier.featured
-                    ? `linear-gradient(${CHARCOAL}, ${CHARCOAL}), linear-gradient(135deg, ${PINK}, ${PURPLE})`
+                    ? `linear-gradient(${CHARCOAL}, ${CHARCOAL}), linear-gradient(135deg, ${PINK}, ${CYAN})`
                     : undefined,
                   backgroundOrigin: tier.featured ? "border-box" : undefined,
                   backgroundClip: tier.featured ? "padding-box, border-box" : undefined,
@@ -570,7 +570,7 @@ function Pricing() {
                   <span
                     className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest text-white"
                     style={{
-                      background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`,
+                      background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
                     }}
                   >
                     Most Popular
@@ -648,7 +648,7 @@ function Pricing() {
                   <button
                     className="group relative w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-[10px] text-white font-semibold text-base overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px]"
                     style={{
-                      background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`,
+                      background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
                     }}
                   >
                     <span className="absolute inset-0 overflow-hidden">
@@ -666,7 +666,7 @@ function Pricing() {
                       border: "1px solid rgba(255,255,255,0.12)",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = PURPLE;
+                      e.currentTarget.style.borderColor = CYAN;
                       e.currentTarget.style.color = WHITE;
                     }}
                     onMouseLeave={(e) => {
@@ -711,7 +711,7 @@ const pillars = [
     icon: Wrench,
     title: "Maintained",
     desc: "Setup is day one. We keep it running. Config updates when OpenClaw evolves. Never lose days to broken configs.",
-    color: PURPLE,
+    color: CYAN,
   },
 ];
 
@@ -804,7 +804,7 @@ function SocialProof() {
                 <p
                   className="font-heading text-3xl sm:text-4xl font-bold bg-clip-text text-transparent"
                   style={{
-                    backgroundImage: `linear-gradient(135deg, ${PURPLE}, ${PINK}, ${CYAN})`,
+                    backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
                   }}
                 >
                   {s.value}
@@ -907,7 +907,7 @@ function FinalCTA() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at 50% 50%, rgba(255,45,135,0.08) 0%, rgba(180,77,255,0.06) 40%, transparent 70%)`,
+          background: `radial-gradient(ellipse at 50% 50%, rgba(255,45,135,0.08) 0%, rgba(0,229,255,0.06) 40%, transparent 70%)`,
           filter: "blur(60px)",
         }}
       />
@@ -921,7 +921,7 @@ function FinalCTA() {
             <span
               className="bg-clip-text text-transparent"
               style={{
-                backgroundImage: `linear-gradient(135deg, ${PURPLE}, ${PINK}, ${CYAN})`,
+                backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
               }}
             >
               Clawhatch
@@ -941,7 +941,7 @@ function FinalCTA() {
             <button
               className="group relative inline-flex items-center gap-2 px-10 py-5 rounded-[10px] text-white font-semibold text-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px]"
               style={{
-                background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`,
+                background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = `0 0 20px rgba(255,45,135,0.3), 0 0 60px rgba(255,45,135,0.1)`;
