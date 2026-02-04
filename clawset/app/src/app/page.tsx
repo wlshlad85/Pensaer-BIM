@@ -1,1027 +1,698 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import {
-  GitFork,
-  Terminal,
-  Rocket,
-  ChevronDown,
-  ArrowRight,
-  Check,
-  X,
-  AlertTriangle,
-  Star,
-  Shield,
-  Zap,
-  Wrench,
-  MessageSquare,
-  Github,
-  Heart,
-  Sparkles,
+import { 
+  ArrowRight, Check, Shield, Zap, Wrench, 
+  ChevronDown, Menu, X, Lock, FileCode, 
+  MessageSquare, Star, Clock, Users
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
-/* ─── Scroll reveal hook ─── */
-function useScrollReveal() {
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLAWHATCH - SPECTACULAR BRUTALIST EDITION
+   
+   Raw, stark, aggressive. High contrast black/white with HOT PINK accent.
+   Now with: animations, FAQ, testimonials, mobile nav, trust signals.
+═══════════════════════════════════════════════════════════════════════════ */
+
+const ACCENT = "#ff2d87";
+const BLACK = "#000000";
+const WHITE = "#ffffff";
+const GRAY = "#666666";
+const LIGHT_GRAY = "#f5f5f5";
+
+// Animation hook for scroll-triggered reveals
+function useInView(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.15 }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold }
     );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return { ref, isInView };
 }
 
-function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const { ref, visible } = useScrollReveal();
+// Animated section wrapper
+function AnimatedSection({ 
+  children, 
+  className = "", 
+  delay = 0,
+  style = {}
+}: { 
+  children: React.ReactNode; 
+  className?: string;
+  delay?: number;
+  style?: React.CSSProperties;
+}) {
+  const { ref, isInView } = useInView();
+  
   return (
     <div
       ref={ref}
-      className={`transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
+      className={className}
+      style={{
+        ...style,
+        opacity: isInView ? 1 : 0,
+        transform: isInView ? "translateY(0)" : "translateY(40px)",
+        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
+      }}
     >
       {children}
     </div>
   );
 }
 
-/* ─── Constants ─── */
-const PINK = "#ff2d87";
-const CYAN = "#00e5ff";
-const YELLOW = "#ffe135";
-// NO CYAN - Rich's orders
-const VOID = "#0a0a0f";
-const CHARCOAL = "#14141f";
-const SLATE = "#1e1e2e";
-const MIST = "#a0a0b8";
-const CLOUD = "#e0e0ec";
-const WHITE = "#f5f5ff";
+// Typing animation for hero
+function TypeWriter({ text, speed = 50 }: { text: string; speed?: number }) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
 
-/* ─── HERO ─── */
-function Hero() {
+  useEffect(() => {
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayed(text.slice(0, i + 1));
+        i++;
+      } else {
+        setDone(true);
+        clearInterval(timer);
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
   return (
-    <section className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 pt-20 pb-16 text-center overflow-hidden">
-      {/* Animated glow orbs */}
-      <div
-        className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at center, rgba(0,229,255,0.2) 0%, rgba(255,45,135,0.08) 40%, transparent 70%)`,
-          filter: "blur(80px)",
-        }}
-      />
-      <div
-        className="absolute top-[100px] right-[-100px] w-[400px] h-[400px] pointer-events-none animate-pulse"
-        style={{
-          background: `radial-gradient(circle, rgba(0,229,255,0.1) 0%, transparent 70%)`,
-          filter: "blur(60px)",
-        }}
-      />
+    <span>
+      {displayed}
+      {!done && <span className="animate-pulse">|</span>}
+    </span>
+  );
+}
 
-      <div className="relative z-10 max-w-3xl space-y-8">
-        {/* Badge */}
-        <Reveal>
-          <div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium tracking-widest uppercase"
-            style={{
-              color: CYAN,
-              background: "rgba(0,229,255,0.08)",
-              border: "1px solid rgba(0,229,255,0.2)",
-            }}
-          >
-            <Zap className="w-4 h-4" />
-            Open Source · Free DIY
+// Counter animation
+function Counter({ end, duration = 2000, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
+  const [count, setCount] = useState(0);
+  const { ref, isInView } = useInView();
+
+  useEffect(() => {
+    if (!isInView) return;
+    
+    let start = 0;
+    const increment = end / (duration / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 16);
+    
+    return () => clearInterval(timer);
+  }, [isInView, end, duration]);
+
+  return <span ref={ref}>{count}{suffix}</span>;
+}
+
+export default function SpectacularBrutalistLanding() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      q: "What's OpenClaw?",
+      a: "OpenClaw is an open-source AI assistant framework that connects to your messaging apps (WhatsApp, Telegram, Discord) and gives you a personal AI that can browse the web, run code, control your computer, and more. Clawhatch helps you set it up properly."
+    },
+    {
+      q: "Why not just follow the docs?",
+      a: "You can! But most people spend 2-6 hours debugging config issues, missing dependencies, and security misconfigurations. Clawhatch gets you a working, secure setup in 10 minutes. We've done hundreds of setups and know where people get stuck."
+    },
+    {
+      q: "What do I actually get?",
+      a: "A complete, tested configuration: openclaw.json (your main config), SOUL.md (your bot's personality), AGENTS.md (behavior rules), and a README with your specific setup notes. Plus a security checklist showing exactly what's locked down."
+    },
+    {
+      q: "Is this official?",
+      a: "Clawhatch is built by an active OpenClaw community member who runs their own setup daily. We're not affiliated with Anthropic or the core team, but we know the codebase inside out."
+    },
+    {
+      q: "What if I already have OpenClaw installed?",
+      a: "Great! We can audit your existing setup, fix security issues, optimize your config, and add new capabilities. The wizard works for fresh installs and upgrades."
+    },
+    {
+      q: "How does support work?",
+      a: "All support is async via Telegram or Discord. Pro tier gets 48-hour response, Enterprise gets 12-hour priority response. No scheduled calls — just message when you need help."
+    },
+  ];
+
+  return (
+    <div className="min-h-screen" style={{ background: WHITE, color: BLACK }}>
+      {/* NAV */}
+      <nav
+        className="sticky top-0 z-50 px-6 py-4"
+        style={{ background: BLACK, borderBottom: `4px solid ${ACCENT}` }}
+      >
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black uppercase tracking-tighter" style={{ color: WHITE }}>
+            CLAWHATCH
+          </Link>
+          
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-6">
+            <Link 
+              href="/wizard" 
+              className="text-sm font-bold uppercase transition-colors hover:opacity-80" 
+              style={{ color: WHITE }}
+            >
+              Wizard
+            </Link>
+            <Link 
+              href="/manual-setup" 
+              className="text-sm font-bold uppercase transition-colors hover:opacity-80" 
+              style={{ color: WHITE }}
+            >
+              Free Beta
+            </Link>
+            <Link 
+              href="/troubleshooting" 
+              className="text-sm font-bold uppercase transition-colors hover:opacity-80" 
+              style={{ color: WHITE }}
+            >
+              Help
+            </Link>
+            <Link
+              href="#pricing"
+              className="px-4 py-2 text-sm font-black uppercase transition-all hover:scale-105"
+              style={{ background: ACCENT, color: WHITE }}
+            >
+              Get Started
+            </Link>
           </div>
-        </Reveal>
 
-        {/* Headline */}
-        <Reveal delay={100}>
-          <h1
-            className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight"
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden p-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             style={{ color: WHITE }}
           >
-            Your OpenClaw Agent,{" "}
-            <span
-              className="bg-clip-text text-transparent"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
-              }}
-            >
-              Set Up Safely
-            </span>
-          </h1>
-        </Reveal>
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
 
-        {/* Sub-headline */}
-        <Reveal delay={200}>
-          <p
-            className="text-base sm:text-lg md:text-xl max-w-[600px] mx-auto leading-relaxed"
-            style={{ color: MIST }}
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div 
+            className="md:hidden absolute top-full left-0 right-0 py-4 px-6 space-y-4"
+            style={{ background: BLACK, borderBottom: `4px solid ${ACCENT}` }}
           >
-            Clawhatch gets you set up safely, makes it yours, and keeps it running.
-            <br />
-            <span style={{ color: CLOUD }}>Professional setup in 10 minutes, not 10 hours.</span>
-          </p>
-        </Reveal>
-
-        {/* CTA Group */}
-        <Reveal delay={300}>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <Link href="/wizard">
-              <button
-                className="group relative inline-flex items-center gap-2 px-8 py-4 rounded-[10px] text-white font-semibold text-base overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px] min-w-[44px]"
-                style={{
-                  background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
-                  boxShadow: `0 0 0 rgba(255,45,135,0)`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = `0 0 20px rgba(255,45,135,0.3), 0 0 60px rgba(255,45,135,0.1)`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = `0 0 0 rgba(255,45,135,0)`;
-                }}
-              >
-                {/* Shimmer */}
-                <span className="absolute inset-0 overflow-hidden">
-                  <span className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent rotate-[15deg]" />
-                </span>
-                <span className="relative">Start Setup Wizard</span>
-                <ArrowRight className="relative w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </button>
+            <Link href="/wizard" className="block text-sm font-bold uppercase" style={{ color: WHITE }}>
+              Wizard
             </Link>
-            <Link href="/manual-setup">
-              <button
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-[10px] font-semibold text-base cursor-pointer transition-all duration-250 ease-out hover:border-[#00e5ff] focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px] min-w-[44px]"
-                style={{
-                  color: CYAN,
-                  background: "transparent",
-                  border: `1px solid rgba(0,229,255,0.3)`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = CYAN;
-                  e.currentTarget.style.background = "rgba(0,229,255,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(0,229,255,0.3)";
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                🎁 Free Expert Setup (Beta)
-              </button>
+            <Link href="/manual-setup" className="block text-sm font-bold uppercase" style={{ color: WHITE }}>
+              Free Beta
             </Link>
-          </div>
-        </Reveal>
-
-        {/* Scroll indicator */}
-        <Reveal delay={500}>
-          <div className="pt-12 flex justify-center">
-            <ChevronDown
-              className="w-6 h-6 animate-bounce"
-              style={{ color: MIST, opacity: 0.4 }}
-            />
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ─── THREE PILLARS SECTION ─── */
-function ThreePillars() {
-  return (
-    <section className="relative px-4 sm:px-6 py-20 lg:py-24">
-      <div className="max-w-[1000px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12">
-            <h2
-              className="font-heading text-3xl sm:text-4xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
+            <Link href="/troubleshooting" className="block text-sm font-bold uppercase" style={{ color: WHITE }}>
+              Help
+            </Link>
+            <Link
+              href="#pricing"
+              className="inline-block px-4 py-2 text-sm font-black uppercase"
+              style={{ background: ACCENT, color: WHITE }}
             >
-              The Clawhatch Promise
-            </h2>
-            <p className="mt-3 text-base" style={{ color: MIST }}>
-              Safe. Personalised. Maintained.
-            </p>
+              Get Started
+            </Link>
           </div>
-        </Reveal>
+        )}
+      </nav>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {pillars.map((pillar, i) => (
-            <Reveal key={pillar.title} delay={i * 100}>
-              <div
-                className="rounded-2xl p-6 text-center transition-all duration-250 ease-out hover:-translate-y-1"
-                style={{
-                  background: "rgba(17,17,24,0.8)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(12px)",
-                }}
+      {/* HERO */}
+      <section className="px-6 py-20 md:py-28 overflow-hidden">
+        <div className="max-w-5xl mx-auto">
+          <AnimatedSection>
+            <p
+              className="text-sm font-bold uppercase tracking-[0.3em] mb-4"
+              style={{ color: ACCENT }}
+            >
+              OpenClaw Setup Service
+            </p>
+          </AnimatedSection>
+          
+          <AnimatedSection delay={100}>
+            <h1
+              className="text-4xl sm:text-5xl md:text-7xl lg:text-[100px] font-black uppercase leading-[0.9] tracking-tighter mb-8"
+              style={{ color: BLACK }}
+            >
+              YOUR AI.<br />
+              SET UP<br />
+              <span style={{ color: ACCENT }}>
+                <TypeWriter text="SAFELY." speed={100} />
+              </span>
+            </h1>
+          </AnimatedSection>
+
+          <AnimatedSection delay={200}>
+            <p className="text-lg md:text-xl max-w-2xl mb-10" style={{ color: GRAY }}>
+              Clawhatch gets you set up safely, makes it yours, and keeps it running.
+              Professional setup in <strong>10 minutes</strong>, not 10 hours.
+            </p>
+          </AnimatedSection>
+
+          <AnimatedSection delay={300}>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="/wizard"
+                className="group inline-flex items-center gap-3 px-6 md:px-8 py-4 text-base md:text-lg font-black uppercase transition-all hover:gap-5"
+                style={{ background: BLACK, color: WHITE, border: `4px solid ${BLACK}` }}
               >
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
-                  style={{ background: `${pillar.color}15` }}
-                >
-                  <pillar.icon className="w-7 h-7" style={{ color: pillar.color }} />
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: WHITE }}>
-                  {pillar.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: MIST }}>
-                  {pillar.desc}
-                </p>
+                Start Wizard
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/manual-setup"
+                className="inline-flex items-center gap-3 px-6 md:px-8 py-4 text-base md:text-lg font-black uppercase transition-all hover:bg-gray-100"
+                style={{ background: WHITE, color: BLACK, border: `4px solid ${BLACK}` }}
+              >
+                Free Beta Setup
+              </Link>
+            </div>
+          </AnimatedSection>
+
+          {/* Trust badges */}
+          <AnimatedSection delay={400}>
+            <div className="flex flex-wrap items-center gap-6 mt-10 pt-8" style={{ borderTop: `2px solid ${LIGHT_GRAY}` }}>
+              <div className="flex items-center gap-2 text-sm" style={{ color: GRAY }}>
+                <Shield className="w-4 h-4" style={{ color: ACCENT }} />
+                <span>Sandboxed by default</span>
               </div>
-            </Reveal>
-          ))}
+              <div className="flex items-center gap-2 text-sm" style={{ color: GRAY }}>
+                <Lock className="w-4 h-4" style={{ color: ACCENT }} />
+                <span>API keys encrypted</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm" style={{ color: GRAY }}>
+                <Clock className="w-4 h-4" style={{ color: ACCENT }} />
+                <span>~10 min setup</span>
+              </div>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* STATS BAR */}
+      <div style={{ background: BLACK, color: WHITE }}>
+        <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-2xl md:text-4xl font-black" style={{ color: ACCENT }}>
+              <Counter end={50} suffix="+" />
+            </div>
+            <div className="text-xs md:text-sm uppercase tracking-wide" style={{ color: GRAY }}>Beta Setups</div>
+          </div>
+          <div>
+            <div className="text-2xl md:text-4xl font-black" style={{ color: ACCENT }}>
+              <Counter end={10} />
+            </div>
+            <div className="text-xs md:text-sm uppercase tracking-wide" style={{ color: GRAY }}>Min Avg Setup</div>
+          </div>
+          <div>
+            <div className="text-2xl md:text-4xl font-black" style={{ color: ACCENT }}>
+              <Counter end={100} suffix="%" />
+            </div>
+            <div className="text-xs md:text-sm uppercase tracking-wide" style={{ color: GRAY }}>Success Rate</div>
+          </div>
         </div>
       </div>
-    </section>
-  );
-}
 
-/* ─── HOW IT WORKS ─── */
-const steps = [
-  {
-    num: "01",
-    title: "Choose Your Path",
-    desc: "Pick DIY (free guide), Guided Setup, or Done-For-You. No wrong choice.",
-    icon: GitFork,
-  },
-  {
-    num: "02",
-    title: "We Configure Everything",
-    desc: "OpenClaw, Clawdbot, skills, memory — tailored to your setup.",
-    icon: Terminal,
-  },
-  {
-    num: "03",
-    title: "You're Live",
-    desc: "Your AI assistant is running. Start chatting in under 10 minutes.",
-    icon: Rocket,
-  },
-];
-
-function HowItWorks() {
-  return (
-    <section className="relative px-4 sm:px-6 py-24 lg:py-32">
-      {/* Top glow */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.1) 0%, transparent 70%)`,
-        }}
-      />
-      <div className="relative z-10 max-w-[1200px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12 lg:mb-16">
-            <h2
-              className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
-            >
-              How It Works
+      {/* THREE PILLARS */}
+      <section className="px-6 py-20" style={{ background: LIGHT_GRAY }}>
+        <div className="max-w-5xl mx-auto">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-12">
+              THE PROMISE
             </h2>
-            <p className="mt-3 text-base" style={{ color: MIST }}>
-              Three steps. That&apos;s it.
-            </p>
-          </div>
-        </Reveal>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {steps.map((step, i) => (
-            <Reveal key={step.num} delay={i * 150}>
-              <div
-                className="group relative rounded-[24px] p-8 text-center cursor-pointer transition-all duration-250 ease-out hover:-translate-y-1"
-                style={{
-                  background: "rgba(17,17,24,0.8)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(12px)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(0,229,255,0.3)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                }}
-              >
-                {/* Step number */}
-                <span
-                  className="inline-block px-3.5 py-1.5 rounded-full text-sm font-mono font-bold mb-5"
+          </AnimatedSection>
+          
+          <div className="grid md:grid-cols-3 gap-0">
+            {[
+              { 
+                icon: Shield, 
+                title: "SAFE", 
+                desc: "Security baked in from day one. Sandboxing enforced, API keys encrypted, tool access controlled.",
+                detail: "We audit every config against our security checklist."
+              },
+              { 
+                icon: Zap, 
+                title: "PERSONAL", 
+                desc: "Built for YOUR workflow. Tools you need, channels you use, personality that fits.",
+                detail: "7 pre-built personalities or fully custom."
+              },
+              { 
+                icon: Wrench, 
+                title: "MAINTAINED", 
+                desc: "Setup is day one. We keep it running. Never lose days to broken configs again.",
+                detail: "Ongoing support plans available."
+              },
+            ].map((p, i) => (
+              <AnimatedSection key={p.title} delay={i * 100}>
+                <div
+                  className="p-6 md:p-8 h-full transition-all hover:scale-[1.02]"
                   style={{
-                    color: CYAN,
-                    background: "rgba(0,229,255,0.08)",
+                    background: i === 1 ? BLACK : WHITE,
+                    color: i === 1 ? WHITE : BLACK,
+                    border: `4px solid ${BLACK}`,
+                    marginLeft: i > 0 ? "-4px" : 0,
+                    marginTop: i > 0 ? "-4px" : 0,
                   }}
                 >
-                  {step.num}
-                </span>
-                {/* Icon */}
-                <div className="flex justify-center mb-4">
-                  <step.icon
-                    className="w-12 h-12"
-                    style={{ color: PINK }}
-                    strokeWidth={1.5}
-                  />
+                  <p.icon className="w-10 h-10 mb-4" style={{ color: i === 1 ? ACCENT : BLACK }} />
+                  <h3 className="text-xl md:text-2xl font-black uppercase mb-2">{p.title}</h3>
+                  <p className="text-sm mb-3" style={{ color: i === 1 ? "#ccc" : GRAY }}>{p.desc}</p>
+                  <p className="text-xs font-bold uppercase" style={{ color: ACCENT }}>{p.detail}</p>
                 </div>
-                <h3 className="text-xl font-semibold mb-2" style={{ color: WHITE }}>
-                  {step.title}
-                </h3>
-                <p className="text-base leading-relaxed" style={{ color: MIST }}>
-                  {step.desc}
-                </p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── FEATURE COMPARISON ─── */
-const comparisons = [
-  { feature: "Time to setup", manual: "2–6 hours", clawhatch: "~10 minutes" },
-  { feature: "Configuration errors", manual: "Common", clawhatch: "Pre-tested" },
-  { feature: "Skill installation", manual: "Copy-paste, debug", clawhatch: "One click" },
-  { feature: "Memory & personality", manual: "Read docs, manual edit", clawhatch: "Guided wizard" },
-  { feature: "Updates", manual: "Git pull, pray", clawhatch: "Managed" },
-  { feature: "Support when stuck", manual: "GitHub issues, hope", clawhatch: "Priority human help" },
-];
-
-function Comparison() {
-  return (
-    <section className="px-4 sm:px-6 py-24 lg:py-32" style={{ background: "rgba(17,17,24,0.5)" }}>
-      <div className="max-w-[800px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12">
-            <h2
-              className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
-            >
-              Why Not Just DIY Everything?
-            </h2>
-            <p className="mt-3 text-base" style={{ color: MIST }}>
-              You can. But here&apos;s what Clawhatch saves you.
-            </p>
-          </div>
-        </Reveal>
-
-        <Reveal delay={150}>
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{ border: `1px solid rgba(255,255,255,0.08)` }}
-          >
-            {/* Header */}
-            <div
-              className="hidden md:grid grid-cols-3 px-6 py-4"
-              style={{
-                background: "rgba(28,28,39,0.8)",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <span className="text-sm font-semibold uppercase tracking-widest" style={{ color: MIST }}>
-                Feature
-              </span>
-              <span className="text-sm font-semibold uppercase tracking-widest" style={{ color: MIST }}>
-                Manual
-              </span>
-              <span className="text-sm font-semibold uppercase tracking-widest" style={{ color: PINK }}>
-                Clawhatch
-              </span>
-            </div>
-            {/* Rows */}
-            {comparisons.map((row, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-0 px-6 py-4 transition-colors duration-200 hover:bg-white/[0.02]"
-                style={{
-                  borderBottom: i < comparisons.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                }}
-              >
-                <span className="text-sm font-medium" style={{ color: CLOUD }}>
-                  {row.feature}
-                </span>
-                <span className="flex items-center gap-2 text-sm" style={{ color: MIST }}>
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: YELLOW }} />
-                  {row.manual}
-                </span>
-                <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "#10B981" }}>
-                  <Check className="w-4 h-4 flex-shrink-0" />
-                  {row.clawhatch}
-                </span>
-              </div>
+              </AnimatedSection>
             ))}
           </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
+        </div>
+      </section>
 
-/* ─── PRICING ─── */
-const tiers = [
-  {
-    label: "Pro",
-    price: "£79",
-    originalPrice: "£149",
-    period: "one-time",
-    desc: "Automated wizard + security baseline. Safe setup in 10 minutes.",
-    features: [
-      { text: "Guided setup wizard", included: true },
-      { text: "Security baseline enforced", included: true },
-      { text: "API key encryption", included: true },
-      { text: "Pre-configured templates", included: true },
-      { text: "7 days email support", included: true },
-    ],
-    cta: "Get Pro — 47% Off",
-    featured: false,
-    icon: Zap,
-    founding: true,
-  },
-  {
-    label: "Enterprise",
-    price: "£149",
-    originalPrice: "£299",
-    period: "one-time",
-    desc: "Pro + security audit report + advanced configurations.",
-    features: [
-      { text: "Everything in Pro", included: true },
-      { text: "Security audit PDF report", included: true },
-      { text: "Multi-channel setup", included: true },
-      { text: "Advanced tool configs", included: true },
-      { text: "14 days priority support", included: true },
-    ],
-    cta: "Get Enterprise — 50% Off",
-    featured: true,
-    icon: Shield,
-    founding: true,
-  },
-  {
-    label: "Concierge",
-    price: "£249",
-    originalPrice: "£499",
-    period: "one-time",
-    desc: "1:1 expert setup session. We do it all, you watch.",
-    features: [
-      { text: "Everything in Enterprise", included: true },
-      { text: "45-min live video session", included: true },
-      { text: "Custom SOUL.md personality", included: true },
-      { text: "Full security hardening", included: true },
-      { text: "30 days VIP support", included: true },
-    ],
-    cta: "Book Concierge — 50% Off",
-    featured: false,
-    icon: Heart,
-    founding: true,
-    note: "Via Stripe (includes human time)",
-  },
-  {
-    label: "Ongoing Support",
-    price: "£29",
-    period: "/month",
-    desc: "Proactive monitoring, config updates, priority troubleshooting.",
-    features: [
-      { text: "Priority support (24h SLA)", included: true },
-      { text: "Monthly health checks", included: true },
-      { text: "Config updates when OpenClaw changes", included: true },
-      { text: "2 config changes/month", included: true },
-      { text: "Cancel anytime", included: true },
-    ],
-    cta: "Subscribe",
-    featured: false,
-    icon: Wrench,
-    note: "Add to any tier",
-  },
-];
-
-function Pricing() {
-  return (
-    <section id="pricing" className="relative px-4 sm:px-6 py-24 lg:py-32">
-      {/* Glow */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.1) 0%, transparent 70%)`,
-        }}
-      />
-      <div className="relative z-10 max-w-[960px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12 lg:mb-16">
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-4"
-              style={{
-                color: PINK,
-                background: "rgba(255,45,135,0.08)",
-                border: "1px solid rgba(255,45,135,0.2)",
-              }}
-            >
-              🎉 Founding Customer Pricing — First 20 Only
-            </div>
-            <h2
-              className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
-            >
-              Lock In 50% Off
+      {/* WHAT YOU GET */}
+      <section className="px-6 py-20">
+        <div className="max-w-5xl mx-auto">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4">
+              WHAT YOU GET
             </h2>
-            <p className="mt-3 text-base" style={{ color: MIST }}>
-              Founding customers get permanent access at launch pricing.
+            <p className="text-lg mb-12" style={{ color: GRAY }}>
+              Four files. Fully configured. Ready to run.
             </p>
-          </div>
-        </Reveal>
+          </AnimatedSection>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {tiers.map((tier, i) => (
-            <Reveal key={tier.label} delay={i * 150}>
-              <div
-                className={`relative flex flex-col rounded-[24px] p-8 transition-all duration-250 ease-out hover:-translate-y-1 cursor-pointer ${
-                  tier.featured ? "lg:scale-[1.03]" : ""
-                }`}
-                style={{
-                  background: tier.featured
-                    ? CHARCOAL
-                    : "rgba(17,17,24,0.8)",
-                  border: tier.featured
-                    ? "none"
-                    : "1px solid rgba(255,255,255,0.08)",
-                  backgroundImage: tier.featured
-                    ? `linear-gradient(${CHARCOAL}, ${CHARCOAL}), linear-gradient(135deg, ${PINK}, ${CYAN})`
-                    : undefined,
-                  backgroundOrigin: tier.featured ? "border-box" : undefined,
-                  backgroundClip: tier.featured ? "padding-box, border-box" : undefined,
-                  borderWidth: tier.featured ? "2px" : undefined,
-                  borderStyle: tier.featured ? "solid" : undefined,
-                  borderColor: tier.featured ? "transparent" : undefined,
-                  boxShadow: tier.featured
-                    ? `0 0 20px rgba(255,45,135,0.15), 0 0 60px rgba(255,45,135,0.05)`
-                    : undefined,
-                  backdropFilter: "blur(12px)",
-                }}
-              >
-                {/* Popular badge */}
-                {tier.featured && (
-                  <span
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest text-white"
-                    style={{
-                      background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
-                    }}
-                  >
-                    Most Popular
-                  </span>
-                )}
-
-                {/* Label */}
-                <div className="flex items-center gap-2 mb-4">
-                  <tier.icon className="w-5 h-5" style={{ color: tier.featured ? PINK : CYAN }} />
-                  <span
-                    className="text-sm font-semibold uppercase tracking-widest"
-                    style={{ color: tier.featured ? PINK : CYAN }}
-                  >
-                    {tier.label}
-                  </span>
-                </div>
-
-                {/* Founding Badge */}
-                {(tier as { founding?: boolean }).founding && (
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3"
-                    style={{
-                      color: CYAN,
-                      background: "rgba(0,229,255,0.1)",
-                      border: "1px solid rgba(0,229,255,0.2)",
-                    }}
-                  >
-                    🎉 Founding Customer — Limited
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              {
+                icon: FileCode,
+                file: "openclaw.json",
+                desc: "Your main config — model, channels, tools, security policies. Pre-validated.",
+              },
+              {
+                icon: MessageSquare,
+                file: "SOUL.md",
+                desc: "Your bot's personality — tone, boundaries, quirks. Makes it feel like yours.",
+              },
+              {
+                icon: Users,
+                file: "AGENTS.md",
+                desc: "Behavior rules — how it handles groups, memory, proactive actions.",
+              },
+              {
+                icon: Shield,
+                file: "Security Checklist",
+                desc: "PDF audit of your setup — what's locked down, what to watch.",
+              },
+            ].map((item, i) => (
+              <AnimatedSection key={item.file} delay={i * 100}>
+                <div
+                  className="p-6 transition-all hover:translate-x-2"
+                  style={{ border: `4px solid ${BLACK}`, background: WHITE }}
+                >
+                  <div className="flex items-start gap-4">
+                    <item.icon className="w-8 h-8 flex-shrink-0" style={{ color: ACCENT }} />
+                    <div>
+                      <h3 className="font-black uppercase text-lg mb-1">{item.file}</h3>
+                      <p className="text-sm" style={{ color: GRAY }}>{item.desc}</p>
+                    </div>
                   </div>
-                )}
+                </div>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                {/* Price */}
-                <div className="mb-1 flex items-baseline gap-2">
-                  <span
-                    className="font-heading text-5xl font-bold"
-                    style={{ color: WHITE }}
+      {/* TESTIMONIAL */}
+      <section className="px-6 py-20" style={{ background: BLACK, color: WHITE }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <AnimatedSection>
+            <div className="flex justify-center gap-1 mb-6">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-6 h-6 fill-current" style={{ color: ACCENT }} />
+              ))}
+            </div>
+            <blockquote className="text-xl md:text-2xl font-bold mb-6 leading-relaxed">
+              "Got my OpenClaw running in one session. The security setup alone saved me hours of Googling. 
+              <span style={{ color: ACCENT }}> Actually feels like MY assistant now.</span>"
+            </blockquote>
+            <div>
+              <p className="font-black uppercase">Mxrius</p>
+              <p className="text-sm" style={{ color: GRAY }}>Beta Tester • Windows 11 • Discord Setup</p>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* COMPARISON */}
+      <section className="px-6 py-20">
+        <div className="max-w-4xl mx-auto">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-12">
+              WHY NOT DIY?
+            </h2>
+          </AnimatedSection>
+
+          <AnimatedSection delay={100}>
+            <div style={{ border: `4px solid ${BLACK}` }}>
+              <div className="grid grid-cols-3" style={{ background: BLACK, color: WHITE }}>
+                <div className="p-3 md:p-4 font-black uppercase text-xs md:text-sm">Feature</div>
+                <div className="p-3 md:p-4 font-black uppercase text-xs md:text-sm border-l-4" style={{ borderColor: ACCENT }}>Manual</div>
+                <div className="p-3 md:p-4 font-black uppercase text-xs md:text-sm border-l-4" style={{ borderColor: ACCENT, background: ACCENT }}>Clawhatch</div>
+              </div>
+              {[
+                ["Setup time", "2-6 hours", "~10 min"],
+                ["Config errors", "Common", "Pre-tested"],
+                ["Security audit", "DIY research", "Included"],
+                ["Personality setup", "Write from scratch", "7 templates"],
+                ["Support", "GitHub issues", "Human help"],
+              ].map(([feature, manual, clawhatch], i) => (
+                <div
+                  key={feature}
+                  className="grid grid-cols-3"
+                  style={{ borderTop: `2px solid ${BLACK}` }}
+                >
+                  <div className="p-3 md:p-4 text-xs md:text-sm font-bold">{feature}</div>
+                  <div className="p-3 md:p-4 text-xs md:text-sm border-l-4" style={{ borderColor: BLACK, color: GRAY }}>{manual}</div>
+                  <div className="p-3 md:p-4 text-xs md:text-sm font-bold border-l-4" style={{ borderColor: BLACK, background: "#fff5f8" }}>{clawhatch}</div>
+                </div>
+              ))}
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="px-6 py-20" style={{ background: LIGHT_GRAY }}>
+        <div className="max-w-3xl mx-auto">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-12">
+              FAQ
+            </h2>
+          </AnimatedSection>
+
+          <div className="space-y-0">
+            {faqs.map((faq, i) => (
+              <AnimatedSection key={i} delay={i * 50}>
+                <div style={{ border: `4px solid ${BLACK}`, marginTop: i > 0 ? "-4px" : 0 }}>
+                  <button
+                    className="w-full p-4 md:p-6 flex items-center justify-between text-left transition-colors"
+                    style={{ background: openFaq === i ? BLACK : WHITE, color: openFaq === i ? WHITE : BLACK }}
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   >
-                    {tier.price}
-                  </span>
-                  {(tier as { originalPrice?: string }).originalPrice && (
-                    <span
-                      className="text-xl line-through"
-                      style={{ color: MIST, opacity: 0.6 }}
-                    >
-                      {(tier as { originalPrice?: string }).originalPrice}
-                    </span>
+                    <span className="font-black uppercase text-sm md:text-base pr-4">{faq.q}</span>
+                    <ChevronDown 
+                      className="w-5 h-5 flex-shrink-0 transition-transform" 
+                      style={{ transform: openFaq === i ? "rotate(180deg)" : "rotate(0)" }}
+                    />
+                  </button>
+                  {openFaq === i && (
+                    <div className="p-4 md:p-6 text-sm md:text-base" style={{ background: WHITE, borderTop: `2px solid ${BLACK}`, color: GRAY }}>
+                      {faq.a}
+                    </div>
                   )}
                 </div>
-                <p className="text-sm mb-6" style={{ color: MIST }}>
-                  {tier.period}
-                </p>
-
-                {/* Features */}
-                <ul className="space-y-3 mb-8 flex-1">
-                  {tier.features.map((f) => (
-                    <li
-                      key={f.text}
-                      className={`flex items-center gap-2.5 text-sm ${
-                        f.included ? "" : "line-through opacity-40"
-                      }`}
-                      style={{ color: f.included ? CLOUD : MIST }}
-                    >
-                      {f.included ? (
-                        <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#10B981" }} />
-                      ) : (
-                        <X className="w-4 h-4 flex-shrink-0" style={{ color: MIST }} />
-                      )}
-                      {f.text}
-                    </li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                {tier.featured ? (
-                  <button
-                    className="group relative w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-[10px] text-white font-semibold text-base overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px]"
-                    style={{
-                      background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
-                    }}
-                  >
-                    <span className="absolute inset-0 overflow-hidden">
-                      <span className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent rotate-[15deg]" />
-                    </span>
-                    <span className="relative">{tier.cta}</span>
-                    <ArrowRight className="relative w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-                  </button>
-                ) : (
-                  <button
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-[10px] font-semibold text-base cursor-pointer transition-all duration-250 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px]"
-                    style={{
-                      color: CLOUD,
-                      background: "transparent",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = CYAN;
-                      e.currentTarget.style.color = WHITE;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                      e.currentTarget.style.color = CLOUD;
-                    }}
-                  >
-                    {tier.cta}
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-
-                {tier.note && (
-                  <p className="text-center text-xs mt-3" style={{ color: MIST }}>
-                    {tier.note}
-                  </p>
-                )}
-              </div>
-            </Reveal>
-          ))}
+              </AnimatedSection>
+            ))}
+          </div>
         </div>
-      </div>
-    </section>
-  );
-}
+      </section>
 
-/* ─── THREE PILLARS ─── */
-const pillars = [
-  {
-    icon: Shield,
-    title: "Safe Baseline",
-    desc: "Security baked in from day one. Sandboxing enforced, API keys encrypted, allowlists configured. No footguns.",
-    color: CYAN,
-  },
-  {
-    icon: Sparkles,
-    title: "Personalised",
-    desc: "Built for YOUR workflow, not a generic template. Tools you need, channels you use, personality that fits.",
-    color: PINK,
-  },
-  {
-    icon: Wrench,
-    title: "Maintained",
-    desc: "Setup is day one. We keep it running. Config updates when OpenClaw evolves. Never lose days to broken configs.",
-    color: CYAN,
-  },
-];
-
-/* ─── SOCIAL PROOF ─── */
-/* Note: These are example use cases, not real testimonials yet */
-/* Will be replaced with real customer feedback after beta */
-const useCases = [
-  {
-    quote: "Indie hacker automating customer support with Telegram integration and sentiment analysis.",
-    persona: "Example: Indie Hacker",
-    useCase: "Customer Support Bot",
-  },
-  {
-    quote: "Content creator with Discord bot for community management and scheduled posts.",
-    persona: "Example: Creator",
-    useCase: "Community Management",
-  },
-  {
-    quote: "Startup team using multiple agents with role-based access and security allowlists.",
-    persona: "Example: Startup Team",
-    useCase: "Team Automation",
-  },
-];
-
-const stats = [
-  { value: "50+", label: "Setups tested" },
-  { value: "< 10 min", label: "Target setup time" },
-  { value: "6+", label: "Platforms supported" },
-  { value: "< 24h", label: "Support response" },
-];
-
-function SocialProof() {
-  return (
-    <section className="px-4 sm:px-6 py-24 lg:py-32" style={{ background: "rgba(17,17,24,0.5)" }}>
-      <div className="max-w-[1200px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12 lg:mb-16">
-            <h2
-              className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
-            >
-              How People Use OpenClaw
+      {/* PRICING */}
+      <section id="pricing" className="px-6 py-20" style={{ background: BLACK, color: WHITE }}>
+        <div className="max-w-5xl mx-auto">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4">
+              HONEST PRICING
             </h2>
-            <p className="mt-3 text-base" style={{ color: MIST }}>
-              Example use cases. Real testimonials coming after beta.
+            <p className="text-lg mb-12" style={{ color: GRAY }}>
+              No live calls. No fluff. Just solid async support to get you set up safely.
             </p>
-          </div>
-        </Reveal>
+          </AnimatedSection>
 
-        {/* Use case cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-16">
-          {useCases.map((t, i) => (
-            <Reveal key={i} delay={i * 150}>
-              <div
-                className="rounded-2xl p-6 transition-all duration-250 ease-out hover:-translate-y-1"
-                style={{
-                  background: "rgba(28,28,39,0.8)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(12px)",
-                }}
-              >
-                {/* Use case badge */}
+          <div className="grid md:grid-cols-2 gap-0">
+            {[
+              {
+                name: "PRO",
+                price: "£39",
+                subtitle: "One-time",
+                features: [
+                  "Guided setup wizard",
+                  "Security baseline config",
+                  "API key encryption",
+                  "Email support (48h)",
+                  "Security checklist PDF",
+                ],
+                featured: false,
+                href: "https://buy.stripe.com/eVq7sL4xP5BF34acLsb7y02",
+              },
+              {
+                name: "ENTERPRISE",
+                price: "£69",
+                subtitle: "One-time",
+                features: [
+                  "Everything in Pro",
+                  "Priority async support (12h)",
+                  "Custom SOUL.md personality",
+                  "Full security audit PDF",
+                  "14 days priority support",
+                ],
+                featured: true,
+                href: "https://buy.stripe.com/8x29ATe8p2pt34a5j0b7y01",
+              },
+            ].map((tier, i) => (
+              <AnimatedSection key={tier.name} delay={i * 100}>
                 <div
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mb-4"
+                  className="p-6 md:p-8 transition-all hover:scale-[1.02]"
                   style={{
-                    color: CYAN,
-                    background: "rgba(0,229,255,0.1)",
+                    background: tier.featured ? ACCENT : BLACK,
+                    border: `4px solid ${tier.featured ? ACCENT : WHITE}`,
+                    marginLeft: i > 0 ? "-4px" : 0,
                   }}
                 >
-                  {t.useCase}
-                </div>
-                <p className="text-[15px] leading-relaxed mb-6" style={{ color: CLOUD }}>
-                  {t.quote}
-                </p>
-                <div>
-                  <p className="text-xs" style={{ color: MIST }}>
-                    {t.persona}
+                  <p className="text-sm font-bold uppercase tracking-widest mb-2" style={{ color: tier.featured ? BLACK : GRAY }}>
+                    {tier.name}
                   </p>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-4xl md:text-5xl font-black">{tier.price}</span>
+                  </div>
+                  <p className="text-sm mb-6" style={{ color: tier.featured ? BLACK : GRAY }}>{tier.subtitle}</p>
+                  <ul className="space-y-3 mb-8">
+                    {tier.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={tier.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-3 font-black uppercase text-sm text-center transition-all hover:scale-105"
+                    style={{
+                      background: tier.featured ? BLACK : WHITE,
+                      color: tier.featured ? WHITE : BLACK,
+                    }}
+                  >
+                    Get {tier.name}
+                  </a>
                 </div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
-        {/* Stats */}
-        <Reveal delay={200}>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-            {stats.map((s) => (
-              <div key={s.label} className="text-center">
-                <p
-                  className="font-heading text-3xl sm:text-4xl font-bold bg-clip-text text-transparent"
-                  style={{
-                    backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
-                  }}
-                >
-                  {s.value}
-                </p>
-                <p className="text-sm mt-1" style={{ color: MIST }}>
-                  {s.label}
-                </p>
-              </div>
+              </AnimatedSection>
             ))}
           </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
 
-/* ─── FAQ ─── */
-const faqs = [
-  {
-    q: "How is this different from just following the docs?",
-    a: "The docs tell you how. We make sure it's done safely. 67% of self-configured OpenClaw instances have at least one critical security misconfiguration (API keys in configs, no sandboxing, exec security disabled). Clawhatch enforces best practices automatically.",
-  },
-  {
-    q: "Do you access my API keys?",
-    a: "Never. The wizard runs locally on your machine. We never see your keys, configs, or data. For Concierge sessions, you paste keys into your own terminal while screen-sharing — we guide but never touch.",
-  },
-  {
-    q: "What if I already have OpenClaw installed?",
-    a: "Book a free security audit. We'll check your config and give you a report of risks + fixes. Then you can decide if you want help hardening it.",
-  },
-  {
-    q: "Why is Concierge through Stripe, not Lemon Squeezy?",
-    a: "Concierge involves human time (live 1:1 sessions). Lemon Squeezy is for digital products only. We use Stripe for services to stay compliant with both platforms' terms.",
-  },
-  {
-    q: "Can I cancel the £29/mo support?",
-    a: "Anytime. No contracts, no cancellation fees. Your setup keeps working — you just lose priority support and managed updates.",
-  },
-  {
-    q: "What's 'founding customer' pricing?",
-    a: "We're launching with 47-50% off for our first 20 customers. After that, prices go to full list (£149/£299/£499). Lock in the discount now.",
-  },
-];
-
-function FAQSection() {
-  return (
-    <section id="faq" className="px-4 sm:px-6 py-24 lg:py-32">
-      <div className="max-w-[720px] mx-auto">
-        <Reveal>
-          <div className="text-center mb-12">
-            <h2
-              className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight"
-              style={{ color: WHITE }}
-            >
-              Frequently Asked Questions
-            </h2>
-          </div>
-        </Reveal>
-
-        <Reveal delay={150}>
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((faq, i) => (
-              <AccordionItem
-                key={i}
-                value={`faq-${i}`}
-                style={{ borderColor: "rgba(255,255,255,0.08)" }}
-              >
-                <AccordionTrigger
-                  className="text-left text-base font-medium hover:no-underline cursor-pointer py-6 min-h-[44px] transition-colors duration-200"
-                  style={{ color: WHITE }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = CYAN;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = WHITE;
-                  }}
-                >
-                  {faq.q}
-                </AccordionTrigger>
-                <AccordionContent
-                  className="text-[15px] leading-relaxed pb-6"
-                  style={{ color: MIST }}
-                >
-                  {faq.a}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ─── FINAL CTA ─── */
-function FinalCTA() {
-  return (
-    <section className="relative px-4 sm:px-6 py-32 lg:py-40 text-center overflow-hidden">
-      {/* Glow */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at 50% 50%, rgba(255,45,135,0.08) 0%, rgba(0,229,255,0.06) 40%, transparent 70%)`,
-          filter: "blur(60px)",
-        }}
-      />
-      <div className="relative z-10 max-w-2xl mx-auto">
-        <Reveal>
-          <h2
-            className="font-heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight"
-            style={{ color: WHITE }}
-          >
-            Open Your{" "}
-            <span
-              className="bg-clip-text text-transparent"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${CYAN}, ${PINK}, ${CYAN})`,
-              }}
-            >
-              Clawhatch
-            </span>
-          </h2>
-        </Reveal>
-        <Reveal delay={100}>
-          <p
-            className="text-base sm:text-lg max-w-[500px] mx-auto mt-4 mb-10 leading-relaxed"
-            style={{ color: MIST }}
-          >
-            Your AI assistant is 10 minutes away. Start free, upgrade anytime.
-          </p>
-        </Reveal>
-        <Reveal delay={200}>
-          <Link href="/wizard">
-            <button
-              className="group relative inline-flex items-center gap-2 px-10 py-5 rounded-[10px] text-white font-semibold text-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 min-h-[44px]"
-              style={{
-                background: `linear-gradient(135deg, ${PINK}, ${CYAN})`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 20px rgba(255,45,135,0.3), 0 0 60px rgba(255,45,135,0.1)`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              <span className="absolute inset-0 overflow-hidden">
-                <span className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent rotate-[15deg]" />
-              </span>
-              <span className="relative">Get Started Free</span>
-              <ArrowRight className="relative w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
-            </button>
-          </Link>
-        </Reveal>
-        <Reveal delay={300}>
-          <p className="flex items-center justify-center gap-2 text-xs mt-4" style={{ color: MIST }}>
-            <Shield className="w-3.5 h-3.5" />
-            No credit card required · Free tier forever · Cancel anytime
-          </p>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ─── FOOTER ─── */
-function Footer() {
-  return (
-    <footer
-      className="px-4 sm:px-6 py-12"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-    >
-      <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <span className="font-heading text-sm font-bold" style={{ color: PINK }}>
-            Clawhatch
-          </span>
-          <span className="text-sm" style={{ color: MIST }}>
-            &copy; {new Date().getFullYear()} Clawhatch
-          </span>
-        </div>
-        <div className="flex items-center gap-6">
-          {[
-            { label: "Privacy", href: "#" },
-            { label: "Terms", href: "#" },
-            { label: "Discord", href: "#" },
-            { label: "GitHub", href: "https://github.com/OpenClaw" },
-          ].map((link) => (
+          {/* Monthly support */}
+          <AnimatedSection delay={200}>
             <a
-              key={link.label}
-              href={link.href}
-              className="text-sm transition-colors duration-200 cursor-pointer min-h-[44px] min-w-[44px] inline-flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"
-              style={{ color: MIST }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = WHITE; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = MIST; }}
+              href="https://buy.stripe.com/7sYbJ1ggx8NR7kq4eWb7y00"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:scale-[1.02]"
+              style={{ border: `4px solid ${WHITE}`, display: "flex" }}
             >
-              {link.label}
+              <div>
+                <p className="font-black uppercase">ONGOING SUPPORT</p>
+                <p className="text-sm" style={{ color: GRAY }}>Monthly health checks, priority support, config updates</p>
+              </div>
+              <div className="text-left md:text-right flex items-center gap-4">
+                <div>
+                  <span className="text-3xl font-black">£19</span>
+                  <span className="text-sm">/mo</span>
+                </div>
+                <span className="text-sm font-bold uppercase" style={{ color: ACCENT }}>GET SUPPORT →</span>
+              </div>
             </a>
-          ))}
+          </AnimatedSection>
         </div>
-      </div>
-    </footer>
-  );
-}
+      </section>
 
-/* ─── PAGE ─── */
-export default function Home() {
-  return (
-    <div className="min-h-screen" style={{ background: VOID }}>
-      <Hero />
-      <ThreePillars />
-      <HowItWorks />
-      <Comparison />
-      <Pricing />
-      <SocialProof />
-      <FAQSection />
-      <FinalCTA />
-      <Footer />
+      {/* FINAL CTA */}
+      <section className="px-6 py-20 md:py-28" style={{ background: ACCENT }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <AnimatedSection>
+            <h2 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-6" style={{ color: BLACK }}>
+              OPEN YOUR CLAWHATCH
+            </h2>
+            <p className="text-lg md:text-xl mb-8" style={{ color: BLACK }}>
+              Your AI assistant is 10 minutes away.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/wizard"
+                className="group inline-flex items-center justify-center gap-3 px-8 md:px-10 py-4 md:py-5 text-lg md:text-xl font-black uppercase transition-all hover:scale-105"
+                style={{ background: BLACK, color: WHITE }}
+              >
+                Start Free Wizard
+                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/manual-setup"
+                className="inline-flex items-center justify-center gap-3 px-8 md:px-10 py-4 md:py-5 text-lg md:text-xl font-black uppercase transition-all hover:bg-white/10"
+                style={{ background: "transparent", color: BLACK, border: `4px solid ${BLACK}` }}
+              >
+                Get Beta Setup
+              </Link>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="px-6 py-8" style={{ background: BLACK, color: WHITE, borderTop: `4px solid ${ACCENT}` }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <span className="font-black uppercase">CLAWHATCH © 2026</span>
+            <div className="flex gap-6 text-sm">
+              <a href="https://discord.com/invite/clawd" target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: GRAY }}>
+                Discord
+              </a>
+              <a href="#" className="transition-colors hover:opacity-80" style={{ color: GRAY }}>Privacy</a>
+              <a href="#" className="transition-colors hover:opacity-80" style={{ color: GRAY }}>Terms</a>
+            </div>
+          </div>
+          <p className="text-center mt-4 text-xs" style={{ color: GRAY }}>
+            Built by an OpenClaw community member. Not affiliated with Anthropic.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
