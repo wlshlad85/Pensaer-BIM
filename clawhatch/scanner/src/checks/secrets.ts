@@ -33,24 +33,25 @@ export async function runSecretChecks(
 
   // Check 34: No API keys in openclaw.json (use ${VAR} substitution)
   if (configRaw) {
+    let totalKeyCount = 0;
     for (const pattern of API_KEY_PATTERNS) {
-      const match = pattern.exec(configRaw);
-      if (match) {
-        const preview = match[0].slice(0, 8) + "..." + match[0].slice(-4);
-        findings.push({
-          id: "SECRET-001",
-          severity: Severity.Critical,
-          confidence: "high",
-          category: "Secret Scanning",
-          title: "API key found in openclaw.json",
-          description: `Hardcoded API key detected (${preview})`,
-          risk: "Key will be exposed if config is shared, committed, or backed up",
-          remediation: "Move key to .env file and use ${VAR_NAME} substitution in config",
-          autoFixable: false,
-          file: files.configPath ?? undefined,
-        });
-        break; // One finding per config file is enough
-      }
+      // Use matchAll to count every occurrence, not just the first
+      const matches = [...configRaw.matchAll(new RegExp(pattern, "g"))];
+      totalKeyCount += matches.length;
+    }
+    if (totalKeyCount > 0) {
+      findings.push({
+        id: "SECRET-001",
+        severity: Severity.Critical,
+        confidence: "high",
+        category: "Secret Scanning",
+        title: "API key(s) found in openclaw.json",
+        description: `${totalKeyCount} hardcoded API key(s) detected — move all to .env`,
+        risk: "Keys will be exposed if config is shared, committed, or backed up",
+        remediation: "Move keys to .env file and use ${VAR_NAME} substitution in config",
+        autoFixable: false,
+        file: files.configPath ?? undefined,
+      });
     }
   }
 
