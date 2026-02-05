@@ -1,0 +1,42 @@
+{
+  "name": "clawhatch",
+  "version": "0.1.0",
+  "description": "Security scanner for OpenClaw AI agents — 51-point audit with auto-fix",
+  "type": "module",
+  "bin": {
+    "clawhatch": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "keywords": [
+    "openclaw",
+    "security",
+    "scanner",
+    "audit",
+    "ai-agent",
+    "cli"
+  ],
+  "author": "Clawhatch <security@clawhatch.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "5.4.1",
+    "commander": "13.1.0",
+    "glob": "11.1.0",
+    "json5": "2.2.3",
+    "ora": "8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.1",
+    "tsx": "4.21.0",
+    "typescript": "5.7.3"
+  }
+}
