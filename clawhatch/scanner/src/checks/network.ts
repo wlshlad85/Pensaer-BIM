@@ -87,11 +87,13 @@ export async function runNetworkChecks(
 
   // Check 20: trustedProxies configured if relevant
   // We can only flag absence — can't know if they're behind a proxy
-  if (config.gateway?.bind === "127.0.0.1" && !config.gateway?.trustedProxies) {
-    // This is fine — localhost binding doesn't need proxy config
+  const SAFE_BIND_VALUES = ["127.0.0.1", "localhost", "loopback"];
+  const bindValue = config.gateway?.bind;
+  if (bindValue && SAFE_BIND_VALUES.includes(bindValue) && !config.gateway?.trustedProxies) {
+    // This is fine — localhost/loopback binding doesn't need proxy config
   } else if (
-    config.gateway?.bind &&
-    config.gateway.bind !== "127.0.0.1" &&
+    bindValue &&
+    !SAFE_BIND_VALUES.includes(bindValue) &&
     !config.gateway?.trustedProxies
   ) {
     findings.push({
@@ -163,10 +165,10 @@ export async function runNetworkChecks(
   // Skip for now — implemented as part of broader network scan if needed
 
   // Check 25: SSL/TLS for external surfaces
+  const SAFE_BIND_TLS = ["127.0.0.1", "localhost", "loopback"];
   if (
     config.gateway?.bind &&
-    config.gateway.bind !== "127.0.0.1" &&
-    config.gateway.bind !== "localhost"
+    !SAFE_BIND_TLS.includes(config.gateway.bind)
   ) {
     // Check if there's any TLS/SSL config
     const configStr = JSON.stringify(config);
