@@ -13,6 +13,9 @@ const WEAK_TOKENS = [
   "abc123", "123456", "qwerty", "password1",
 ];
 
+/** Returns true if the value is a ${VAR} env reference (resolved at runtime) */
+const isEnvRef = (v: string): boolean => /^\$\{.+\}$/.test(v);
+
 export async function runNetworkChecks(
   config: OpenClawConfig
 ): Promise<Finding[]> {
@@ -54,7 +57,7 @@ export async function runNetworkChecks(
 
   // Check 18: Auth token length >= 32 characters
   const token = config.gateway?.auth?.token;
-  if (authMode === "token" && token && token.length < 32) {
+  if (authMode === "token" && token && !isEnvRef(token) && token.length < 32) {
     findings.push({
       id: "NETWORK-003",
       severity: Severity.High,
@@ -70,7 +73,7 @@ export async function runNetworkChecks(
   }
 
   // Check 19: Auth token not a common value
-  if (token && WEAK_TOKENS.includes(token.toLowerCase())) {
+  if (token && !isEnvRef(token) && WEAK_TOKENS.includes(token.toLowerCase())) {
     findings.push({
       id: "NETWORK-004",
       severity: Severity.Critical,
