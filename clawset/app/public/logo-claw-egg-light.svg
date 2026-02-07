@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <radialGradient id="glowL" cx="50%" cy="45%" r="35%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#00e5ff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="eggGradL" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e8e8e8"/>
+    </radialGradient>
+    <linearGradient id="clawGradL" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#cc1a6a"/>
+      <stop offset="40%" stop-color="#ff2d87"/>
+      <stop offset="100%" stop-color="#ff6aab"/>
+    </linearGradient>
+    <filter id="pinkGlowL" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#ff2d87" flood-opacity="0.3" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="colorBlur"/>
+      <feMerge><feMergeNode in="colorBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="cyanGlowL" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feFlood flood-color="#00e5ff" flood-opacity="0.4" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="colorBlur"/>
+      <feMerge><feMergeNode in="colorBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Light background -->
+  <rect width="400" height="500" fill="#f8f9fa"/>
+
+  <!-- Cyan energy glow -->
+  <ellipse cx="200" cy="200" rx="140" ry="120" fill="url(#glowL)"/>
+
+  <!-- Energy lines -->
+  <g filter="url(#cyanGlowL)" opacity="0.5">
+    <line x1="200" y1="195" x2="160" y2="120" stroke="#00b8d4" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="200" y1="195" x2="240" y2="110" stroke="#00b8d4" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="200" y1="195" x2="140" y2="145" stroke="#00b8d4" stroke-width="1" stroke-linecap="round"/>
+    <line x1="200" y1="195" x2="265" y2="140" stroke="#00b8d4" stroke-width="1" stroke-linecap="round"/>
+    <line x1="200" y1="195" x2="200" y2="100" stroke="#00b8d4" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Egg bottom half -->
+  <path d="M120,240 Q120,200 135,195 L200,200 L265,195 Q280,200 280,240 Q280,330 200,340 Q120,330 120,240Z" fill="url(#eggGradL)" stroke="#c0c0c0" stroke-width="1.5"/>
+  <path d="M145,260 Q170,255 200,258 Q230,261 255,256" fill="none" stroke="#d8d8d8" stroke-width="0.8" opacity="0.7"/>
+  <path d="M140,290 Q175,285 200,288 Q225,291 260,286" fill="none" stroke="#d8d8d8" stroke-width="0.8" opacity="0.7"/>
+
+  <!-- Crack lines -->
+  <g stroke="#999" stroke-width="1.5" fill="none" stroke-linecap="round">
+    <path d="M170,200 L165,225 L175,240 L160,260"/>
+    <path d="M230,198 L240,220 L232,235 L245,255"/>
+    <path d="M195,195 L190,215 L200,225"/>
+    <path d="M210,197 L215,218"/>
+  </g>
+
+  <!-- Jagged crack edge -->
+  <path d="M135,195 L150,205 L160,185 L175,200 L190,180 L200,200 L210,178 L225,198 L240,182 L255,202 L265,195" fill="none" stroke="#aaa" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Shell fragments -->
+  <g fill="#e8e8e8" stroke="#c0c0c0" stroke-width="0.8">
+    <path d="M105,160 L115,150 L120,165 Z" transform="rotate(-15,112,158)" opacity="0.9"/>
+    <path d="M88,180 L100,172 L98,190 Z" transform="rotate(-25,95,180)" opacity="0.7"/>
+    <path d="M125,130 L132,122 L138,138 Z" transform="rotate(-10,131,130)" opacity="0.6"/>
+    <path d="M280,155 L290,148 L288,168 Z" transform="rotate(12,285,158)" opacity="0.9"/>
+    <path d="M300,178 L312,170 L308,188 Z" transform="rotate(20,306,179)" opacity="0.7"/>
+    <path d="M268,128 L278,120 L276,140 Z" transform="rotate(8,273,130)" opacity="0.6"/>
+    <rect x="145" y="140" width="6" height="8" rx="1" transform="rotate(-30,148,144)" opacity="0.5"/>
+    <rect x="248" y="135" width="7" height="6" rx="1" transform="rotate(25,251,138)" opacity="0.5"/>
+    <rect x="170" y="118" width="5" height="7" rx="1" transform="rotate(-45,172,121)" opacity="0.4"/>
+    <rect x="225" y="115" width="6" height="5" rx="1" transform="rotate(40,228,117)" opacity="0.4"/>
+  </g>
+
+  <!-- THE CLAW -->
+  <g filter="url(#pinkGlowL)">
+    <path d="M160,210 Q155,170 140,120 Q138,108 145,100 L152,105 Q155,115 158,130 Q163,160 170,195Z" fill="url(#clawGradL)" stroke="#cc1a6a" stroke-width="1"/>
+    <path d="M145,100 L140,85 L155,95 L152,105Z" fill="#ff6aab" stroke="#ff2d87" stroke-width="0.8"/>
+    <path d="M188,205 Q190,155 195,105 Q197,80 200,68 Q203,80 205,105 Q210,155 212,205Z" fill="url(#clawGradL)" stroke="#cc1a6a" stroke-width="1"/>
+    <path d="M195,68 L200,42 L205,68 Q200,60 195,68Z" fill="#ff6aab" stroke="#ff2d87" stroke-width="0.8"/>
+    <path d="M240,210 Q245,170 260,120 Q262,108 255,100 L248,105 Q245,115 242,130 Q237,160 230,195Z" fill="url(#clawGradL)" stroke="#cc1a6a" stroke-width="1"/>
+    <path d="M255,100 L260,85 L245,95 L248,105Z" fill="#ff6aab" stroke="#ff2d87" stroke-width="0.8"/>
+    <ellipse cx="200" cy="220" rx="45" ry="25" fill="#cc1a6a" stroke="#aa1555" stroke-width="1"/>
+    <ellipse cx="200" cy="218" rx="42" ry="20" fill="url(#clawGradL)"/>
+    <path d="M175,218 Q180,208 200,205 Q220,208 225,218" fill="none" stroke="#aa1555" stroke-width="1.2" opacity="0.6"/>
+  </g>
+
+  <!-- Cyan sparkles -->
+  <g fill="#00b8d4" opacity="0.6">
+    <circle cx="130" cy="150" r="2"/>
+    <circle cx="270" cy="145" r="2.5"/>
+    <circle cx="155" cy="110" r="1.5"/>
+    <circle cx="245" cy="105" r="1.8"/>
+    <circle cx="200" cy="80" r="2"/>
+    <circle cx="115" cy="190" r="1.5"/>
+    <circle cx="285" cy="185" r="1.8"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="200" y="420" text-anchor="middle" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="36" font-weight="700" letter-spacing="12" fill="#1a1a2e">CLAWHATCH</text>
+  <line x1="95" y1="435" x2="305" y2="435" stroke="#ff2d87" stroke-width="2" opacity="0.5"/>
+</svg>

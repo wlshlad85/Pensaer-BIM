@@ -14,6 +14,7 @@ import {
 } from "../../stores";
 import type { Element, Issue } from "../../types";
 import { validateModel, getValidationSummary, getIssueFix } from "../../utils/validation";
+import { EIRComplianceIndicator, EIRComplianceSummary } from "./EIRComplianceIndicator";
 
 // Icon mapping for element types
 const TYPE_ICONS: Record<string, string> = {
@@ -149,6 +150,9 @@ export function PropertiesPanel() {
 
   return (
     <div className="w-72 bg-gray-900/50 border-l border-gray-700/50 flex flex-col overflow-hidden" data-testid="properties-panel">
+      {/* EIR compliance summary bar */}
+      <EIRComplianceSummary />
+
       {selectedElement ? (
         <SelectedElementView
           element={selectedElement}
@@ -399,6 +403,11 @@ function SelectedElementView({
       {element.issues.length > 0 && (
         <IssueDetails issues={element.issues} elementId={element.id} />
       )}
+
+      {/* EIR Compliance */}
+      <div className="px-4 pt-1">
+        <EIRComplianceIndicator elementId={element.id} />
+      </div>
 
       {/* Properties */}
       <div className="p-4 border-b border-gray-700/50">

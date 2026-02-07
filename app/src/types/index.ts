@@ -99,6 +99,25 @@ export type {
 
 export { JSONRPC_ERROR_CODES } from "./mcp";
 
+// EIR/BEP types (ISO 19650)
+export type {
+  ProjectStage,
+  GeometryDetailLevel,
+  InformationDetailLevel,
+  DocumentationLevel,
+  LevelOfInformationNeed,
+  RequiredProperty,
+  ElementRequirement,
+  DataDrop,
+  EIRTemplate,
+  DeliveryApproach,
+  DataDropResponse,
+  BEPTemplate,
+  EIRComplianceStatus,
+  EIRValidationItem,
+  EIRValidationReport,
+} from "./eir";
+
 // Store types
 export type {
   ModelState,

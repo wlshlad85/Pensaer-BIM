@@ -1,0 +1,47 @@
+// Clawhatch Template: Solo Founder
+// For: entrepreneurs, indie hackers, solopreneurs
+// Channels: WhatsApp + webchat
+// Style: proactive, high-capability, executive assistant vibe
+{
+  "logging": { "level": "info" },
+  "agent": {
+    "model": "anthropic/claude-opus-4-5",
+    "workspace": "~/.openclaw/workspace",
+    "thinkingDefault": "high",
+    "timeoutSeconds": 1800,
+    "heartbeat": { "every": "30m" }
+  },
+  "channels": {
+    "whatsapp": {
+      "allowFrom": ["REPLACE_WITH_CLIENT_PHONE"],
+      "groups": {
+        "*": { "requireMention": true }
+      }
+    }
+  },
+  "routing": {
+    "groupChat": {
+      "mentionPatterns": ["@assistant", "REPLACE_WITH_ASSISTANT_NAME"]
+    }
+  },
+  "session": {
+    "scope": "per-sender",
+    "resetTriggers": ["/new", "/reset"],
+    "reset": {
+      "mode": "daily",
+      "atHour": 4,
+      "idleMinutes": 10080
+    }
+  },
+  "tools": {
+    "exec": {
+      "security": "full",
+      "ask": "on-miss"
+    },
+    "web": {
+      "search": {
+        "apiKey": "REPLACE_WITH_BRAVE_KEY"
+      }
+    }
+  }
+}

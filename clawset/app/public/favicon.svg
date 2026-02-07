@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Simplified egg + claw icon for favicon -->
+  <!-- Egg -->
+  <ellipse cx="32" cy="36" rx="20" ry="25" fill="#1a1a2e" stroke="#e94560" stroke-width="3"/>
+  <!-- Jagged crack at top -->
+  <path d="M16 26 L20 20 L24 26 L28 18 L32 26 L36 18 L40 26 L44 20 L48 26" stroke="#e94560" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Claw poking out -->
+  <g transform="translate(26, 6)">
+    <path d="M2 18 Q-4 8 0 2 Q2 0 4 3 Q5 8 5 12" fill="#e94560" stroke="#c81e45" stroke-width="1.5"/>
+    <path d="M10 18 Q16 8 12 2 Q10 0 8 3 Q7 8 7 12" fill="#e94560" stroke="#c81e45" stroke-width="1.5"/>
+  </g>
+</svg>
